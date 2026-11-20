@@ -32,7 +32,7 @@ public sealed class AutoSyncTests : IDisposable
         Assert.Null(repo.Error);
         Assert.Equal(0, repo.Status!.Behind);
         Assert.True(File.Exists(Path.Combine(_git.Mine, "c.txt")));
-        Assert.Contains(_board.Activity.Entries, e => e.Text == "2 Commits gepullt (main)" && e.IsAuto);
+        Assert.Contains(_board.Activity.Entries, e => e is { Text: "2 Commits gepullt (main)", Kind: ActivityKind.Pulled, IsAuto: true } && e.RepoPath == repo.Path);
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public sealed class AutoSyncTests : IDisposable
 
         Assert.Equal(1, repo.Status!.Behind);
         Assert.False(File.Exists(Path.Combine(_git.Mine, "b.txt")));
-        Assert.Contains(_board.Activity.Entries, e => e.Text == "1 Commit neu auf origin/main");
+        Assert.Contains(_board.Activity.Entries, e => e is { Text: "1 Commit neu auf origin/main", Kind: ActivityKind.NewCommits });
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public sealed class AutoSyncTests : IDisposable
         Assert.Equal((1, 1), (repo.Status!.Ahead, repo.Status.Behind));
         Assert.NotNull(repo.AutoPullBlocked);
         Assert.False(File.Exists(Path.Combine(_git.Mine, "b.txt")));
-        Assert.Single(_board.Activity.Entries, e => e.Text.StartsWith("Auto-Pull übersprungen", StringComparison.Ordinal));
+        Assert.Single(_board.Activity.Entries, e => e.Text.StartsWith("Auto-Pull übersprungen", StringComparison.Ordinal) && e.Kind == ActivityKind.Skipped);
     }
 
     [Fact]
@@ -96,6 +96,23 @@ public sealed class AutoSyncTests : IDisposable
         _time.Advance(TimeSpan.FromSeconds(1));
         await _board.AutoSyncDueAsync(Ct);
         Assert.Equal(_time.GetUtcNow(), repo.LastAutoSync);
+    }
+
+    [Fact]
+    public async Task A_paused_auto_sync_syncs_nothing_until_resumed()
+    {
+        var repo = await AddMineAsync(autoPull: true);
+        GitSandbox.Commit(_git.Theirs, "b.txt", "two");
+        GitSandbox.Git(_git.Theirs, "push");
+
+        _board.SetAutoSyncPaused(true);
+        await _board.AutoSyncDueAsync(Ct);
+        Assert.Null(repo.LastAutoSync);
+        Assert.False(File.Exists(Path.Combine(_git.Mine, "b.txt")));
+
+        _board.SetAutoSyncPaused(false);
+        await _board.AutoSyncDueAsync(Ct);
+        Assert.True(File.Exists(Path.Combine(_git.Mine, "b.txt")));
     }
 
     [Fact]

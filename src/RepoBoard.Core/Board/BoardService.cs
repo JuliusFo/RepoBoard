@@ -20,6 +20,8 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     private readonly SemaphoreSlim _saveGate = new(1, 1);
     private ImmutableList<RepoState> _repos = [];
     private int _autoSyncMinutes = BoardConfig.DefaultAutoSyncMinutes;
+    private AppSettings _settings = new();
+    private volatile bool _autoSyncPaused;
     private bool _canSave = true;
 
     public event Action? Changed;
@@ -27,16 +29,21 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     public ActivityLog Activity { get; } = new();
     public IReadOnlyList<RepoState> Repos => _repos;
     public int AutoSyncMinutes => _autoSyncMinutes;
+    public AppSettings Settings => _settings;
+
+    /// <summary>Auto-sync skips its runs (tray menu); the status is still read. For this run only (decision of the user).</summary>
+    public bool AutoSyncPaused => _autoSyncPaused;
 
     public async Task LoadAsync(CancellationToken ct)
     {
         var load = await store.LoadAsync(ct);
         _canSave = load.CanSave;
         _autoSyncMinutes = load.Config.AutoSyncMinutes;
+        _settings = load.Config.Settings;
         _repos = [.. load.Config.Repos.Select(e => new RepoState(e)).OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase)];
         if (load.Problem is { } problem)
         {
-            Log(AppPaths.AppFolderName, problem, error: true);
+            Log(AppPaths.AppFolderName, problem, ActivityKind.Error);
         }
 
         Notify();
@@ -53,7 +60,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             var root = await git.FindRootAsync(path, ct);
             if (root is null)
             {
-                Log(Path.GetFileName(path), TextFormat.Format(SyncText.NotARepository, path), error: true);
+                Log(Path.GetFileName(path), TextFormat.Format(SyncText.NotARepository, path), ActivityKind.Error);
                 continue;
             }
 
@@ -85,7 +92,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     {
         var found = await Task.Run(() => RepoScanner.Find(root), ct);
         var added = await AddAsync(found, ct);
-        Log(Path.GetFileName(root), added == 0 ? SyncText.Scan_NothingNew : TextFormat.Plural(added, SyncText.Scan_AddedOne, SyncText.Scan_AddedOther), error: false);
+        Log(Path.GetFileName(root), added == 0 ? SyncText.Scan_NothingNew : TextFormat.Plural(added, SyncText.Scan_AddedOne, SyncText.Scan_AddedOther), ActivityKind.Info);
         Notify();
         return added;
     }
@@ -109,6 +116,25 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     {
         _autoSyncMinutes = BoardConfig.Intervals.Contains(minutes) ? minutes : BoardConfig.DefaultAutoSyncMinutes;
         await SaveAsync(ct);
+        Notify();
+    }
+
+    public async Task UpdateSettingsAsync(Func<AppSettings, AppSettings> change, CancellationToken ct)
+    {
+        _settings = change(_settings);
+        await SaveAsync(ct);
+        Notify();
+    }
+
+    public void SetAutoSyncPaused(bool paused)
+    {
+        if (_autoSyncPaused == paused)
+        {
+            return;
+        }
+
+        _autoSyncPaused = paused;
+        Log(AppPaths.AppFolderName, paused ? SyncText.AutoSync_Paused : SyncText.AutoSync_Resumed, ActivityKind.Info);
         Notify();
     }
 
@@ -141,11 +167,11 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         await _saveGate.WaitAsync(ct);
         try
         {
-            await store.SaveAsync(new BoardConfig { Repos = [.. _repos.Select(r => r.Entry)], AutoSyncMinutes = _autoSyncMinutes }, ct);
+            await store.SaveAsync(new BoardConfig { Repos = [.. _repos.Select(r => r.Entry)], AutoSyncMinutes = _autoSyncMinutes, Settings = _settings }, ct);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Log(AppPaths.AppFolderName, TextFormat.Format(CoreText.Config_NotSaved, store.File, ex.Message), error: true);
+            Log(AppPaths.AppFolderName, TextFormat.Format(CoreText.Config_NotSaved, store.File, ex.Message), ActivityKind.Error);
         }
         finally
         {
@@ -229,15 +255,15 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
 
     public Task<bool> FetchAsync(RepoState repo, CancellationToken ct) =>
         RunAsync(repo, SyncText.Op_Fetch, network: true, c => git.FetchAsync(repo.Path, GitCallMode.Interactive, c),
-            () => repo.Status is { HasUpstream: true, Behind: > 0 } s
+            () => Info(repo.Status is { HasUpstream: true, Behind: > 0 } s
                 ? TextFormat.Format(SyncText.Fetched_Behind, Commits(s.Behind), s.Upstream)
-                : SyncText.Fetched_UpToDate,
+                : SyncText.Fetched_UpToDate),
             ct);
 
     public async Task<bool> PullAsync(RepoState repo, CancellationToken ct)
     {
         var before = repo.Status?.Head;
-        string? pulled = null;
+        ActivityNote? pulled = null;
         return await RunAsync(repo, SyncText.Op_Pull, network: true, async c =>
         {
             var result = await git.PullAsync(repo.Path, GitCallMode.Interactive, c);
@@ -250,9 +276,9 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     {
         var setUpstream = repo.Status is { HasUpstream: false, IsDetached: false };
         return RunAsync(repo, SyncText.Op_Push, network: true, c => git.PushAsync(repo.Path, setUpstream, c),
-            () => setUpstream
+            () => Info(setUpstream
                 ? TextFormat.Format(SyncText.PushedWithUpstream, repo.Status?.Upstream)
-                : TextFormat.Format(SyncText.Pushed, repo.Status?.Branch),
+                : TextFormat.Format(SyncText.Pushed, repo.Status?.Branch)),
             ct);
     }
 
@@ -280,7 +306,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
 
             var committed = await git.CommitAsync(repo.Path, message, c);
             return !committed.Success || !push ? committed : await git.PushAsync(repo.Path, setUpstream, c);
-        }, () => TextFormat.Format(push ? SyncText.CommittedAndPushed : SyncText.Committed, FirstLine(message)), ct);
+        }, () => Info(TextFormat.Format(push ? SyncText.CommittedAndPushed : SyncText.Committed, FirstLine(message))), ct);
     }
 
     public Task<bool> SwitchAsync(RepoState repo, BranchInfo branch, CancellationToken ct)
@@ -288,12 +314,12 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         // A remote branch "origin/feature" is switched to as "feature": git creates the local tracking branch.
         var name = branch.IsRemote ? branch.Name[(branch.Name.IndexOf('/', StringComparison.Ordinal) + 1)..] : branch.Name;
         return RunAsync(repo, SyncText.Op_Switch, network: false, c => CheckedAsync(repo, name, git.SwitchAsync, c),
-            () => TextFormat.Format(SyncText.Switched, name), ct);
+            () => Info(TextFormat.Format(SyncText.Switched, name)), ct);
     }
 
     public Task<bool> CreateBranchAsync(RepoState repo, string name, CancellationToken ct) =>
         RunAsync(repo, SyncText.Op_CreateBranch, network: false, c => CheckedAsync(repo, name, git.CreateBranchAsync, c),
-            () => TextFormat.Format(SyncText.BranchCreated, name), ct);
+            () => Info(TextFormat.Format(SyncText.BranchCreated, name)), ct);
 
     /// <summary>A branch name typed by the user or read from a ref goes to git only once git accepts it as one.</summary>
     private async Task<GitResult> CheckedAsync(RepoState repo, string name, Func<string, string, CancellationToken, Task<GitResult>> run, CancellationToken ct) =>
@@ -310,15 +336,23 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     /// <summary>A failure outside git: a program that does not start, a dialog that fails.</summary>
     public void ReportError(string source, string text)
     {
-        Log(source, text, error: true);
+        Log(source, text, ActivityKind.Error);
         Notify();
     }
 
     // ---------- auto-sync (ADR 0003) ----------
 
-    /// <summary>Syncs every repository whose interval has passed. Called by <see cref="AutoSyncService"/> on each tick.</summary>
+    /// <summary>
+    /// Syncs every repository whose interval has passed; nothing while paused. Called by <see cref="AutoSyncService"/> on
+    /// each tick.
+    /// </summary>
     public async Task AutoSyncDueAsync(CancellationToken ct)
     {
+        if (_autoSyncPaused)
+        {
+            return;
+        }
+
         var now = time.GetUtcNow();
         var interval = TimeSpan.FromMinutes(_autoSyncMinutes);
         var due = _repos.Where(r => r.AutoSyncOn && !r.Missing && (r.LastAutoSync is null || now - r.LastAutoSync >= interval)).ToList();
@@ -343,7 +377,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             var fetched = await RunLockedAsync(repo, SyncText.Op_AutoFetch, network: true,
                 c => git.FetchAsync(repo.Path, GitCallMode.Background, c),
                 () => repo.Status is { HasUpstream: true } s && s.Behind > behindBefore && !repo.Entry.AutoPull
-                    ? TextFormat.Format(SyncText.NewOnUpstream, Commits(s.Behind), s.Upstream)
+                    ? new ActivityNote(TextFormat.Format(SyncText.NewOnUpstream, Commits(s.Behind), s.Upstream), ActivityKind.NewCommits)
                     : null,
                 auto: true, ct);
             if (!fetched || !repo.Entry.AutoPull || repo.Status is not { Behind: > 0 } status)
@@ -355,7 +389,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             var blocker = PullCheck.Blocker(status, repo.Operation);
             if (blocker is not null && blocker != repo.AutoPullBlocked)
             {
-                Log(repo.Name, TextFormat.Format(SyncText.AutoPullSkipped, blocker), error: false, auto: true);
+                Log(repo.Name, TextFormat.Format(SyncText.AutoPullSkipped, blocker), ActivityKind.Skipped, auto: true, repo.Path);
             }
 
             repo.AutoPullBlocked = blocker;
@@ -365,7 +399,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             }
 
             var before = status.Head;
-            string? pulled = null;
+            ActivityNote? pulled = null;
             await RunLockedAsync(repo, SyncText.Op_AutoPull, network: false, async c =>
             {
                 var result = await git.FastForwardAsync(repo.Path, c);
@@ -383,7 +417,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     // ---------- plumbing ----------
 
     private async Task<bool> RunAsync(RepoState repo, string label, bool network, Func<CancellationToken, Task<GitResult>> operation,
-        Func<string?>? success, CancellationToken ct)
+        Func<ActivityNote?>? success, CancellationToken ct)
     {
         await repo.Gate.WaitAsync(ct);
         try
@@ -398,7 +432,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     }
 
     private async Task<bool> RunLockedAsync(RepoState repo, string label, bool network, Func<CancellationToken, Task<GitResult>> operation,
-        Func<string?>? success, bool auto, CancellationToken ct)
+        Func<ActivityNote?>? success, bool auto, CancellationToken ct)
     {
         repo.Busy = label;
         Notify();
@@ -440,35 +474,40 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             repo.Busy = null;
         }
 
-        var text = error ?? success?.Invoke();
-        if (text is not null && !repeated)
+        var note = error is not null ? new ActivityNote(error, ActivityKind.Error) : success?.Invoke();
+        if (note is { } n && !repeated)
         {
-            Log(repo.Name, text, error is not null, auto);
+            Log(repo.Name, n.Text, n.Kind, auto, repo.Path);
         }
 
         return result.Success;
     }
 
-    private async Task<string?> PulledTextAsync(string repo, string? before, CancellationToken ct)
+    private async Task<ActivityNote> PulledTextAsync(string repo, string? before, CancellationToken ct)
     {
         var (status, _) = await git.StatusAsync(repo, ct);
         if (status?.Head is not { } after || after == before)
         {
-            return SyncText.AlreadyUpToDate;
+            return new(SyncText.AlreadyUpToDate, ActivityKind.Info);
         }
 
         var count = before is null ? null : await git.CountAsync(repo, $"{before}..{after}", ct);
-        return count is { } n
+        return new(count is { } n
             ? TextFormat.Format(SyncText.Pulled, Commits(n), status.Branch)
-            : TextFormat.Format(SyncText.Updated, status.Branch);
+            : TextFormat.Format(SyncText.Updated, status.Branch), ActivityKind.Pulled);
     }
 
-    private void Log(string repo, string text, bool error, bool auto = false) =>
-        Activity.Add(new ActivityEntry(time.GetLocalNow(), repo, text, error, auto));
+    private void Log(string repo, string text, ActivityKind kind, bool auto = false, string? path = null) =>
+        Activity.Add(new ActivityEntry(time.GetLocalNow(), repo, text, kind, auto, path));
+
+    private static ActivityNote? Info(string text) => new ActivityNote(text, ActivityKind.Info);
 
     private void Notify() => Changed?.Invoke();
 
     private static string Commits(int n) => TextFormat.Plural(n, SyncText.CommitsOne, SyncText.CommitsOther);
 
     private static string FirstLine(string text) => text.Split('\n', 2)[0].Trim();
+
+    /// <summary>What a successful operation tells the activity log.</summary>
+    private readonly record struct ActivityNote(string Text, ActivityKind Kind);
 }
