@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Security
+- Credentials in git’s messages are masked before they reach the row, the activity log and Windows notifications: the password or token in a remote URL (`https://user:***@host`, `https://***@host`) and GitHub and GitLab tokens in a server’s `remote:` lines.
+
 ### Added
 - One page for all repositories (WP-01): branch, commits ahead and behind, staged, changed, new and conflicted files, the time of the last fetch (also from the IDE or terminal) and a merge or rebase still in progress. Filter chips with counts (changes, behind, ahead, auto-sync, problems) and a search over name, path and branch.
 - Fetch, pull (fast-forward only) and push per repository, fetch all; the first push of a branch sets its upstream.
