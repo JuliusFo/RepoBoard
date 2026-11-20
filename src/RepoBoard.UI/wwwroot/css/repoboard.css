@@ -123,6 +123,26 @@ code { font-family: var(--mono); font-size: 12px; }
 .btn.ghost { border-color: transparent; background: transparent; color: var(--muted); }
 .btn.ghost:hover:not(:disabled) { color: var(--text); }
 .btn.danger-hover:hover:not(:disabled) { color: var(--danger); background: var(--danger-weak); }
+.btn.active { background: var(--accent-weak); border-color: var(--accent); color: var(--accent); }
+
+/* ---------- settings, pause ---------- */
+.paused {
+  display: flex; align-items: center; gap: 8px; white-space: nowrap;
+  height: 30px; padding: 0 4px 0 10px; border-radius: 7px;
+  background: var(--warn-weak); color: var(--warn); font-weight: 600;
+}
+.settings { position: relative; }
+.backdrop { position: fixed; inset: 0; z-index: 9; }
+.menu-panel {
+  position: absolute; right: 0; top: 36px; z-index: 10; width: 340px;
+  display: flex; flex-direction: column; gap: 2px; padding: 8px;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px;
+  box-shadow: 0 8px 24px var(--knob-shadow);
+}
+.setting { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; padding: 0 6px; }
+.setting select { height: 28px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); padding: 0 6px; }
+.row.repo:focus { outline: none; }
+
 .btn.hot { border-color: var(--accent); color: var(--accent); background: var(--accent-weak); font-weight: 600; }
 
 /* ---------- table ---------- */

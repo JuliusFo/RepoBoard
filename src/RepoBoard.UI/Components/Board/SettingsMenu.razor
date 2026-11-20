@@ -1,0 +1,76 @@
+@* The settings beside the board (ADR 0006): what closing does, start with Windows, notifications, the auto-sync pause. *@
+@inherits BoardComponent
+@inject IAutostart Autostart
+
+<div class="settings">
+    <button class="btn icon-only @(_open ? "active" : "")" title="@BoardText.Settings_Hint" aria-expanded="@(_open ? "true" : "false")"
+            @onclick="Open">@Icons.Settings</button>
+    @if (_open)
+    {
+        <div class="backdrop" @onclick="() => _open = false"></div>
+        <div class="menu-panel" role="dialog" aria-label="@BoardText.Settings_Hint">
+            <div class="setting">
+                <span>@BoardText.Settings_CloseToTray</span>
+                <Toggle Value="Board.Settings.CloseToTray" Title="@BoardText.Settings_CloseToTray"
+                        OnChange="on => GuardAsync(() => Board.UpdateSettingsAsync(s => s with { CloseToTray = on }, default))" />
+            </div>
+            <div class="setting">
+                <span>@BoardText.Settings_Autostart</span>
+                <Toggle Value="_autostart" Title="@BoardText.Settings_Autostart" OnChange="SetAutostart" />
+            </div>
+            <div class="setting">
+                <span>@BoardText.Tray_PauseAutoSync</span>
+                <Toggle Value="Board.AutoSyncPaused" Title="@BoardText.Paused_Hint" OnChange="on => Guard(() => Board.SetAutoSyncPaused(on))" />
+            </div>
+            <div class="setting">
+                <span>@BoardText.Settings_Notifications</span>
+                <select value="@Board.Settings.Notifications" @onchange="SetNotifications">
+                    @foreach (var level in Levels)
+                    {
+                        <option value="@level">@Label(level)</option>
+                    }
+                </select>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly NotificationLevel[] Levels = [NotificationLevel.PullsAndProblems, NotificationLevel.Problems, NotificationLevel.Off];
+    private bool _open;
+    private bool _autostart;
+
+    private static string Label(NotificationLevel level) => level switch
+    {
+        NotificationLevel.Problems => BoardText.Notify_Problems,
+        NotificationLevel.Off => BoardText.Notify_Off,
+        _ => BoardText.Notify_PullsAndProblems,
+    };
+
+    /// <summary>The start entry is read on each opening: the user can switch it off in the Task Manager meanwhile.</summary>
+    private void Open() => Guard(() =>
+    {
+        _open = !_open;
+        if (_open)
+        {
+            _autostart = Autostart.IsOn;
+        }
+    });
+
+    private void SetAutostart(bool on) => Guard(() =>
+    {
+        try
+        {
+            Autostart.Set(on);
+        }
+        finally
+        {
+            _autostart = Autostart.IsOn;
+        }
+    });
+
+    private Task SetNotifications(ChangeEventArgs e) => GuardAsync(() =>
+        Enum.TryParse<NotificationLevel>((string?)e.Value, out var level)
+            ? Board.UpdateSettingsAsync(s => s with { Notifications = level }, default)
+            : Task.CompletedTask);
+}

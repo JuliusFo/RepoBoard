@@ -1,7 +1,7 @@
 @* One repository: the row (a click opens the details), an error line below it if the last operation failed. *@
 @inherits BoardComponent
 
-<div class="row repo @(Expanded ? "open" : "")" @onclick="OnToggle">
+<div class="row repo @(Expanded ? "open" : "")" tabindex="-1" @ref="_row" @onclick="OnToggle">
     <span class="chev">@(Expanded ? Icons.ChevronDown : Icons.ChevronRight)</span>
 
     <span class="name">
@@ -129,7 +129,23 @@
     [Parameter] public bool Expanded { get; set; }
     [Parameter] public EventCallback OnToggle { get; set; }
 
+    /// <summary>Changes when the row is to come into view (a click on a notification); 0 = no request.</summary>
+    [Parameter] public int ScrollRequest { get; set; }
+
+    private ElementReference _row;
+    private int _scrolled;
+
     private RepoStatus? Status => Repo.Status;
+
+    /// <summary>Focusing scrolls the row into view – no script needed (the page allows none inline).</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (ScrollRequest != 0 && ScrollRequest != _scrolled)
+        {
+            _scrolled = ScrollRequest;
+            await GuardAsync(() => _row.FocusAsync().AsTask());
+        }
+    }
 
     /// <summary>The usual long-lived branches stay grey; any other branch is coloured, so a forgotten feature branch stands out.</summary>
     private static bool IsMainBranch(string? name) => name is "main" or "master" or "develop" or "dev";
