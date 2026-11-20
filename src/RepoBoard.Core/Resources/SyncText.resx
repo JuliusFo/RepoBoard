@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="GitMissing" xml:space="preserve">
+    <value>git was not found. Install Git for Windows and start RepoBoard again.</value>
+  </data>
+  <data name="GitTimedOut" xml:space="preserve">
+    <value>git {0}: no answer after {1} s, cancelled.</value>
+    <comment>{0} = the git arguments, {1} = seconds</comment>
+  </data>
+  <data name="NotARepository" xml:space="preserve">
+    <value>{0} is not a Git repository.</value>
+    <comment>{0} = folder path</comment>
+  </data>
+  <data name="InvalidBranchName" xml:space="preserve">
+    <value>“{0}” is not a valid branch name.</value>
+    <comment>{0} = the name typed</comment>
+  </data>
+  <data name="OperationFailed" xml:space="preserve">
+    <value>{0}: {1}</value>
+    <comment>{0} = operation (Fetch, Pull …), {1} = git's message</comment>
+  </data>
+  <data name="Op_Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Op_Fetch" xml:space="preserve">
+    <value>Fetch</value>
+  </data>
+  <data name="Op_Pull" xml:space="preserve">
+    <value>Pull</value>
+  </data>
+  <data name="Op_Push" xml:space="preserve">
+    <value>Push</value>
+  </data>
+  <data name="Op_Stage" xml:space="preserve">
+    <value>Stage</value>
+  </data>
+  <data name="Op_Unstage" xml:space="preserve">
+    <value>Unstage</value>
+  </data>
+  <data name="Op_Commit" xml:space="preserve">
+    <value>Commit</value>
+  </data>
+  <data name="Op_CommitPush" xml:space="preserve">
+    <value>Commit and push</value>
+  </data>
+  <data name="Op_Switch" xml:space="preserve">
+    <value>Switch branch</value>
+  </data>
+  <data name="Op_CreateBranch" xml:space="preserve">
+    <value>Create branch</value>
+  </data>
+  <data name="Op_AutoFetch" xml:space="preserve">
+    <value>Auto-fetch</value>
+  </data>
+  <data name="Op_AutoPull" xml:space="preserve">
+    <value>Auto-pull</value>
+  </data>
+  <data name="CommitsOne" xml:space="preserve">
+    <value>{0} commit</value>
+    <comment>{0} = 1</comment>
+  </data>
+  <data name="CommitsOther" xml:space="preserve">
+    <value>{0} commits</value>
+    <comment>{0} = number of commits</comment>
+  </data>
+  <data name="Fetched_UpToDate" xml:space="preserve">
+    <value>Fetched – up to date</value>
+  </data>
+  <data name="Fetched_Behind" xml:space="preserve">
+    <value>Fetched – {0} on {1} not pulled yet</value>
+    <comment>{0} = “3 commits”, {1} = upstream branch</comment>
+  </data>
+  <data name="NewOnUpstream" xml:space="preserve">
+    <value>{0} new on {1}</value>
+    <comment>{0} = “3 commits”, {1} = upstream branch</comment>
+  </data>
+  <data name="Pulled" xml:space="preserve">
+    <value>{0} pulled ({1})</value>
+    <comment>{0} = “3 commits”, {1} = branch</comment>
+  </data>
+  <data name="Updated" xml:space="preserve">
+    <value>Updated ({0})</value>
+    <comment>{0} = branch</comment>
+  </data>
+  <data name="AlreadyUpToDate" xml:space="preserve">
+    <value>Already up to date</value>
+  </data>
+  <data name="Pushed" xml:space="preserve">
+    <value>Pushed ({0})</value>
+    <comment>{0} = branch</comment>
+  </data>
+  <data name="PushedWithUpstream" xml:space="preserve">
+    <value>Pushed, upstream set: {0}</value>
+    <comment>{0} = upstream branch</comment>
+  </data>
+  <data name="Committed" xml:space="preserve">
+    <value>Committed: {0}</value>
+    <comment>{0} = first line of the commit message</comment>
+  </data>
+  <data name="CommittedAndPushed" xml:space="preserve">
+    <value>Committed and pushed: {0}</value>
+    <comment>{0} = first line of the commit message</comment>
+  </data>
+  <data name="Switched" xml:space="preserve">
+    <value>Switched to {0}</value>
+    <comment>{0} = branch</comment>
+  </data>
+  <data name="BranchCreated" xml:space="preserve">
+    <value>Branch {0} created</value>
+    <comment>{0} = branch</comment>
+  </data>
+  <data name="AutoPullSkipped" xml:space="preserve">
+    <value>Auto-pull skipped: {0}</value>
+    <comment>{0} = the reason (Blocker_…)</comment>
+  </data>
+  <data name="Blocker_Detached" xml:space="preserve">
+    <value>no branch checked out (detached HEAD)</value>
+  </data>
+  <data name="Blocker_NoUpstream" xml:space="preserve">
+    <value>the branch has no upstream</value>
+  </data>
+  <data name="Blocker_Operation" xml:space="preserve">
+    <value>a {0} is still in progress</value>
+    <comment>{0} = Operation_… (merge, rebase …)</comment>
+  </data>
+  <data name="Blocker_Conflicts" xml:space="preserve">
+    <value>unresolved conflicts</value>
+  </data>
+  <data name="Blocker_Diverged" xml:space="preserve">
+    <value>the branch has diverged ({0} local, {1} remote) – merge or rebase it yourself</value>
+    <comment>{0} = commits only local, {1} = commits only on the upstream</comment>
+  </data>
+  <data name="Operation_Merge" xml:space="preserve">
+    <value>merge</value>
+  </data>
+  <data name="Operation_Rebase" xml:space="preserve">
+    <value>rebase</value>
+  </data>
+  <data name="Operation_CherryPick" xml:space="preserve">
+    <value>cherry-pick</value>
+  </data>
+  <data name="Operation_Revert" xml:space="preserve">
+    <value>revert</value>
+  </data>
+  <data name="Scan_NothingNew" xml:space="preserve">
+    <value>No new repositories found.</value>
+  </data>
+  <data name="Scan_AddedOne" xml:space="preserve">
+    <value>{0} repository added.</value>
+    <comment>{0} = 1</comment>
+  </data>
+  <data name="Scan_AddedOther" xml:space="preserve">
+    <value>{0} repositories added.</value>
+    <comment>{0} = number of repositories</comment>
+  </data>
+</root>

@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Search_Placeholder" xml:space="preserve">
+    <value>Repos oder Branches filtern …</value>
+  </data>
+  <data name="Filter_All" xml:space="preserve">
+    <value>Alle</value>
+  </data>
+  <data name="Filter_Changes" xml:space="preserve">
+    <value>Änderungen</value>
+  </data>
+  <data name="Filter_Behind" xml:space="preserve">
+    <value>Hinterher</value>
+  </data>
+  <data name="Filter_Ahead" xml:space="preserve">
+    <value>Voraus</value>
+  </data>
+  <data name="Filter_AutoSync" xml:space="preserve">
+    <value>Auto-Sync</value>
+  </data>
+  <data name="Filter_Problems" xml:space="preserve">
+    <value>Probleme</value>
+  </data>
+  <data name="Interval_Label" xml:space="preserve">
+    <value>Auto-Sync alle</value>
+  </data>
+  <data name="Interval_Hint" xml:space="preserve">
+    <value>Wie oft Repos mit Auto-Fetch oder Auto-Pull synchronisiert werden</value>
+  </data>
+  <data name="Interval_Minutes" xml:space="preserve">
+    <value>{0} min</value>
+  </data>
+  <data name="Refresh_Hint" xml:space="preserve">
+    <value>Status aller Repos neu lesen</value>
+  </data>
+  <data name="FetchAll" xml:space="preserve">
+    <value>Alle fetchen</value>
+  </data>
+  <data name="FetchAll_Hint" xml:space="preserve">
+    <value>git fetch --all --prune in allen Repos</value>
+  </data>
+  <data name="Scan" xml:space="preserve">
+    <value>Ordner scannen</value>
+  </data>
+  <data name="Scan_Hint" xml:space="preserve">
+    <value>Einen Ordner nach Repositories durchsuchen, drei Ebenen tief</value>
+  </data>
+  <data name="Scan_DialogTitle" xml:space="preserve">
+    <value>Ordner mit Repositories wählen</value>
+  </data>
+  <data name="Add" xml:space="preserve">
+    <value>Repo</value>
+  </data>
+  <data name="Add_Hint" xml:space="preserve">
+    <value>Ein Repository hinzufügen</value>
+  </data>
+  <data name="Add_DialogTitle" xml:space="preserve">
+    <value>Repository hinzufügen</value>
+  </data>
+  <data name="Empty_Title" xml:space="preserve">
+    <value>Noch keine Repositories</value>
+  </data>
+  <data name="Empty_Text" xml:space="preserve">
+    <value>Füge einzelne Repos hinzu oder lass einen Ordner wie {0} durchsuchen.</value>
+  </data>
+  <data name="Empty_Add" xml:space="preserve">
+    <value>Repo hinzufügen</value>
+  </data>
+  <data name="Col_Repository" xml:space="preserve">
+    <value>Repository</value>
+  </data>
+  <data name="Col_Branch" xml:space="preserve">
+    <value>Branch</value>
+  </data>
+  <data name="Col_Sync" xml:space="preserve">
+    <value>Sync</value>
+  </data>
+  <data name="Col_Changes" xml:space="preserve">
+    <value>Änderungen</value>
+  </data>
+  <data name="Col_Fetched" xml:space="preserve">
+    <value>Gefetcht</value>
+  </data>
+  <data name="Col_AutoFetch" xml:space="preserve">
+    <value>Auto-Fetch</value>
+  </data>
+  <data name="Col_AutoFetch_Hint" xml:space="preserve">
+    <value>Regelmäßig git fetch im Hintergrund</value>
+  </data>
+  <data name="Col_AutoPull" xml:space="preserve">
+    <value>Auto-Pull</value>
+  </data>
+  <data name="Col_AutoPull_Hint" xml:space="preserve">
+    <value>Nach dem Fetch fast-forward, wenn es gefahrlos geht</value>
+  </data>
+  <data name="NoMatch" xml:space="preserve">
+    <value>Kein Repo passt zum Filter.</value>
+  </data>
+  <data name="Activity" xml:space="preserve">
+    <value>Aktivität</value>
+  </data>
+  <data name="Activity_Auto" xml:space="preserve">
+    <value>auto</value>
+  </data>
+  <data name="Missing" xml:space="preserve">
+    <value>Ordner fehlt</value>
+  </data>
+  <data name="Detached" xml:space="preserve">
+    <value>detached {0}</value>
+  </data>
+  <data name="Detached_Hint" xml:space="preserve">
+    <value>Kein Branch ausgecheckt</value>
+  </data>
+  <data name="OperationRunning" xml:space="preserve">
+    <value>{0} läuft</value>
+  </data>
+  <data name="NoUpstream" xml:space="preserve">
+    <value>kein Upstream</value>
+  </data>
+  <data name="NoUpstream_Hint" xml:space="preserve">
+    <value>Noch nie gepusht – Push setzt den Upstream</value>
+  </data>
+  <data name="Ahead_Hint" xml:space="preserve">
+    <value>{0} lokale Commits noch nicht auf {1}</value>
+  </data>
+  <data name="Behind_Hint" xml:space="preserve">
+    <value>{0} Commits auf {1} noch nicht gepullt</value>
+  </data>
+  <data name="UpToDate" xml:space="preserve">
+    <value>aktuell</value>
+  </data>
+  <data name="UpToDate_Hint" xml:space="preserve">
+    <value>Gleich mit {0} (Stand des letzten Fetch)</value>
+  </data>
+  <data name="Clean" xml:space="preserve">
+    <value>sauber</value>
+  </data>
+  <data name="Conflicts_Hint" xml:space="preserve">
+    <value>Konflikte</value>
+  </data>
+  <data name="Staged_Hint" xml:space="preserve">
+    <value>Gestaged</value>
+  </data>
+  <data name="Modified_Hint" xml:space="preserve">
+    <value>Geändert, nicht gestaged</value>
+  </data>
+  <data name="Untracked_Hint" xml:space="preserve">
+    <value>Neue Dateien</value>
+  </data>
+  <data name="Fetch_Hint" xml:space="preserve">
+    <value>git fetch --all --prune</value>
+  </data>
+  <data name="Pull" xml:space="preserve">
+    <value>Pull</value>
+  </data>
+  <data name="Pull_Hint" xml:space="preserve">
+    <value>git pull --ff-only</value>
+  </data>
+  <data name="Push" xml:space="preserve">
+    <value>Push</value>
+  </data>
+  <data name="Push_Hint" xml:space="preserve">
+    <value>git push</value>
+  </data>
+  <data name="OpenFolder_Hint" xml:space="preserve">
+    <value>Im Explorer öffnen</value>
+  </data>
+  <data name="OpenTerminal_Hint" xml:space="preserve">
+    <value>Terminal hier öffnen</value>
+  </data>
+  <data name="OpenEditor_Hint" xml:space="preserve">
+    <value>In VS Code öffnen</value>
+  </data>
+  <data name="Remove_Hint" xml:space="preserve">
+    <value>Von der Liste entfernen (der Ordner bleibt)</value>
+  </data>
+  <data name="HideError_Hint" xml:space="preserve">
+    <value>Ausblenden</value>
+  </data>
+  <data name="Changes" xml:space="preserve">
+    <value>Änderungen</value>
+  </data>
+  <data name="StageAll" xml:space="preserve">
+    <value>Alle stagen</value>
+  </data>
+  <data name="UnstageAll" xml:space="preserve">
+    <value>Alle unstagen</value>
+  </data>
+  <data name="NoChanges" xml:space="preserve">
+    <value>Keine Änderungen.</value>
+  </data>
+  <data name="Staged_Head" xml:space="preserve">
+    <value>Gestaged ({0})</value>
+  </data>
+  <data name="Unstaged_Head" xml:space="preserve">
+    <value>Nicht gestaged ({0})</value>
+  </data>
+  <data name="CommitMessage_Placeholder" xml:space="preserve">
+    <value>Commit-Nachricht</value>
+  </data>
+  <data name="CommitStaged" xml:space="preserve">
+    <value>Commit ({0})</value>
+  </data>
+  <data name="CommitAll" xml:space="preserve">
+    <value>Alle committen</value>
+  </data>
+  <data name="CommitPush" xml:space="preserve">
+    <value>Commit und Push</value>
+  </data>
+  <data name="Branches" xml:space="preserve">
+    <value>Branches</value>
+  </data>
+  <data name="NewBranch_Placeholder" xml:space="preserve">
+    <value>Neuer Branch vom aktuellen Stand</value>
+  </data>
+  <data name="NewBranch_Create" xml:space="preserve">
+    <value>Anlegen</value>
+  </data>
+  <data name="Switch" xml:space="preserve">
+    <value>Wechseln</value>
+  </data>
+  <data name="Switch_Hint" xml:space="preserve">
+    <value>git switch</value>
+  </data>
+  <data name="RecentCommits" xml:space="preserve">
+    <value>Letzte Commits</value>
+  </data>
+  <data name="NoCommits" xml:space="preserve">
+    <value>Noch keine Commits.</value>
+  </data>
+  <data name="Loading" xml:space="preserve">
+    <value>Lade …</value>
+  </data>
+  <data name="Ago_Never" xml:space="preserve">
+    <value>nie</value>
+  </data>
+  <data name="Ago_JustNow" xml:space="preserve">
+    <value>gerade eben</value>
+  </data>
+  <data name="Ago_Minutes" xml:space="preserve">
+    <value>vor {0} min</value>
+  </data>
+  <data name="Ago_Hours" xml:space="preserve">
+    <value>vor {0} h</value>
+  </data>
+  <data name="Ago_Yesterday" xml:space="preserve">
+    <value>gestern</value>
+  </data>
+  <data name="Ago_Days" xml:space="preserve">
+    <value>vor {0} Tagen</value>
+  </data>
+  <data name="App_AlreadyRunning" xml:space="preserve">
+    <value>RepoBoard läuft schon auf {0}.</value>
+  </data>
+  <data name="App_StartFailed" xml:space="preserve">
+    <value>RepoBoard konnte nicht starten:
+{0}
+
+Log: {1}</value>
+  </data>
+</root>

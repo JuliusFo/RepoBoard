@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="FileNotUtf8" xml:space="preserve">
+    <value>The file is not UTF-8.</value>
+  </data>
+  <data name="Config_Newer" xml:space="preserve">
+    <value>{0} was written by a newer RepoBoard. Changes to the list are not saved.</value>
+    <comment>{0} = path of the config file</comment>
+  </data>
+  <data name="Config_Unreadable" xml:space="preserve">
+    <value>{0} could not be read ({1}). Changes to the list are not saved until the next start.</value>
+    <comment>{0} = path of the config file, {1} = the error</comment>
+  </data>
+  <data name="Config_Broken" xml:space="preserve">
+    <value>{0} could not be read ({1}); the list starts empty. The old file is kept as {2}.</value>
+    <comment>{0} = path of the config file, {1} = the error, {2} = path of the kept copy</comment>
+  </data>
+  <data name="Config_NotSaved" xml:space="preserve">
+    <value>{0} could not be saved: {1}</value>
+    <comment>{0} = path of the config file, {1} = the error</comment>
+  </data>
+</root>

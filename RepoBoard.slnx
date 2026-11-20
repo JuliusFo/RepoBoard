@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RepoBoard.App/RepoBoard.App.csproj" />
+    <Project Path="src/RepoBoard.Core/RepoBoard.Core.csproj" />
+    <Project Path="src/RepoBoard.UI/RepoBoard.UI.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RepoBoard.Core.Tests/RepoBoard.Core.Tests.csproj" />
+    <Project Path="tests/RepoBoard.UI.Tests/RepoBoard.UI.Tests.csproj" />
+  </Folder>
+</Solution>

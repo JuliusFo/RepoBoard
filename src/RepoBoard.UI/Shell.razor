@@ -1,0 +1,148 @@
+@* The one page (decision of the user: everything on one page): toolbar, filter chips, the table of all repositories, the activity log. *@
+@inherits BoardComponent
+@implements IDisposable
+@inject TimeProvider Time
+
+<div class="app">
+    <header class="topbar">
+        <div class="brand">Repo<span>Board</span></div>
+        <label class="search">
+            @Icons.Search
+            <input placeholder="@BoardText.Search_Placeholder" @bind="_search" @bind:event="oninput" />
+        </label>
+        <nav class="chips">
+            @foreach (var kind in BoardFilter.Kinds)
+            {
+                var count = Board.Repos.Count(r => BoardFilter.Matches(kind, r));
+                <button class="chip @(kind == _filter ? "active" : "")" @onclick="() => _filter = kind">
+                    @Label(kind) <b>@count</b>
+                </button>
+            }
+        </nav>
+        <div class="spacer"></div>
+        <label class="interval" title="@BoardText.Interval_Hint">
+            @BoardText.Interval_Label
+            <select value="@Board.AutoSyncMinutes" @onchange="e => GuardAsync(() => Board.SetAutoSyncMinutesAsync(int.Parse((string)e.Value!, System.Globalization.CultureInfo.InvariantCulture), default))">
+                @foreach (var minutes in BoardConfig.Intervals)
+                {
+                    <option value="@minutes">@TextFormat.Format(BoardText.Interval_Minutes, minutes)</option>
+                }
+            </select>
+        </label>
+        <button class="btn icon-only" title="@BoardText.Refresh_Hint" @onclick="() => GuardAsync(() => Board.RefreshAllAsync(default))">@Icons.Refresh</button>
+        <button class="btn" title="@BoardText.FetchAll_Hint" @onclick="FetchAll">@Icons.Fetch @BoardText.FetchAll</button>
+        <button class="btn" title="@BoardText.Scan_Hint" @onclick="Scan">@BoardText.Scan</button>
+        <button class="btn primary" title="@BoardText.Add_Hint" @onclick="Add">@Icons.Plus @BoardText.Add</button>
+    </header>
+
+    <main class="board">
+        @if (Board.Repos.Count == 0)
+        {
+            <div class="empty-board">
+                <h2>@BoardText.Empty_Title</h2>
+                <p>@TextFormat.Format(BoardText.Empty_Text, @"C:\Dev-Repos")</p>
+                <div class="empty-actions">
+                    <button class="btn primary" @onclick="Scan">@BoardText.Scan</button>
+                    <button class="btn" @onclick="Add">@Icons.Plus @BoardText.Empty_Add</button>
+                </div>
+            </div>
+        }
+        else
+        {
+            var visible = BoardFilter.Visible(Board.Repos, _filter, _search).ToList();
+            var now = Time.GetUtcNow();
+            <div class="table">
+                <div class="row head">
+                    <span></span>
+                    <span>@BoardText.Col_Repository</span>
+                    <span>@BoardText.Col_Branch</span>
+                    <span>@BoardText.Col_Sync</span>
+                    <span>@BoardText.Col_Changes</span>
+                    <span>@BoardText.Col_Fetched</span>
+                    <span title="@BoardText.Col_AutoFetch_Hint">@BoardText.Col_AutoFetch</span>
+                    <span title="@BoardText.Col_AutoPull_Hint">@BoardText.Col_AutoPull</span>
+                    <span></span>
+                </div>
+                @foreach (var repo in visible)
+                {
+                    <RepoRow @key="repo" Repo="repo" Now="now" Expanded="_expanded.Contains(repo)" OnToggle="() => Toggle(repo)" />
+                }
+                @if (visible.Count == 0)
+                {
+                    <div class="no-match">@BoardText.NoMatch</div>
+                }
+            </div>
+        }
+    </main>
+
+    <ActivityPanel Entries="Board.Activity.Entries" />
+</div>
+
+@code {
+    private readonly HashSet<RepoState> _expanded = [];
+    private BoardFilterKind _filter = BoardFilterKind.All;
+    private string _search = "";
+    private int _renderQueued;
+    private ITimer? _clock;
+
+    private static string Label(BoardFilterKind kind) => kind switch
+    {
+        BoardFilterKind.Changes => BoardText.Filter_Changes,
+        BoardFilterKind.Behind => BoardText.Filter_Behind,
+        BoardFilterKind.Ahead => BoardText.Filter_Ahead,
+        BoardFilterKind.AutoSync => BoardText.Filter_AutoSync,
+        BoardFilterKind.Problems => BoardText.Filter_Problems,
+        _ => BoardText.Filter_All,
+    };
+
+    protected override void OnInitialized()
+    {
+        Board.Changed += OnBoardChanged;
+        // "3 min ago" stays true without a change on the board.
+        _clock = Time.CreateTimer(_ => OnBoardChanged(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    /// <summary>Changes come from any thread and in bursts: one render per burst.</summary>
+    private void OnBoardChanged()
+    {
+        if (Interlocked.Exchange(ref _renderQueued, 1) == 0)
+        {
+            Fire(() =>
+            {
+                Volatile.Write(ref _renderQueued, 0);
+                StateHasChanged();
+                return Task.CompletedTask;
+            });
+        }
+    }
+
+    private Task Toggle(RepoState repo) => GuardAsync(() =>
+    {
+        var open = _expanded.Add(repo) || !_expanded.Remove(repo);
+        return Board.SetWantsDetailsAsync(repo, open, default);
+    });
+
+    private Task FetchAll() => GuardAsync(() => Task.WhenAll(Board.Repos.Select(r => Board.FetchAsync(r, default))));
+
+    private Task Add() => GuardAsync(async () =>
+    {
+        if (await Desktop.PickFolderAsync(BoardText.Add_DialogTitle) is { } folder)
+        {
+            await Board.AddAsync([folder], default);
+        }
+    });
+
+    private Task Scan() => GuardAsync(async () =>
+    {
+        if (await Desktop.PickFolderAsync(BoardText.Scan_DialogTitle) is { } folder)
+        {
+            await Board.ScanAsync(folder, default);
+        }
+    });
+
+    public void Dispose()
+    {
+        Board.Changed -= OnBoardChanged;
+        _clock?.Dispose();
+    }
+}

@@ -1,0 +1,164 @@
+@* The opened row: changes and commit, branches, recent history. *@
+@inherits BoardComponent
+
+<div class="details">
+    <section class="pane">
+        <header>
+            <h3>@BoardText.Changes</h3>
+            @if (Status is { IsClean: false })
+            {
+                <button class="btn small ghost" @onclick="() => GuardAsync(() => Board.StageAsync(Repo, [], default))">@BoardText.StageAll</button>
+                <button class="btn small ghost" @onclick="() => GuardAsync(() => Board.UnstageAsync(Repo, [], default))">@BoardText.UnstageAll</button>
+            }
+        </header>
+        @if (Status is null)
+        {
+            <p class="muted">@BoardText.Loading</p>
+        }
+        else if (Status.IsClean)
+        {
+            <p class="muted">@BoardText.NoChanges</p>
+        }
+        else
+        {
+            var staged = Status.Changes.Where(c => c.IsStaged).ToList();
+            var unstaged = Status.Changes.Where(c => c.IsUnstaged).ToList();
+            <div class="files">
+                @if (staged.Count > 0)
+                {
+                    <div class="files-head">@TextFormat.Format(BoardText.Staged_Head, staged.Count)</div>
+                    @foreach (var file in staged)
+                    {
+                        <label class="file" title="@Title(file)">
+                            <input type="checkbox" checked @onchange="() => GuardAsync(() => Board.UnstageAsync(Repo, [file.Path], default))" />
+                            <span class="letter l-@LetterClass(file.Letter(true))">@file.Letter(true)</span>
+                            <span class="path">@file.Path</span>
+                        </label>
+                    }
+                }
+                @if (unstaged.Count > 0)
+                {
+                    <div class="files-head">@TextFormat.Format(BoardText.Unstaged_Head, unstaged.Count)</div>
+                    @foreach (var file in unstaged)
+                    {
+                        <label class="file" title="@Title(file)">
+                            <input type="checkbox" @onchange="() => GuardAsync(() => Board.StageAsync(Repo, [file.Path], default))" />
+                            <span class="letter l-@LetterClass(file.Letter(false))">@file.Letter(false)</span>
+                            <span class="path">@file.Path</span>
+                        </label>
+                    }
+                }
+            </div>
+        }
+        <div class="commit">
+            <textarea rows="3" placeholder="@BoardText.CommitMessage_Placeholder" @bind="_message" @bind:event="oninput" disabled="@(Status is null or { IsClean: true })"></textarea>
+            <div class="commit-actions">
+                <button class="btn primary" disabled="@(!CanCommit)" @onclick="() => Commit(push: false)">
+                    @(Status is { Staged: > 0 } ? TextFormat.Format(BoardText.CommitStaged, Status.Staged) : BoardText.CommitAll)
+                </button>
+                <button class="btn" disabled="@(!CanCommit)" @onclick="() => Commit(push: true)">@BoardText.CommitPush</button>
+            </div>
+        </div>
+    </section>
+
+    <section class="pane">
+        <header>
+            <h3>@BoardText.Branches</h3>
+        </header>
+        <form class="new-branch" @onsubmit="CreateBranch">
+            <input placeholder="@BoardText.NewBranch_Placeholder" @bind="_newBranch" @bind:event="oninput" />
+            <button class="btn small" type="submit" disabled="@string.IsNullOrWhiteSpace(_newBranch)">@Icons.Plus @BoardText.NewBranch_Create</button>
+        </form>
+        @if (Repo.Details is { } details)
+        {
+            <div class="branch-list">
+                @foreach (var branch in details.Branches)
+                {
+                    <div class="branch-item @(branch.IsCurrent ? "current" : "") @(branch.IsRemote ? "remote" : "")">
+                        <span class="b-name" title="@branch.Name">@(branch.IsCurrent ? Icons.Check : Icons.Branch) @branch.Name</span>
+                        <span class="b-track">@branch.Track</span>
+                        <span class="b-when">@branch.LastCommit</span>
+                        @if (!branch.IsCurrent)
+                        {
+                            <button class="btn small ghost" title="@BoardText.Switch_Hint" @onclick="() => GuardAsync(() => Board.SwitchAsync(Repo, branch, default))">@BoardText.Switch</button>
+                        }
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="muted">@BoardText.Loading</p>
+        }
+    </section>
+
+    <section class="pane">
+        <header>
+            <h3>@BoardText.RecentCommits</h3>
+        </header>
+        @if (Repo.Details is null)
+        {
+            <p class="muted">@BoardText.Loading</p>
+        }
+        else if (Repo.Details.Log.Count == 0)
+        {
+            <p class="muted">@BoardText.NoCommits</p>
+        }
+        else
+        {
+            <div class="log">
+                @foreach (var commit in Repo.Details.Log)
+                {
+                    <div class="commit-item">
+                        <div class="c-line">
+                            <code>@commit.Hash</code>
+                            <span class="c-subject" title="@commit.Subject">@commit.Subject</span>
+                        </div>
+                        <div class="c-meta">
+                            @commit.Author · @commit.When
+                            @foreach (var r in Refs(commit))
+                            {
+                                <span class="ref">@r</span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public RepoState Repo { get; set; } = null!;
+
+    private string _message = "";
+    private string _newBranch = "";
+
+    private RepoStatus? Status => Repo.Status;
+    private bool CanCommit => Status is { IsClean: false, Conflicts: 0 } && !string.IsNullOrWhiteSpace(_message) && Repo.Busy is null;
+
+    private static string Title(FileChange file) =>
+        file.OriginalPath is { } from ? $"{from} → {file.Path}" : file.Path;
+
+    /// <summary>A CSS class for the status letter: '?' is no valid class character.</summary>
+    private static string LetterClass(char letter) => letter == '?' ? "new" : letter.ToString();
+
+    private static IEnumerable<string> Refs(CommitInfo commit) =>
+        commit.Refs.Split(", ", StringSplitOptions.RemoveEmptyEntries).Select(r => r.Replace("HEAD -> ", "", StringComparison.Ordinal));
+
+    private Task Commit(bool push) => GuardAsync(async () =>
+    {
+        if (await Board.CommitAsync(Repo, _message.Trim(), push, default))
+        {
+            _message = "";
+        }
+    });
+
+    private Task CreateBranch() => GuardAsync(async () =>
+    {
+        if (await Board.CreateBranchAsync(Repo, _newBranch.Trim(), default))
+        {
+            _newBranch = "";
+        }
+    });
+}

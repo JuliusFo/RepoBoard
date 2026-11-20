@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!-- Platform-neutral Razor UI, hosted by RepoBoard.App (BlazorWebView); no WPF/Windows references here (CLAUDE.md §4). -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>RepoBoard.UI</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RepoBoard.Core\RepoBoard.Core.csproj" />
+    <InternalsVisibleTo Include="RepoBoard.UI.Tests" />
+  </ItemGroup>
+
+</Project>

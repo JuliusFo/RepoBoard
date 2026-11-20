@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="GitMissing" xml:space="preserve">
+    <value>git wurde nicht gefunden. Installiere Git for Windows und starte RepoBoard neu.</value>
+  </data>
+  <data name="GitTimedOut" xml:space="preserve">
+    <value>git {0}: keine Antwort nach {1} s, abgebrochen.</value>
+  </data>
+  <data name="NotARepository" xml:space="preserve">
+    <value>{0} ist kein Git-Repository.</value>
+  </data>
+  <data name="InvalidBranchName" xml:space="preserve">
+    <value>„{0}“ ist kein gültiger Branch-Name.</value>
+  </data>
+  <data name="OperationFailed" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="Op_Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Op_Fetch" xml:space="preserve">
+    <value>Fetch</value>
+  </data>
+  <data name="Op_Pull" xml:space="preserve">
+    <value>Pull</value>
+  </data>
+  <data name="Op_Push" xml:space="preserve">
+    <value>Push</value>
+  </data>
+  <data name="Op_Stage" xml:space="preserve">
+    <value>Stagen</value>
+  </data>
+  <data name="Op_Unstage" xml:space="preserve">
+    <value>Unstagen</value>
+  </data>
+  <data name="Op_Commit" xml:space="preserve">
+    <value>Commit</value>
+  </data>
+  <data name="Op_CommitPush" xml:space="preserve">
+    <value>Commit und Push</value>
+  </data>
+  <data name="Op_Switch" xml:space="preserve">
+    <value>Branch wechseln</value>
+  </data>
+  <data name="Op_CreateBranch" xml:space="preserve">
+    <value>Branch anlegen</value>
+  </data>
+  <data name="Op_AutoFetch" xml:space="preserve">
+    <value>Auto-Fetch</value>
+  </data>
+  <data name="Op_AutoPull" xml:space="preserve">
+    <value>Auto-Pull</value>
+  </data>
+  <data name="CommitsOne" xml:space="preserve">
+    <value>{0} Commit</value>
+  </data>
+  <data name="CommitsOther" xml:space="preserve">
+    <value>{0} Commits</value>
+  </data>
+  <data name="Fetched_UpToDate" xml:space="preserve">
+    <value>Gefetcht – aktuell</value>
+  </data>
+  <data name="Fetched_Behind" xml:space="preserve">
+    <value>Gefetcht – {0} auf {1} noch nicht gepullt</value>
+  </data>
+  <data name="NewOnUpstream" xml:space="preserve">
+    <value>{0} neu auf {1}</value>
+  </data>
+  <data name="Pulled" xml:space="preserve">
+    <value>{0} gepullt ({1})</value>
+  </data>
+  <data name="Updated" xml:space="preserve">
+    <value>Aktualisiert ({0})</value>
+  </data>
+  <data name="AlreadyUpToDate" xml:space="preserve">
+    <value>Bereits aktuell</value>
+  </data>
+  <data name="Pushed" xml:space="preserve">
+    <value>Gepusht ({0})</value>
+  </data>
+  <data name="PushedWithUpstream" xml:space="preserve">
+    <value>Gepusht, Upstream gesetzt: {0}</value>
+  </data>
+  <data name="Committed" xml:space="preserve">
+    <value>Committet: {0}</value>
+  </data>
+  <data name="CommittedAndPushed" xml:space="preserve">
+    <value>Committet und gepusht: {0}</value>
+  </data>
+  <data name="Switched" xml:space="preserve">
+    <value>Auf {0} gewechselt</value>
+  </data>
+  <data name="BranchCreated" xml:space="preserve">
+    <value>Branch {0} angelegt</value>
+  </data>
+  <data name="AutoPullSkipped" xml:space="preserve">
+    <value>Auto-Pull übersprungen: {0}</value>
+  </data>
+  <data name="Blocker_Detached" xml:space="preserve">
+    <value>kein Branch ausgecheckt (detached HEAD)</value>
+  </data>
+  <data name="Blocker_NoUpstream" xml:space="preserve">
+    <value>der Branch hat keinen Upstream</value>
+  </data>
+  <data name="Blocker_Operation" xml:space="preserve">
+    <value>ein {0} läuft noch</value>
+  </data>
+  <data name="Blocker_Conflicts" xml:space="preserve">
+    <value>ungelöste Konflikte</value>
+  </data>
+  <data name="Blocker_Diverged" xml:space="preserve">
+    <value>der Branch ist auseinandergelaufen ({0} lokal, {1} remote) – bitte selbst mergen oder rebasen</value>
+  </data>
+  <data name="Operation_Merge" xml:space="preserve">
+    <value>Merge</value>
+  </data>
+  <data name="Operation_Rebase" xml:space="preserve">
+    <value>Rebase</value>
+  </data>
+  <data name="Operation_CherryPick" xml:space="preserve">
+    <value>Cherry-Pick</value>
+  </data>
+  <data name="Operation_Revert" xml:space="preserve">
+    <value>Revert</value>
+  </data>
+  <data name="Scan_NothingNew" xml:space="preserve">
+    <value>Keine neuen Repositories gefunden.</value>
+  </data>
+  <data name="Scan_AddedOne" xml:space="preserve">
+    <value>{0} Repository hinzugefügt.</value>
+  </data>
+  <data name="Scan_AddedOther" xml:space="preserve">
+    <value>{0} Repositories hinzugefügt.</value>
+  </data>
+</root>

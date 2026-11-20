@@ -1,0 +1,7 @@
+# Keeps the GitHub actions current. NuGet is raised by hand together with FerretSharp (Directory.Packages.props).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

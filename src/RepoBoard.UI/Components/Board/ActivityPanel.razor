@@ -1,0 +1,34 @@
+@* The activity log at the bottom: closed it shows the newest entry, open the whole list (newest first). *@
+<footer class="activity @(_open ? "open" : "")">
+    <button class="activity-head" @onclick="() => _open = !_open">
+        @(_open ? Icons.ChevronDown : Icons.ChevronRight)
+        @BoardText.Activity
+        @if (Entries.FirstOrDefault() is { } last)
+        {
+            <span class="last @(last.IsError ? "err" : "")">@last.Time.ToString("t", System.Globalization.CultureInfo.CurrentCulture) · @last.Repo · @last.Text</span>
+        }
+    </button>
+    @if (_open)
+    {
+        <div class="activity-list">
+            @foreach (var entry in Entries)
+            {
+                <div class="entry @(entry.IsError ? "err" : "")">
+                    <span class="time">@entry.Time.ToString("T", System.Globalization.CultureInfo.CurrentCulture)</span>
+                    <span class="repo">@entry.Repo</span>
+                    @if (entry.IsAuto)
+                    {
+                        <span class="tag">@BoardText.Activity_Auto</span>
+                    }
+                    <span class="text">@entry.Text</span>
+                </div>
+            }
+        </div>
+    }
+</footer>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ActivityEntry> Entries { get; set; } = [];
+
+    private bool _open;
+}

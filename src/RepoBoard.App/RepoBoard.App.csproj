@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!-- Thin WPF host: generic host, logging, window chrome and the BlazorWebView. The UI lives in RepoBoard.UI. -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- BlazorWebView's WebView2CompositionControl needs the WinRT projection; with net10.0-windows it crashes at start
+         (FerretSharp ADR 0004). -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>RepoBoard.App</RootNamespace>
+    <AssemblyName>RepoBoard</AssemblyName>
+    <!-- Per-monitor DPI awareness, see the comment in the manifest. -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <!-- Own entry point (Program.Main): the instance lock before WPF starts. -->
+  <ItemGroup>
+    <ApplicationDefinition Remove="App.xaml" />
+    <Page Include="App.xaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Wpf" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Serilog.Extensions.Hosting" />
+    <PackageReference Include="Serilog.Sinks.File" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RepoBoard.Core\RepoBoard.Core.csproj" />
+    <ProjectReference Include="..\RepoBoard.UI\RepoBoard.UI.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,11 @@
+@* A switch; the parent owns the value and gets the wanted one through OnChange (an EventCallback, so the parent renders). *@
+<button type="button" class="toggle @(Value ? "on" : "")" role="switch" aria-checked="@(Value ? "true" : "false")"
+        title="@Title" @onclick="() => OnChange.InvokeAsync(!Value)" @onclick:stopPropagation>
+    <span class="knob"></span>
+</button>
+
+@code {
+    [Parameter] public bool Value { get; set; }
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public EventCallback<bool> OnChange { get; set; }
+}

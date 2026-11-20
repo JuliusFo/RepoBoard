@@ -1,0 +1,16 @@
+<Project>
+
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <Product>RepoBoard</Product>
+    <!-- English is the neutral language of the resources (ADR 0005); German comes from satellite assemblies. -->
+    <NeutralLanguage>en</NeutralLanguage>
+    <!-- Only the UI languages: no satellite folders of other cultures from packages (WPF, WebView2). -->
+    <SatelliteResourceLanguages>en;de</SatelliteResourceLanguages>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+</Project>

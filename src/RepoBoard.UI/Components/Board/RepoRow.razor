@@ -1,0 +1,136 @@
+@* One repository: the row (a click opens the details), an error line below it if the last operation failed. *@
+@inherits BoardComponent
+
+<div class="row repo @(Expanded ? "open" : "")" @onclick="OnToggle">
+    <span class="chev">@(Expanded ? Icons.ChevronDown : Icons.ChevronRight)</span>
+
+    <span class="name">
+        <strong>@Repo.Name</strong>
+        <small title="@Repo.Path">@Repo.Path</small>
+    </span>
+
+    <span class="branch">
+        @if (Repo.Missing)
+        {
+            <span class="badge danger">@BoardText.Missing</span>
+        }
+        else if (Status is null)
+        {
+            <span class="muted">…</span>
+        }
+        else if (Status.IsDetached)
+        {
+            <span class="badge warn" title="@BoardText.Detached_Hint">@TextFormat.Format(BoardText.Detached, Status.Head?[..Math.Min(7, Status.Head.Length)])</span>
+        }
+        else
+        {
+            <span class="badge branch-name @(IsMainBranch(Status.Branch) ? "main" : "feature")" title="@Status.Branch">@Icons.Branch <span>@Status.Branch</span></span>
+        }
+        @if (Repo.Operation is { } op)
+        {
+            <span class="badge warn">@TextFormat.Format(BoardText.OperationRunning, PullCheck.Name(op))</span>
+        }
+    </span>
+
+    <span class="sync">
+        @if (Status is { IsDetached: false } s)
+        {
+            if (!s.HasUpstream)
+            {
+                <span class="muted" title="@BoardText.NoUpstream_Hint">@BoardText.NoUpstream</span>
+            }
+            else
+            {
+                if (s.Ahead > 0)
+                {
+                    <span class="ahead" title="@TextFormat.Format(BoardText.Ahead_Hint, s.Ahead, s.Upstream)">@Icons.Push@s.Ahead</span>
+                }
+                if (s.Behind > 0)
+                {
+                    <span class="behind" title="@TextFormat.Format(BoardText.Behind_Hint, s.Behind, s.Upstream)">@Icons.Pull@s.Behind</span>
+                }
+                if (s is { Ahead: 0, Behind: 0 })
+                {
+                    <span class="ok" title="@TextFormat.Format(BoardText.UpToDate_Hint, s.Upstream)">@Icons.Check @BoardText.UpToDate</span>
+                }
+            }
+        }
+        @if (Repo.AutoPullBlocked is { } blocked)
+        {
+            <span class="blocked" title="@TextFormat.Format(SyncText.AutoPullSkipped, blocked)">@Icons.Warning</span>
+        }
+    </span>
+
+    <span class="changes">
+        @if (Status is { IsClean: true })
+        {
+            <span class="muted">@BoardText.Clean</span>
+        }
+        else if (Status is not null)
+        {
+            if (Status.Conflicts > 0)
+            {
+                <span class="cnt conflict" title="@BoardText.Conflicts_Hint">!@Status.Conflicts</span>
+            }
+            if (Status.Staged > 0)
+            {
+                <span class="cnt staged" title="@BoardText.Staged_Hint">+@Status.Staged</span>
+            }
+            if (Status.Modified > 0)
+            {
+                <span class="cnt modified" title="@BoardText.Modified_Hint">~@Status.Modified</span>
+            }
+            if (Status.Untracked > 0)
+            {
+                <span class="cnt untracked" title="@BoardText.Untracked_Hint">?@Status.Untracked</span>
+            }
+        }
+    </span>
+
+    <span class="fetched @(RelativeTime.IsStale(Repo.LastFetch, Now) ? "stale" : "")" title="@RelativeTime.Exact(Repo.LastFetch)">@RelativeTime.Text(Repo.LastFetch, Now)</span>
+
+    <span class="switch"><Toggle Value="Repo.Entry.AutoFetch" Title="@BoardText.Col_AutoFetch_Hint" OnChange="v => GuardAsync(() => Board.SetAutoFetchAsync(Repo, v, default))" /></span>
+    <span class="switch"><Toggle Value="Repo.Entry.AutoPull" Title="@BoardText.Col_AutoPull_Hint" OnChange="v => GuardAsync(() => Board.SetAutoPullAsync(Repo, v, default))" /></span>
+
+    <span class="actions" @onclick:stopPropagation>
+        @if (Repo.Busy is { } busy)
+        {
+            <span class="spinner"></span><span class="busy-text">@busy …</span>
+        }
+        else
+        {
+            <button class="btn small" title="@BoardText.Fetch_Hint" @onclick="() => GuardAsync(() => Board.FetchAsync(Repo, default))">@Icons.Fetch</button>
+            <button class="btn small @(Status is { Behind: > 0 } ? "hot" : "")" title="@BoardText.Pull_Hint" @onclick="() => GuardAsync(() => Board.PullAsync(Repo, default))">@Icons.Pull @BoardText.Pull</button>
+            <button class="btn small @(Status is { Ahead: > 0 } or { HasUpstream: false, IsDetached: false } ? "hot" : "")" title="@BoardText.Push_Hint" @onclick="() => GuardAsync(() => Board.PushAsync(Repo, default))">@Icons.Push @BoardText.Push</button>
+        }
+        <button class="btn small ghost" title="@BoardText.OpenFolder_Hint" @onclick="() => Guard(() => Desktop.OpenFolder(Repo.Path))">@Icons.Folder</button>
+        <button class="btn small ghost" title="@BoardText.OpenTerminal_Hint" @onclick="() => Guard(() => Desktop.OpenTerminal(Repo.Path))">@Icons.Terminal</button>
+        <button class="btn small ghost" title="@BoardText.OpenEditor_Hint" @onclick="() => Guard(() => Desktop.OpenInEditor(Repo.Path))">@Icons.Code</button>
+        <button class="btn small ghost danger-hover" title="@BoardText.Remove_Hint" @onclick="() => GuardAsync(() => Board.RemoveAsync(Repo, default))">@Icons.Close</button>
+    </span>
+</div>
+
+@if (Repo.Error is { } error)
+{
+    <div class="row-error">
+        @Icons.Warning <span>@error</span>
+        <button class="btn small ghost" title="@BoardText.HideError_Hint" @onclick="() => Board.ClearError(Repo)">@Icons.Close</button>
+    </div>
+}
+
+@if (Expanded)
+{
+    <RepoDetailsPanel Repo="Repo" />
+}
+
+@code {
+    [Parameter, EditorRequired] public RepoState Repo { get; set; } = null!;
+    [Parameter] public DateTimeOffset Now { get; set; }
+    [Parameter] public bool Expanded { get; set; }
+    [Parameter] public EventCallback OnToggle { get; set; }
+
+    private RepoStatus? Status => Repo.Status;
+
+    /// <summary>The usual long-lived branches stay grey; any other branch is coloured, so a forgotten feature branch stands out.</summary>
+    private static bool IsMainBranch(string? name) => name is "main" or "master" or "develop" or "dev";
+}

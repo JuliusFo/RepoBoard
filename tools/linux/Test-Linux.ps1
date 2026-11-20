@@ -1,0 +1,89 @@
+<#
+.SYNOPSIS
+    Builds and runs the Core and UI unit tests under Linux in Docker, like the first job of the CI.
+
+.DESCRIPTION
+    The CI builds and tests on ubuntu-latest first, locally only Windows runs: path separators, case-sensitive file
+    names, FileShare locks or test order dependencies only show up after the push (.claude/rules/tests.md).
+
+    This copies the working tree - tracked files and untracked ones that are not ignored, so uncommitted changes
+    count - into a container with the .NET 10 SDK (and git), builds Core and UI with
+    -warnaserror and runs the tests there. Nothing is written into the repository: bin and obj stay in the
+    container, which is removed afterwards. NuGet packages are kept in the Docker volume repoboard-linux-nuget.
+
+    Before the tests it stops on text files with CRLF in the index, like the CI job line-endings (read-only here).
+
+    Not part of it: nothing - RepoBoard has no integration or JavaScript tests yet.
+
+
+.PARAMETER Project
+    Test projects to run, relative to the repository root. Default: the Core and UI tests.
+
+.EXAMPLE
+    pwsh -NoProfile -File tools/linux/Test-Linux.ps1
+
+.EXAMPLE
+    pwsh -NoProfile -File tools/linux/Test-Linux.ps1 -Project tests/RepoBoard.UI.Tests
+#>
+# 7.4: the line endings check pipes a blob between two git calls and needs the bytes unchanged.
+#Requires -Version 7.4
+param(
+    [string[]]$Project = @('tests/RepoBoard.Core.Tests', 'tests/RepoBoard.UI.Tests')
+)
+$ErrorActionPreference = 'Stop'
+$root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$image = 'repoboard-linux-test'
+
+docker info --format '{{.ServerVersion}}' *> $null
+if ($LASTEXITCODE -ne 0) { throw 'Docker is not running.' }
+
+docker build --quiet --tag $image $PSScriptRoot | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "Building the image $image failed." }
+
+# git writes file names as UTF-8; a tracked file deleted in the working tree is left out.
+$encoding = [Console]::OutputEncoding
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+try {
+    $names = git -C $root ls-files -z --cached --others --exclude-standard
+    if ($LASTEXITCODE -ne 0) { throw 'git ls-files failed.' }
+    # Like the CI job line-endings, but read-only (no renormalize, the index stays as it is): a text file whose
+    # staged or committed form has CRLF. Only what is in the index counts; unstaged edits are normalized on git add.
+    # Records "<mode> <blob> <stage>`t<i/… w/… attr/…>`t<path>", NUL-terminated so a path is never quoted.
+    $eol = git -C $root ls-files -z --stage --eol
+    if ($LASTEXITCODE -ne 0) { throw 'git ls-files --eol failed.' }
+    $crlf = @(foreach ($line in (($eol -join '') -split "`0" | Where-Object { $_ })) {
+        $meta, $info, $path = $line -split "`t", 3
+        if ($info -match '^i/(crlf|mixed)\s' -and $info -notmatch '\sattr/-text\s') { "$info $path"; continue }
+        # i/-text is a stray CR or a NUL byte. Under an explicit "text" attribute the CI renormalizes such a file all
+        # the same, which only changes it if it has a CRLF: hash the blob as git add would, without writing anything
+        # (pwsh 7.4+ pipes bytes between native commands unchanged). Under text=auto it stays binary in both places.
+        if ($info -match '^i/-text\s' -and $info -match '\sattr/text(\s|$)') {
+            $blob = ($meta -split ' ')[1]
+            $clean = git -C $root cat-file blob $blob | git -C $root hash-object --stdin "--path=$path"
+            if ($LASTEXITCODE -ne 0) { throw "git hash-object failed for $path." }
+            if ($clean -ne $blob) { "$info $path" }
+        }
+    })
+} finally {
+    [Console]::OutputEncoding = $encoding
+}
+if ($crlf.Count -gt 0) {
+    $crlf | ForEach-Object { Write-Host $_ }
+    throw ("$($crlf.Count) file(s) with CRLF in the index; the CI job line-endings fails on them. Fix with: " +
+        'git add --renormalize <file>; a stray CR (CR CR LF) has to be removed in the file itself first.')
+}
+$files = ($names -join '') -split "`0" | Where-Object { $_ -and (Test-Path -LiteralPath (Join-Path $root $_) -PathType Leaf) }
+
+$list = [IO.Path]::GetTempFileName()
+try {
+    [IO.File]::WriteAllText($list, ($files -join "`0"), [Text.UTF8Encoding]::new($false))
+    docker run --rm `
+        --volume "${root}:/src:ro" `
+        --volume "${list}:/list:ro" `
+        --volume 'repoboard-linux-nuget:/root/.nuget/packages' `
+        $image bash /src/tools/linux/run-tests.sh @Project
+    $code = $LASTEXITCODE
+} finally {
+    Remove-Item -LiteralPath $list -ErrorAction SilentlyContinue
+}
+exit $code
