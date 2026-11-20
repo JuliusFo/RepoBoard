@@ -19,19 +19,17 @@ internal sealed class TrayIcon : IDisposable
     private const int BalloonMilliseconds = 10_000; // Windows decides; only a hint for older versions
 
     private readonly BoardService _board;
-    private readonly BoardNavigation _navigation;
     private readonly Action _showWindow;
     private readonly ILogger _logger;
     private readonly Dispatcher _dispatcher;
     private readonly Forms.NotifyIcon _icon;
     private readonly Forms.ToolStripMenuItem _pause;
     private int _tooltipQueued;
-    private string? _balloonRepo;
+    private Action? _balloonClick;
 
-    public TrayIcon(BoardService board, BoardNavigation navigation, Action showWindow, Action exit, ILogger logger)
+    public TrayIcon(BoardService board, Action showWindow, Action exit, ILogger logger)
     {
         _board = board;
-        _navigation = navigation;
         _showWindow = showWindow;
         _logger = logger;
         _dispatcher = Dispatcher.CurrentDispatcher;
@@ -67,10 +65,10 @@ internal sealed class TrayIcon : IDisposable
         board.Changed += OnBoardChanged;
     }
 
-    /// <summary>A notification; a click on it opens the window, and <paramref name="repoPath"/>'s row if given.</summary>
-    public void Notify(string title, string text, ActivityKind worst, string? repoPath)
+    /// <summary>A notification; a click on it opens the window and then runs <paramref name="onClick"/> (a repository's row, the update dialog).</summary>
+    public void Notify(string title, string text, ActivityKind worst, Action? onClick)
     {
-        _balloonRepo = repoPath;
+        _balloonClick = onClick;
         var icon = worst switch
         {
             ActivityKind.Error => Forms.ToolTipIcon.Error,
@@ -96,10 +94,7 @@ internal sealed class TrayIcon : IDisposable
     private void OpenFromBalloon()
     {
         _showWindow();
-        if (_balloonRepo is { } repo)
-        {
-            _navigation.Open(repo);
-        }
+        _balloonClick?.Invoke();
     }
 
     private async void FetchAll()

@@ -1,0 +1,42 @@
+@* The update in the top bar (WP-10, FerretSharp's status bar): available (opens the dialog), downloading, ready for the
+   restart, download failed. Nothing while checking, up to date or after a failed check – that is in the settings. *@
+@inherits BoardComponent
+@implements IDisposable
+@inject UpdateState Updates
+
+@if (Updates.Update is { } update)
+{
+    @switch (Updates.Phase)
+    {
+        case UpdatePhase.Available:
+            <button class="btn small hot" title="@TextFormat.Format(UpdateText.Top_Available_Hint, update.Version)"
+                    @onclick="Updates.ShowDetails">@TextFormat.Format(UpdateText.Top_Available, update.Version)</button>
+            break;
+        case UpdatePhase.Downloading:
+            <button class="btn small" @onclick="Updates.ShowDetails">
+                <span class="spinner"></span> @TextFormat.Format(UpdateText.Top_Downloading, update.Version, Updates.Progress)
+            </button>
+            break;
+        case UpdatePhase.Ready:
+            <button class="btn small hot" title="@TextFormat.Format(UpdateText.Top_Ready_Hint, update.Version)"
+                    @onclick="() => Guard(Updates.Restart)">@TextFormat.Format(UpdateText.Top_Ready, update.Version)</button>
+            break;
+        case UpdatePhase.DownloadFailed:
+            <button class="btn small update-failed" title="@TextFormat.Format(UpdateText.DownloadFailed, update.Version, Updates.Error)"
+                    @onclick="Updates.ShowDetails">@Icons.Warning @UpdateText.Top_Failed</button>
+            break;
+    }
+}
+
+@code {
+    protected override void OnInitialized() => Updates.Changed += OnChanged;
+
+    /// <summary>From any thread (the download's progress comes from the thread pool).</summary>
+    private void OnChanged() => Fire(() =>
+    {
+        StateHasChanged();
+        return Task.CompletedTask;
+    });
+
+    public void Dispose() => Updates.Changed -= OnChanged;
+}

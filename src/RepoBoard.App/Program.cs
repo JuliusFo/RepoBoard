@@ -6,15 +6,23 @@ using RepoBoard.Core;
 using RepoBoard.Core.IO;
 using RepoBoard.Core.Resources;
 using RepoBoard.UI.Resources;
+using Velopack;
 
 namespace RepoBoard.App;
 
-/// <summary>Own entry point (as in FerretSharp): one instance per data folder, then the WPF app.</summary>
+/// <summary>Own entry point (as in FerretSharp): Velopack first, then one instance per data folder, then the WPF app.</summary>
 internal static class Program
 {
     [STAThread]
     public static int Main(string[] args)
     {
+        // Velopack's hooks (install, update, uninstall) start the app with arguments of their own and end it here, so this
+        // comes before anything else (WP-10, ADR 0007). A download is installed only on the user's click, never at a start.
+        VelopackApp.Build()
+            .SetAutoApplyOnStartup(false)
+            .OnBeforeUninstallFastCallback(_ => RegistryAutostart.RemoveAllOf(Environment.ProcessPath))
+            .Run();
+
         // The UI culture only synchronously, before any await: it belongs to the execution context, and a change inside an
         // async method is undone when it returns – Blazor would render in the Windows language again (FerretSharp ui.md).
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.CurrentUICulture = CommandLine.UiCulture(args, CultureInfo.CurrentUICulture);

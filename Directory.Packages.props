@@ -15,6 +15,11 @@
     <PackageVersion Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
   </ItemGroup>
 
+  <ItemGroup Label="Installer and updates">
+    <!-- WP-10, ADR 0007; the same version as the vpk tool in dotnet-tools.json. -->
+    <PackageVersion Include="Velopack" Version="1.2.161" />
+  </ItemGroup>
+
   <ItemGroup Label="Hosting">
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.14" />

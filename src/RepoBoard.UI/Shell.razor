@@ -21,6 +21,7 @@
             }
         </nav>
         <div class="spacer"></div>
+        <UpdateIndicator />
         @if (Board.AutoSyncPaused)
         {
             <span class="paused" title="@BoardText.Paused_Hint">
@@ -87,6 +88,8 @@
 
     <ActivityPanel Entries="Board.Activity.Entries" />
 </div>
+
+<UpdateDialog />
 
 @code {
     private readonly HashSet<RepoState> _expanded = [];

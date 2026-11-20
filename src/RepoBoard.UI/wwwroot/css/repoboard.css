@@ -144,6 +144,7 @@ code { font-family: var(--mono); font-size: 12px; }
 .row.repo:focus { outline: none; }
 
 .btn.hot { border-color: var(--accent); color: var(--accent); background: var(--accent-weak); font-weight: 600; }
+.btn.hot:hover:not(:disabled) { background: var(--accent-weak); filter: brightness(1.08); }
 
 /* ---------- table ---------- */
 .board { flex: 1; overflow: auto; padding: 14px; }
@@ -304,6 +305,43 @@ code { font-family: var(--mono); font-size: 12px; }
 .entry .tag { background: var(--hover); color: var(--muted); border-radius: 4px; padding: 0 5px; font-size: 10.5px; }
 .entry .text { white-space: pre-wrap; }
 .entry.err .text { color: var(--danger); }
+
+/* ---------- updates (WP-10) ---------- */
+.setting-head {
+  margin: 8px 6px 0; padding-top: 10px; border-top: 1px solid var(--border);
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
+}
+.setting-hint { padding: 0 6px 4px; font-size: 12px; color: var(--muted); }
+.setting.update-status { font-size: 12px; color: var(--muted); padding-top: 4px; padding-bottom: 4px; }
+.setting.update-status.failed { color: var(--danger); }
+.link-btn { border: 0; padding: 0; background: transparent; color: var(--accent); text-decoration: underline; }
+.spinner.inline { display: inline-block; width: 11px; height: 11px; vertical-align: -1px; }
+.btn.small .spinner { width: 11px; height: 11px; }
+.btn.update-failed { border-color: var(--danger); color: var(--danger); background: var(--danger-weak); }
+.btn.update-failed:hover:not(:disabled) { background: var(--danger-weak); filter: brightness(1.08); }
+
+.modal-backdrop { position: fixed; inset: 0; z-index: 20; background: color-mix(in srgb, var(--text) 30%, transparent); }
+.dialog {
+  position: fixed; z-index: 21; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; width: min(620px, calc(100vw - 40px)); max-height: calc(100vh - 60px);
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px;
+  box-shadow: 0 12px 32px var(--knob-shadow);
+}
+.dialog > header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 8px 8px 16px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 14px;
+}
+.dialog .dialog-body { overflow: auto; padding: 4px 16px 8px; }
+.dialog .dialog-body a { color: var(--accent); }
+.dialog > footer { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--border); }
+.release-notes h2 { margin: 14px 0 4px; font-size: 14px; }
+.release-notes h3 { margin: 10px 0 2px; font-size: 13px; }
+.release-notes p, .release-notes ul { margin: 4px 0; }
+.release-notes ul { padding-left: 20px; }
+.update-note { margin: 8px 0; padding: 8px 10px; border-radius: 7px; background: var(--accent-weak); color: var(--text); }
+.update-note.failed { background: var(--danger-weak); color: var(--danger); }
+.update-progress { width: 160px; height: 6px; border-radius: 3px; background: var(--accent-weak); overflow: hidden; flex: none; }
+.update-progress .bar { height: 100%; background: var(--accent); transition: width .2s; }
 
 #blazor-error-ui {
   display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;

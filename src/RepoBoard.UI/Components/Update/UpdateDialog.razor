@@ -1,0 +1,157 @@
+@* The update dialog (WP-10, from FerretSharp WP-32): what is new in the newer version and, if known, in the versions between,
+   "Download" and then "Restart now"; the download runs here with its progress and can be cancelled. Opened from the top
+   bar, the settings or the Windows notification; mounted by the shell. *@
+@inherits BoardComponent
+@implements IDisposable
+@inject UpdateState Updates
+
+@if (Updates.DetailsOpen && Updates.Update is { } update)
+{
+    <div class="modal-backdrop" @onclick="Updates.HideDetails"></div>
+    <div class="dialog update-dialog" role="dialog" aria-modal="true" aria-label="@TextFormat.Format(UpdateText.DialogTitle, update.Version)">
+        <header>
+            <span>@TextFormat.Format(UpdateText.DialogTitle, update.Version)</span>
+            <button class="btn icon-only ghost" title="@UpdateText.Close" @onclick="Updates.HideDetails">@Icons.Close</button>
+        </header>
+        <div class="dialog-body">
+            <p>@TextFormat.Format(UpdateText.YouHave, AppVersion.Current)</p>
+            @if (update.Notes is [{ Markdown: null }])
+            {
+                <p class="muted">@UpdateText.NoNotes</p>
+            }
+            else
+            {
+                @* An update over several versions has the notes of each, newest first, under its version. *@
+                <div class="release-notes">
+                    @foreach (var version in update.Notes)
+                    {
+                        @if (update.Notes.Count > 1)
+                        {
+                            <h2>@version.Version</h2>
+                        }
+                        var notes = ReleaseNotes.Parse(version.Markdown);
+                        @if (notes.Count == 0)
+                        {
+                            <p class="muted">@UpdateText.NoNotes</p>
+                        }
+                        @foreach (var group in Group(notes))
+                        {
+                            @if (group.Bullets is { } bullets)
+                            {
+                                <ul>
+                                    @foreach (var bullet in bullets)
+                                    {
+                                        <li>@Spans(bullet)</li>
+                                    }
+                                </ul>
+                            }
+                            else if (group.Block.Kind == NoteBlockKind.Heading)
+                            {
+                                <h3>@Spans(group.Block)</h3>
+                            }
+                            else
+                            {
+                                <p>@Spans(group.Block)</p>
+                            }
+                        }
+                    }
+                </div>
+            }
+            @if (!update.NotesComplete)
+            {
+                <p class="muted">@TextFormat.Format(UpdateText.NotesOnlyTarget, update.Version)</p>
+            }
+            <p><a href="@ProjectSite.Releases" target="_blank" rel="noopener">@UpdateText.AllReleases</a></p>
+            @if (Updates.Phase == UpdatePhase.DownloadFailed)
+            {
+                <div class="update-note failed">@TextFormat.Format(UpdateText.DownloadFailed, update.Version, Updates.Error)</div>
+            }
+            else if (Updates.Phase == UpdatePhase.Ready)
+            {
+                <div class="update-note">@TextFormat.Format(UpdateText.Ready, update.Version)</div>
+            }
+            <p class="muted">@UpdateText.RestartHint</p>
+        </div>
+        <footer>
+            @if (Updates.Phase == UpdatePhase.Downloading)
+            {
+                <div class="update-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Updates.Progress">
+                    <div class="bar" style="width: @(Updates.Progress)%"></div>
+                </div>
+                <span class="muted">@TextFormat.Format(UpdateText.Downloading, update.Version, Updates.Progress)</span>
+                <span class="spacer"></span>
+                <button class="btn ghost" @onclick="Updates.CancelDownload">@UpdateText.Cancel</button>
+            }
+            else
+            {
+                <span class="spacer"></span>
+                <button class="btn ghost" @onclick="Updates.HideDetails">@UpdateText.Later</button>
+                @if (Updates.Phase == UpdatePhase.Ready)
+                {
+                    <button class="btn primary" @onclick="() => Guard(Updates.Restart)">@UpdateText.RestartNow</button>
+                }
+                else
+                {
+                    <button class="btn primary" @onclick="() => GuardAsync(Updates.DownloadAsync)">@UpdateText.Download</button>
+                }
+            }
+        </footer>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized() => Updates.Changed += OnChanged;
+
+    /// <summary>From any thread (the download's progress comes from the thread pool).</summary>
+    private void OnChanged() => Fire(() =>
+    {
+        StateHasChanged();
+        return Task.CompletedTask;
+    });
+
+    public void Dispose() => Updates.Changed -= OnChanged;
+
+    /// <summary>Consecutive bullets form one list.</summary>
+    private static IEnumerable<(NoteBlock Block, List<NoteBlock>? Bullets)> Group(IReadOnlyList<NoteBlock> blocks)
+    {
+        List<NoteBlock>? bullets = null;
+        foreach (var block in blocks)
+        {
+            if (block.Kind == NoteBlockKind.Bullet)
+            {
+                (bullets ??= []).Add(block);
+                continue;
+            }
+
+            if (bullets is not null)
+            {
+                yield return (bullets[0], bullets);
+                bullets = null;
+            }
+
+            yield return (block, null);
+        }
+
+        if (bullets is not null)
+        {
+            yield return (bullets[0], bullets);
+        }
+    }
+
+    private static RenderFragment Spans(NoteBlock block) => builder =>
+    {
+        foreach (var span in block.Spans)
+        {
+            if (span.Code)
+            {
+                builder.OpenElement(0, "code");
+                builder.AddContent(1, span.Text);
+                builder.CloseElement();
+            }
+            else
+            {
+                builder.AddContent(2, span.Text);
+            }
+        }
+    };
+}
