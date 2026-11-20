@@ -73,12 +73,17 @@ for ($i = 0; $i -lt 60 -and -not $ready; $i++) {
 if (-not $ready) { throw "No RepoBoard page on port $Port after 30 s." }
 
 $owner = (Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue).OwningProcess | Select-Object -First 1
-if (-not $owner) {
-    # The CIM query fails on some machines (WP-02 E2E): netstat lists the listener too, whatever the Windows language.
-    $owner = netstat -ano -p tcp | ForEach-Object { $f = -split $_; if ($f.Count -ge 5 -and $f[1] -match ":$Port$" -and $f[2] -match ':0$') { [int]$f[4] } } | Select-Object -First 1
+if ($owner) {
+    $parent = (Get-CimInstance Win32_Process -Filter "ProcessId=$owner").ParentProcessId
+    $ours = $parent -eq $process.Id
+} else {
+    # Some machines list no listener at all (WP-02 E2E: neither the CIM query nor netstat, while CDP works): then the new
+    # instance's own WebView2 browser process must be the one started with this port.
+    $ours = [bool](Get-CimInstance Win32_Process -Filter "ParentProcessId=$($process.Id)" |
+        Where-Object { $_.CommandLine -match "--remote-debugging-port=$Port(\s|$)" })
+    $owner = 'unknown'
 }
-$parent = (Get-CimInstance Win32_Process -Filter "ProcessId=$owner").ParentProcessId
-if ($parent -ne $process.Id) {
+if (-not $ours) {
     Stop-Process -Id $process.Id
     throw "Port $Port belongs to process $owner, not to the new instance - stopped it."
 }

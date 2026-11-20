@@ -58,11 +58,11 @@ foreach ($h in $targets) {
 if ($Click -ne 'menu') { return }
 
 Start-Sleep -Milliseconds 700
-$root = [System.Windows.Automation.AutomationElement]::RootElement
+$desktop = [System.Windows.Automation.AutomationElement]::RootElement
 $condition = [System.Windows.Automation.AndCondition]::new(
     [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $ProcessId),
     [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::MenuItem))
-$items = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition)
+$items = $desktop.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition)
 "menu: $(@($items | ForEach-Object { $_.Current.Name }) -join ' | ')"
 if ($Item) {
     $target = $items | Where-Object { $_.Current.Name -eq $Item } | Select-Object -First 1
