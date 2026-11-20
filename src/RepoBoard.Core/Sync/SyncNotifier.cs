@@ -11,8 +11,10 @@ public sealed record SyncNotification(string Title, string Text, ActivityKind Wo
 
 /// <summary>
 /// Turns what auto-sync logs into notifications: only auto-sync entries the setting asks for (decision of the user:
-/// auto-pulls and problems by default), gathered for <see cref="Gather"/> so one tick that pulls five repositories shows one
-/// notification, not five replacing each other. The same failure on every tick is already logged once (BoardService).
+/// auto-pulls and problems by default), one notification per auto-sync run – however long its fetches take – so a run
+/// that pulls five repositories shows one notification, not five replacing each other. An entry outside a run (a single
+/// repository synced directly) waits <see cref="Gather"/> for company. The same failure on every tick is already logged
+/// once (BoardService).
 /// </summary>
 public sealed class SyncNotifier : IDisposable
 {
@@ -37,6 +39,7 @@ public sealed class SyncNotifier : IDisposable
         _board = board;
         _time = time;
         board.Activity.Added += OnAdded;
+        board.AutoSyncRunEnded += Flush;
     }
 
     /// <summary>Raised on a pool thread; the host marshals and decides whether to show it (not over its own window).</summary>
@@ -78,7 +81,10 @@ public sealed class SyncNotifier : IDisposable
         lock (_lock)
         {
             _pending.Add(entry);
-            _timer ??= _time.CreateTimer(_ => Flush(), null, Gather, Timeout.InfiniteTimeSpan);
+            if (!_board.AutoSyncRunning)
+            {
+                _timer ??= _time.CreateTimer(_ => Flush(), null, Gather, Timeout.InfiniteTimeSpan); // the run's end sends otherwise
+            }
         }
     }
 
@@ -113,6 +119,7 @@ public sealed class SyncNotifier : IDisposable
     public void Dispose()
     {
         _board.Activity.Added -= OnAdded;
+        _board.AutoSyncRunEnded -= Flush;
         lock (_lock)
         {
             _timer?.Dispose();

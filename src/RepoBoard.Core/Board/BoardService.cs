@@ -22,9 +22,13 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     private int _autoSyncMinutes = BoardConfig.DefaultAutoSyncMinutes;
     private AppSettings _settings = new();
     private volatile bool _autoSyncPaused;
+    private int _autoSyncRuns;
     private bool _canSave = true;
 
     public event Action? Changed;
+
+    /// <summary>After each run of <see cref="AutoSyncDueAsync"/> that synced something, on the thread that ran it.</summary>
+    public event Action? AutoSyncRunEnded;
 
     public ActivityLog Activity { get; } = new();
     public IReadOnlyList<RepoState> Repos => _repos;
@@ -33,6 +37,9 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
 
     /// <summary>Auto-sync skips its runs (tray menu); the status is still read. For this run only (decision of the user).</summary>
     public bool AutoSyncPaused => _autoSyncPaused;
+
+    /// <summary>A run of <see cref="AutoSyncDueAsync"/> is under way: what it logs belongs together (one notification).</summary>
+    public bool AutoSyncRunning => Volatile.Read(ref _autoSyncRuns) > 0;
 
     public async Task LoadAsync(CancellationToken ct)
     {
@@ -253,6 +260,9 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
 
     // ---------- operations (clicks) ----------
 
+    /// <summary>"Fetch all" – the button on the page and the tray's menu.</summary>
+    public Task FetchAllAsync(CancellationToken ct) => Task.WhenAll(_repos.Select(r => FetchAsync(r, ct)));
+
     public Task<bool> FetchAsync(RepoState repo, CancellationToken ct) =>
         RunAsync(repo, SyncText.Op_Fetch, network: true, c => git.FetchAsync(repo.Path, GitCallMode.Interactive, c),
             () => Info(repo.Status is { HasUpstream: true, Behind: > 0 } s
@@ -356,7 +366,21 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         var now = time.GetUtcNow();
         var interval = TimeSpan.FromMinutes(_autoSyncMinutes);
         var due = _repos.Where(r => r.AutoSyncOn && !r.Missing && (r.LastAutoSync is null || now - r.LastAutoSync >= interval)).ToList();
-        await Task.WhenAll(due.Select(r => AutoSyncAsync(r, ct)));
+        if (due.Count == 0)
+        {
+            return;
+        }
+
+        Interlocked.Increment(ref _autoSyncRuns);
+        try
+        {
+            await Task.WhenAll(due.Select(r => AutoSyncAsync(r, ct)));
+        }
+        finally
+        {
+            Interlocked.Decrement(ref _autoSyncRuns);
+            AutoSyncRunEnded?.Invoke();
+        }
     }
 
     /// <summary>

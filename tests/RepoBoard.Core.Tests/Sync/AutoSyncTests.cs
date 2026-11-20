@@ -2,6 +2,7 @@ using Microsoft.Extensions.Time.Testing;
 using RepoBoard.Core.Board;
 using RepoBoard.Core.Git;
 using RepoBoard.Core.Repos;
+using RepoBoard.Core.Sync;
 
 namespace RepoBoard.Core.Tests.Sync;
 
@@ -96,6 +97,28 @@ public sealed class AutoSyncTests : IDisposable
         _time.Advance(TimeSpan.FromSeconds(1));
         await _board.AutoSyncDueAsync(Ct);
         Assert.Equal(_time.GetUtcNow(), repo.LastAutoSync);
+    }
+
+    /// <summary>Review WP-02: real fetches take seconds; a run that outlasts the gathering time is still one notification.</summary>
+    [Fact]
+    public async Task One_auto_sync_run_is_one_notification_however_long_its_fetches_take()
+    {
+        var mine = await AddMineAsync(autoPull: true);
+        var second = Path.Combine(_git.Root, "second");
+        GitSandbox.Git(_git.Root, "clone", "-q", _git.Remote, second);
+        await _board.AddAsync([second], Ct);
+        await _board.SetAutoPullAsync(_board.Repos.Single(r => r != mine), true, Ct);
+        GitSandbox.Commit(_git.Theirs, "b.txt", "two");
+        GitSandbox.Git(_git.Theirs, "push");
+        using var notifier = new SyncNotifier(_board, _time);
+        var shown = new List<SyncNotification>();
+        notifier.Show += shown.Add;
+        _board.Activity.Added += _ => _time.Advance(SyncNotifier.Gather + TimeSpan.FromSeconds(1)); // each pull "takes" 3 s
+
+        await _board.AutoSyncDueAsync(Ct);
+
+        var notification = Assert.Single(shown);
+        Assert.Contains("2", notification.Title, StringComparison.Ordinal);
     }
 
     [Fact]
