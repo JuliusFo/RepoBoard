@@ -92,9 +92,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $previous = gh release list --repo $env:REPO_URL --exclude-drafts --exclude-pre-releases --limit 20 --json tagName --jq '.[].tagName' |
-            Where-Object { $_ -ne $env:TAG } | Select-Object -First 1
+          # The exit code before filtering: Select-Object -First stops the pipeline, and $LASTEXITCODE is then not set.
+          $tags = gh release list --repo $env:REPO_URL --exclude-drafts --exclude-pre-releases --limit 20 --json tagName --jq '.[].tagName'
           if ($LASTEXITCODE -ne 0) { throw 'gh release list failed.' }
+          $previous = $tags | Where-Object { $_ -ne $env:TAG } | Select-Object -First 1
           $hasFeed = $false
           if ($previous) {
             $assets = gh release view $previous --repo $env:REPO_URL --json assets --jq '.assets[].name'
