@@ -17,7 +17,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - Windows notifications for auto-pulls, failures and skipped auto-pulls, one per auto-sync run; a click on the notification opens the repository’s row. Choose auto-pulls and problems, problems only or off.
 - Start with Windows in the notification area (`--minimized`), and a settings menu for closing, start with Windows, notifications and the pause.
 - `--exit` ends the RepoBoard running on a data folder; a program icon.
+- Installer and updates (WP-10): `RepoBoard-win-Setup.exe` installs for your user without admin rights, `RepoBoard-win-Portable.zip` runs without installing; both update themselves. RepoBoard checks the GitHub releases at start and while it runs (hourly, every 4 hours or daily; switch off or “Check now” in the settings) and only reports: a button in the top bar, once a Windows notification per new version, a dialog with what is new. Downloading and the restart into the new version wait for your click.
 
 ### Internal
 - Project set up like FerretSharp: .NET 10, WPF host with BlazorWebView, Razor class library, Core without Windows APIs; rules, skills, ADRs, CI on Linux and Windows.
-- E2E: `Invoke-TrayIcon.ps1` drives the notification-area icon without injected input; `Stop-TestInstance.ps1` ends through `--exit`.
+- Release workflow on a version tag: Velopack packages (full and delta), release notes from this changelog.
+- E2E: `Start-TestInstance.ps1 -Exe` starts a portable Velopack test version; `Invoke-TrayIcon.ps1` drives the notification-area icon without injected input; `Stop-TestInstance.ps1` ends through `--exit`.

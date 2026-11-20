@@ -5,7 +5,9 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 ## Bekannte Lücken
 
 - Icon `Terminal` (Lucide `square-terminal`) ist nicht aus FerretSharp kopiert, sondern ohne Paket geschrieben – gegen `lucide-static` 1.55.0 prüfen (`wwwroot/lib/lucide/README.md`).
-- Programmsymbol (WP-02, `tools/icon/New-AppIcon.ps1`) ist ein schlichter Entwurf – mit WP-10 (Installer) überarbeiten?
+- Programmsymbol (WP-02, `tools/icon/New-AppIcon.ps1`) ist ein schlichter Entwurf – WP-10 hat es nicht überarbeitet; es steht jetzt auch in `Setup.exe` und im Startmenü.
+- Die Kopfzeile passt bei 1440 px Fensterbreite nicht ganz: der Einstellungsknopf liegt am Rand (WP-10 E2E, schon vorher so); mit dem Update-Knopf fehlen ~200 px. Chips oder Suche schmaler, Knöpfe nur als Symbol, oder eine zweite Zeile.
+- Installer und Updates unsigniert (WP-10, ADR 0007): SmartScreen warnt; Signieren wie in FerretSharp (Kosten, SignPath) im Blick behalten.
 - Theme und Sprache folgen Windows; eine Einstellungsseite fehlt (ADR 0005). Passt zu WP-12 oder WP-16, falls dort Einstellungen dazukommen.
 - Ein Repo zu scannen heißt, seiner Konfiguration zu vertrauen (`core.fsmonitor`, Hooks laufen mit jedem `git status`, ADR 0002) – beim Scannen die Liste vorher bestätigen lassen?
 - Fehlermeldungen von git können eine Remote-URL mit Token enthalten (`https://user:token@host`, ungefilterte `remote:`-Zeilen eines Servers); vor Aktivitätsprotokoll und Log schwärzen. Seit WP-02 auch eine Senke mit Bestand: Benachrichtigungen bleiben im Benachrichtigungscenter und ggf. auf dem Sperrbildschirm – vor dem `ActivityLog` schwärzen, dann ist sie mit abgedeckt (Review WP-02).

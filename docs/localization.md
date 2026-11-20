@@ -18,6 +18,7 @@ Die Oberfläche gibt es auf Englisch (Standard) und Deutsch (ADR 0005). Diese Da
 | Core | `SyncText` | Git und Board: Namen der Operationen, Meldungen im Aktivitätsprotokoll, Gründe für einen übersprungenen Auto-Pull, Scan, git fehlt/Zeitlimit |
 | Core | `CoreText` | eigene Dateien: Konfiguration nicht lesbar, neuer, kaputt, nicht gespeichert; Datei kein UTF-8 |
 | UI | `BoardText` | die Seite: Kopfzeile, Filter, Tabelle, Zeile, Details, Aktivität, relative Zeiten, Startmeldungen des Hosts |
+| UI | `UpdateText` | Updates (WP-10): Knopf in der Kopfzeile, Update-Dialog, Abschnitt in den Einstellungen, Benachrichtigung |
 
 Ein neuer Bereich bekommt eine eigene Datei, wenn er eine eigene Ansicht ist (z. B. `SettingsText` mit einer Einstellungsseite).
 

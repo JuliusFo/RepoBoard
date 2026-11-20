@@ -7,7 +7,7 @@ paths:
 
 Aus FerretSharp übernommen; die Blazor-Fallen im WebView2 stehen in `ui.md`.
 
-- **Eigener Einstieg** `Program.Main`: UI-Kultur synchron, dann die Instanzsperre (eine Instanz je Datenordner – zwei würden dieselben Repos gleichzeitig fetchen), dann WPF. `--data-dir`, `--lang`, `--theme` über `CommandLine`.
+- **Eigener Einstieg** `Program.Main`: zuerst Velopack (WP-10, ADR 0007: seine Hooks starten die App mit eigenen Argumenten und enden dort; `SetAutoApplyOnStartup(false)`, sonst installiert ein Start einen Download ungefragt), dann UI-Kultur synchron, dann die Instanzsperre (eine Instanz je Datenordner – zwei würden dieselben Repos gleichzeitig fetchen), dann WPF. `--data-dir`, `--lang`, `--theme` über `CommandLine`.
 - **DPI:** der Host ist per `app.manifest` PerMonitorV2-aware; ohne wird das Fenster auf Monitoren mit anderer Skalierung unscharf und `<select>`-Popups falsch groß.
 - Theme: `WindowTheme` setzt Titelleiste (DWM), Fensterhintergrund und `PreferredColorScheme` der WebView; der Hintergrund der WebView steht vor ihrem Erzeugen fest (`WEBVIEW2_DEFAULT_BACKGROUND_COLOR`, kein weißes Aufblitzen).
 - Dienste werden beim Beenden auf einem Pool-Thread gestoppt und entsorgt (`App.OnExit` → `Task.Run`): an den Dispatcher gebundene Ereignisse dort nicht abmelden, kein `Invoke` – der UI-Thread wartet auf genau diesen Task.
@@ -21,3 +21,8 @@ Aus FerretSharp übernommen; die Blazor-Fallen im WebView2 stehen in `ui.md`.
 - `ShutdownMode=OnExplicitShutdown`: das Fenster zu schließen beendet nichts. Wer beenden will, ruft `ExitApp` (setzt `_exiting`, damit `Closing` nicht wieder versteckt).
 - Ein verstecktes Fenster hat kein `Process.MainWindowHandle`: `RunningInstance` findet es nicht, darum `InstanceSignal`. `CloseMainWindow` von außen versteckt nur – Testinstanzen über `--exit` beenden.
 - Ein Klick auf einen Balloon-Tip kommt nur als Popup an, nicht aus dem Benachrichtigungscenter.
+
+## Updates (WP-10, ADR 0007)
+- Der Updater startet erst, wenn die App wirklich endet: `AppExit.Exiting()` steht in `OnExit` **nach** dem Stoppen des Hosts. `WaitExitThenApplyUpdates` wartet bis 60 s auf das Prozessende; `ApplyUpdatesAndRestart` würde sofort beenden, ohne aufzuräumen.
+- Die neue Version bekommt `CommandLine.Restart(args)`: volle Pfade (der Updater startet in einem anderen Arbeitsordner, FerretSharp A44), ohne `--minimized`/`--exit`. Eine neue Option mit Pfad gehört in `CommandLine.PathOptions`.
+- Ein Build ist für Velopack nicht installiert (`IsInstalled` false): nichts wird geprüft. Updates nur mit einer gepackten Testversion prüfen (`docs/e2e-testing.md` › Updates).
