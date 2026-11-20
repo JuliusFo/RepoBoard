@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Section" xml:space="preserve">
+    <value>Updates</value>
+  </data>
+  <data name="Version" xml:space="preserve">
+    <value>Version {0}</value>
+    <comment>{0} = the running version, e.g. 0.2.0</comment>
+  </data>
+  <data name="VersionInstalled" xml:space="preserve">
+    <value>Installed – updates come from the GitHub releases.</value>
+  </data>
+  <data name="VersionNotInstalled" xml:space="preserve">
+    <value>Not installed (a build): updates only reach a RepoBoard from the releases (Setup.exe or the portable zip).</value>
+  </data>
+  <data name="CheckAutomatically" xml:space="preserve">
+    <value>Check automatically</value>
+  </data>
+  <data name="CheckAutomatically_Hint" xml:space="preserve">
+    <value>At start and while RepoBoard runs, asks GitHub whether a newer version is out and shows it in the top bar and once as a notification. Downloading and installing wait for your click.</value>
+  </data>
+  <data name="Interval" xml:space="preserve">
+    <value>While RepoBoard runs</value>
+  </data>
+  <data name="Interval_Hint" xml:space="preserve">
+    <value>Checks again this long after the last check, for when RepoBoard runs for days. Only with automatic checks on.</value>
+  </data>
+  <data name="Interval_Never" xml:space="preserve">
+    <value>Never</value>
+  </data>
+  <data name="Interval_Hourly" xml:space="preserve">
+    <value>Hourly</value>
+  </data>
+  <data name="Interval_Every4Hours" xml:space="preserve">
+    <value>Every 4 hours</value>
+  </data>
+  <data name="Interval_Daily" xml:space="preserve">
+    <value>Daily</value>
+  </data>
+  <data name="CheckNow" xml:space="preserve">
+    <value>Check now</value>
+  </data>
+  <data name="Checking" xml:space="preserve">
+    <value>Checking for updates …</value>
+  </data>
+  <data name="UpToDate" xml:space="preserve">
+    <value>RepoBoard is up to date (checked at {0}).</value>
+    <comment>{0} = the time of the check, e.g. 09:30</comment>
+  </data>
+  <data name="Available" xml:space="preserve">
+    <value>Version {0} is available.</value>
+    <comment>{0} = the new version</comment>
+  </data>
+  <data name="ShowChanges" xml:space="preserve">
+    <value>Show changes and download …</value>
+  </data>
+  <data name="Downloading" xml:space="preserve">
+    <value>Downloading {0} – {1} %</value>
+    <comment>{0} = the new version, {1} = percent done</comment>
+  </data>
+  <data name="Ready" xml:space="preserve">
+    <value>Version {0} is downloaded – a restart installs it.</value>
+    <comment>{0} = the new version</comment>
+  </data>
+  <data name="RestartNow" xml:space="preserve">
+    <value>Restart now</value>
+  </data>
+  <data name="CheckFailed" xml:space="preserve">
+    <value>Could not check for updates: {0}</value>
+    <comment>{0} = the error message</comment>
+  </data>
+  <data name="CheckTimedOut" xml:space="preserve">
+    <value>GitHub did not answer within 30 s.</value>
+  </data>
+  <data name="DownloadFailed" xml:space="preserve">
+    <value>Download of {0} failed: {1}</value>
+    <comment>{0} = the new version, {1} = the error message</comment>
+  </data>
+  <data name="TryAgain" xml:space="preserve">
+    <value>Try again</value>
+  </data>
+  <data name="Top_Available" xml:space="preserve">
+    <value>Update {0} available</value>
+    <comment>{0} = the new version; a button in the top bar</comment>
+  </data>
+  <data name="Top_Available_Hint" xml:space="preserve">
+    <value>Show what is new in {0} and download it</value>
+    <comment>{0} = the new version</comment>
+  </data>
+  <data name="Top_Downloading" xml:space="preserve">
+    <value>Update {0} – {1} %</value>
+    <comment>{0} = the new version, {1} = percent done</comment>
+  </data>
+  <data name="Top_Ready" xml:space="preserve">
+    <value>Restart for {0}</value>
+    <comment>{0} = the new version; a button in the top bar</comment>
+  </data>
+  <data name="Top_Ready_Hint" xml:space="preserve">
+    <value>Ends RepoBoard, installs version {0} and starts it again.</value>
+    <comment>{0} = the new version</comment>
+  </data>
+  <data name="Top_Failed" xml:space="preserve">
+    <value>Update failed</value>
+  </data>
+  <data name="DialogTitle" xml:space="preserve">
+    <value>Update to {0}</value>
+    <comment>{0} = the new version</comment>
+  </data>
+  <data name="YouHave" xml:space="preserve">
+    <value>You have version {0}. What is new:</value>
+    <comment>{0} = the running version</comment>
+  </data>
+  <data name="NoNotes" xml:space="preserve">
+    <value>This release has no notes.</value>
+  </data>
+  <data name="NotesOnlyTarget" xml:space="preserve">
+    <value>Only the notes of {0} are known here; versions released in between, if any, are on GitHub.</value>
+    <comment>{0} = the new version</comment>
+  </data>
+  <data name="AllReleases" xml:space="preserve">
+    <value>All releases on GitHub</value>
+  </data>
+  <data name="RestartHint" xml:space="preserve">
+    <value>After the download, “Restart now” ends RepoBoard, installs the update and starts it again. Repositories and settings stay.</value>
+  </data>
+  <data name="Later" xml:space="preserve">
+    <value>Later</value>
+  </data>
+  <data name="Download" xml:space="preserve">
+    <value>Download</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Notify_Title" xml:space="preserve">
+    <value>RepoBoard {0} is available</value>
+    <comment>{0} = the new version; title of the Windows notification</comment>
+  </data>
+  <data name="Notify_Text" xml:space="preserve">
+    <value>Click to see what is new. Downloading and installing wait for your click.</value>
+  </data>
+</root>

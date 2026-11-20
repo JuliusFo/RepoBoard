@@ -24,6 +24,9 @@ public sealed class ConfigStoreTests : IDisposable
         Assert.True(load.Config.Settings.CloseToTray);
         Assert.Equal(NotificationLevel.PullsAndProblems, load.Config.Settings.Notifications);
         Assert.False(load.Config.Settings.TrayHintShown);
+        Assert.True(load.Config.Settings.CheckForUpdates); // WP-10: automatic, like FerretSharp
+        Assert.Equal(4, load.Config.Settings.UpdateCheckHours);
+        Assert.Null(load.Config.Settings.UpdateNotified);
         Assert.True(load.CanSave);
         Assert.Null(load.Problem);
     }
@@ -35,7 +38,11 @@ public sealed class ConfigStoreTests : IDisposable
         {
             Repos = [new RepoEntry(_folder.Combine("a"), AutoFetch: true), new RepoEntry(_folder.Combine("b"), true, true)],
             AutoSyncMinutes = 15,
-            Settings = new AppSettings { CloseToTray = false, Notifications = NotificationLevel.Problems, TrayHintShown = true },
+            Settings = new AppSettings
+            {
+                CloseToTray = false, Notifications = NotificationLevel.Problems, TrayHintShown = true,
+                CheckForUpdates = false, UpdateCheckHours = 24, UpdateNotified = "0.2.0",
+            },
         };
 
         await _store.SaveAsync(config, Ct);
@@ -72,14 +79,14 @@ public sealed class ConfigStoreTests : IDisposable
 
     /// <summary>
     /// A file edited by hand: null entries, empty and relative paths, a repository twice, an interval not offered, a
-    /// notification level that does not exist.
+    /// notification level that does not exist, an update interval not offered.
     /// </summary>
     [Fact]
     public async Task A_hand_edited_file_is_cleaned_up_on_reading()
     {
         var path = _folder.Combine("a").Replace("\\", "\\\\", StringComparison.Ordinal);
         File.WriteAllText(_store.File, $$"""
-            { "version": 1, "autoSyncMinutes": 7, "settings": { "notifications": 9, "closeToTray": false }, "repos": [
+            { "version": 1, "autoSyncMinutes": 7, "settings": { "notifications": 9, "closeToTray": false, "updateCheckHours": 3 }, "repos": [
               null, { "path": "" }, { "path": "relative" }, { "path": "{{path}}", "autoFetch": true }, { "path": "{{path}}" } ] }
             """);
 

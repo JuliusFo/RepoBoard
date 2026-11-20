@@ -21,6 +21,17 @@ public sealed class AutostartTests
         Assert.Equal($"\"{Exe}\" --minimized \"--data-dir={paths.Root}\"", Autostart.Command(Exe, paths));
     }
 
+    [Fact]
+    public void The_uninstaller_finds_the_entries_of_its_own_program_only()
+    {
+        var other = new AppPaths(Path.Combine(Path.GetTempPath(), "e2e data"));
+
+        Assert.True(Autostart.Starts(Autostart.Command(Exe, AppPaths.Default), Exe));
+        Assert.True(Autostart.Starts(Autostart.Command(Exe.ToUpperInvariant(), other), Exe)); // Windows paths ignore case
+        Assert.False(Autostart.Starts(Autostart.Command(Exe + ".old", AppPaths.Default), Exe));
+        Assert.False(Autostart.Starts(null, Exe));
+    }
+
     [Theory]
     [InlineData("plain", "plain")]
     [InlineData("", "\"\"")]

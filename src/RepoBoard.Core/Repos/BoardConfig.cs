@@ -29,6 +29,20 @@ public sealed record AppSettings
 
     /// <summary>The hint "keeps running in the notification area" came once.</summary>
     public bool TrayHintShown { get; init; }
+
+    /// <summary>The hours offered between two update checks while RepoBoard runs; 0 is never (WP-10, as in FerretSharp).</summary>
+    public static readonly int[] UpdateCheckIntervals = [0, 1, 4, 24];
+
+    public const int DefaultUpdateCheckHours = 4;
+
+    /// <summary>Look for a newer RepoBoard at start and while it runs (ADR 0007); "Check now" works either way.</summary>
+    public bool CheckForUpdates { get; init; } = true;
+
+    /// <summary>Hours between two checks while RepoBoard runs, one of <see cref="UpdateCheckIntervals"/>; 0 is only at start.</summary>
+    public int UpdateCheckHours { get; init; } = DefaultUpdateCheckHours;
+
+    /// <summary>The newest version a Windows notification announced: each version once, not at every start.</summary>
+    public string? UpdateNotified { get; init; }
 }
 
 /// <summary>The content of <see cref="AppPaths.ConfigFile"/>.</summary>

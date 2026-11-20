@@ -55,7 +55,11 @@ public sealed class ConfigStore(string file, TimeProvider time)
             .DistinctBy(r => Path.GetFullPath(r.Path), StringComparer.OrdinalIgnoreCase)],
         AutoSyncMinutes = BoardConfig.Intervals.Contains(config.AutoSyncMinutes) ? config.AutoSyncMinutes : BoardConfig.DefaultAutoSyncMinutes,
         Settings = config.Settings is { } settings
-            ? settings with { Notifications = Enum.IsDefined(settings.Notifications) ? settings.Notifications : new AppSettings().Notifications }
+            ? settings with
+            {
+                Notifications = Enum.IsDefined(settings.Notifications) ? settings.Notifications : new AppSettings().Notifications,
+                UpdateCheckHours = AppSettings.UpdateCheckIntervals.Contains(settings.UpdateCheckHours) ? settings.UpdateCheckHours : AppSettings.DefaultUpdateCheckHours,
+            }
             : new AppSettings(),
     };
 }
