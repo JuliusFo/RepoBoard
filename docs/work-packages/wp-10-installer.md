@@ -36,7 +36,7 @@ Branch `wp/10-installer`, 2026-11-20, noch ohne Release.
   - Kaputter Feed → nichts in der Kopfzeile, in den Einstellungen rot „Prüfung auf Updates nicht möglich: …“ (dunkel lesbar).
   - Fenster beim Start aktiv → keine Benachrichtigung (gewollt), die Version gilt als gemeldet.
   - Logs ohne `[ERR]`/`[WRN]`.
-- Nicht geprüft: `Setup.exe` (Installation nach `%LocalAppData%`, Verknüpfungen, SmartScreen, Deinstallation mit dem Autostart-Hook – das ginge nur auf den echten Ordnern des Nutzers), der Release-Workflow (erst mit dem ersten Tag), der Link „Alle Releases auf GitHub“.
+- Nicht geprüft: die Benachrichtigung auf dem Bildschirm und der Klick aufs Popup (Fenster mit Dialog) – der Nutzer war nicht am Rechner, Test steht aus (Ablauf: `docs/e2e-testing.md` › Updates); `Setup.exe` (Installation nach `%LocalAppData%`, Verknüpfungen, SmartScreen, Deinstallation mit dem Autostart-Hook – das ginge nur auf den echten Ordnern des Nutzers), der Release-Workflow (erst mit dem ersten Tag), der Link „Alle Releases auf GitHub“.
 
 ## Offen
 - Die Kopfzeile passt bei 1440 px Fensterbreite schon ohne den Update-Knopf nicht ganz (Einstellungsknopf am Rand abgeschnitten); mit dem Knopf fehlen ~200 px – Backlog.
