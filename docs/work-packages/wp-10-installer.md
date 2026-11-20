@@ -35,8 +35,9 @@ Branch `wp/10-installer`, 2026-11-20, noch ohne Release.
   - Einstellungen › Updates in 0.1.91: Version, „Installiert …“, Schalter, Intervall, „RepoBoard ist aktuell (geprüft um …)“; „Jetzt prüfen“ aktualisiert die Zeit. „Automatisch prüfen“ aus → Intervall gesperrt, `checkForUpdates: false` gespeichert, an → frei.
   - Kaputter Feed → nichts in der Kopfzeile, in den Einstellungen rot „Prüfung auf Updates nicht möglich: …“ (dunkel lesbar).
   - Fenster beim Start aktiv → keine Benachrichtigung (gewollt), die Version gilt als gemeldet.
+  - Benachrichtigung (Nutzer, nach dem Review): `updateNotified` auf 0.1.91 zurückgesetzt, 0.1.92 im Feed, Start mit `--minimized` → Log „Notifying update 0.1.92“, Popup „RepoBoard 0.1.92 ist verfügbar“; Klick des Nutzers aufs Popup → Fenster und Seite entstehen, der Update-Dialog für 0.1.92 ist offen (per CDP gelesen). Nach dem Update aus 0.1.90 hatte die Portable-Kopie ein lokales volles Paket: der Hinweis „nur die Notizen von …“ fehlte zu Recht.
   - Logs ohne `[ERR]`/`[WRN]`.
-- Nicht geprüft: die Benachrichtigung auf dem Bildschirm und der Klick aufs Popup (Fenster mit Dialog) – der Nutzer war nicht am Rechner, Test steht aus (Ablauf: `docs/e2e-testing.md` › Updates); `Setup.exe` (Installation nach `%LocalAppData%`, Verknüpfungen, SmartScreen, Deinstallation mit dem Autostart-Hook – das ginge nur auf den echten Ordnern des Nutzers), der Release-Workflow (erst mit dem ersten Tag), der Link „Alle Releases auf GitHub“.
+- Nicht geprüft: `Setup.exe` (Installation nach `%LocalAppData%`, Verknüpfungen, SmartScreen, Deinstallation mit dem Autostart-Hook – das ginge nur auf den echten Ordnern des Nutzers), der Release-Workflow (erst mit dem ersten Tag), der Link „Alle Releases auf GitHub“.
 
 ## Offen
 - Die Kopfzeile passt bei 1440 px Fensterbreite schon ohne den Update-Knopf nicht ganz (Einstellungsknopf am Rand abgeschnitten); mit dem Knopf fehlen ~200 px – Backlog.
