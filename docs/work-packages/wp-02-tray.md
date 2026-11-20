@@ -42,3 +42,18 @@ Branch `wp/02-tray`, 2026-11-20, noch ohne Release.
 ## Offen
 - Klick auf eine Benachrichtigung im Benachrichtigungscenter öffnet nichts (Balloon-Tips melden Klicks nur als Popup) – Backlog.
 - Weitere Ideen: `docs/backlog.md` › Infobereich und Benachrichtigungen.
+
+## Nachtrag: Code-Review (2026-11-20)
+Unabhängiger Reviewer über den ganzen Branch, danach ein zweiter Durchgang über die Fixes. Entscheidung des Nutzers: „Alle beheben“, zu den zwei Befunden des zweiten Durchgangs „Beide beheben“.
+1. M – Bündeln hielt nur, wenn ein Durchlauf in 2 s fertig war (echte Remotes: mehrere Toasts) → behoben: `BoardService.AutoSyncRunning`/`AutoSyncRunEnded`, eine Meldung am Ende des Durchlaufs; Test, der ohne den Fix scheitert.
+2. K – unbekannter Text für `notifications` macht `config.json` unlesbar, Protokoll sagte „ungültig → Standard“ → Doku korrigiert (gilt wie für alle Felder).
+3. K – Beenden bei offenem Ordnerdialog (Verdacht) → nicht reproduziert: Dialog per CDP offen, `--exit` beendete sauber, Log ohne Fehler; keine Änderung.
+4. K – Einstellungsmenü ohne Parameter renderte nicht mit (Pause übers Tray bei offenem Menü), Tooltip „ist pausiert“ auch ohne Pause → behoben: Parameter aus der Shell, neutraler Tooltip; E2E geprüft. Regel in `ui.md`.
+5. K – „Alle fetchen“ doppelt → `BoardService.FetchAllAsync`.
+6. K – Git-Fehlertexte (Token) jetzt auch in Toasts (Verdacht) → Backlog-Punkt „Token schwärzen“ ergänzt.
+7. K – `--exit` ohne Instanz legte den Datenordner an, Rennen mit einem gleichzeitigen Start → behoben: nur das Signal, vor der Sperre; E2E: Exit-Code 1, kein Ordner.
+8. K – Navigationstest in der falschen Klasse → `BoardNavigationTests.cs`.
+9. K (2. Durchgang) – Doku beschrieb noch „2 s bündeln“, Testzahl → korrigiert.
+10. K (2. Durchgang) – Port-Rückfall in `Start-TestInstance.ps1` prüfte nichts (eigene Befehlszeile) → behoben anders als vorgeschlagen: WebView2 schreibt kein `DevToolsActivePort`; stattdessen prüft das Skript vor dem Start per HTTP, ob der Port schon antwortet (geprüft: zweite Instanz auf belegtem Port wird abgelehnt).
+- Vorher schon da: Beenden während eines Auto-Pulls bricht `merge --ff-only` ab → Backlog.
+- Beim Prüfen gefunden: `Invoke-TrayIcon.ps1` – `$root` überschrieb den Parameter `$Root` → behoben, Hinweis in `docs/e2e-testing.md`.

@@ -11,6 +11,7 @@ Vor jedem E2E-Lauf lesen. Abläufe und Fallen aus FerretSharp (`docs/e2e-testing
 - `tools/e2e/Start-TestInstance.ps1 -Root <scratch>\e2e` baut nach `<Root>\app` und startet mit eigenem Daten- und WebView2-Ordner, Debug-Port 9333 (prüft, dass er frei ist und danach der eigenen Instanz gehört) und fester Fensterposition 100,100 / 1440×900. Danach eine `config.json` mit den Test-Repos in den Datenordner legen und neu starten, oder über „Repo hinzufügen“ (nativer Dialog – nicht per CDP bedienbar) – einfacher: die Datei vor dem Start schreiben (Format: `docs/architecture.md` 1.4, Pfade per JSON-Bibliothek, nicht von Hand mit `\`).
 - `node tools/e2e/cdp.mjs 9333 eval <datei.js>` liest die Seite, `screenshot` nimmt ein Bild.
 - `tools/e2e/Stop-TestInstance.ps1 -Root … -ProcessId …` beendet nur diese Instanz (über `RepoBoard.exe --exit`: Schließen versteckt seit WP-02 nur) und zählt `[ERR]`/`[WRN]` im Log.
+- PowerShell unterscheidet bei Variablen nicht zwischen Groß und Klein: eine Variable `$root` im Skript überschreibt den Parameter `$Root` (Review WP-02, `Invoke-TrayIcon.ps1`).
 - Mit `--minimized` entsteht keine WebView, bis das Fenster gezeigt wird: `Start-TestInstance.ps1` wartet auf die Seite und scheitert dann – selbst starten (Umgebung `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`/`WEBVIEW2_USER_DATA_FOLDER` wie im Skript) und mit einem zweiten Start zeigen.
 
 ## Infobereich und Benachrichtigungen (WP-02)
