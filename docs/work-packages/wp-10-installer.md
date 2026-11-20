@@ -1,6 +1,6 @@
 # WP-10 Installer und Updates
 
-Branch `wp/10-installer`, 2026-11-20, noch ohne Release.
+Branch `wp/10-installer`, 2026-11-20, Release 0.1.0.
 
 ## Planung (aus `docs/roadmap.md`)
 - Velopack wie FerretSharp (ADR 0024 dort): `Program.Main` ruft Velopack zuerst, Release-Workflow auf Tag (Version gegen `Directory.Build.props`), Setup und Portable, Update-Prüfung mit Dialog, Notizen aus dem CHANGELOG.

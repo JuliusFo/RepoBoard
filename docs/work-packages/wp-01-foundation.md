@@ -1,6 +1,6 @@
 # WP-01 Fundament: Projekt nach dem Muster von FerretSharp, Spike übernommen
 
-Ordner `C:\Dev-Repos\RepoBoard`, 2026-11-20, noch ohne Release (0.1.0).
+Ordner `C:\Dev-Repos\RepoBoard`, 2026-11-20, Release 0.1.0.
 
 ## Anlass (Gespräch mit dem Nutzer, 2026-11-20)
 - Wunsch: ein Git-Tool wie GitHub Desktop (aktueller Branch, Commit, Pull, Fetch …), dazu eine direkte Übersicht über alle Repos und ihre Branches, Auto-Fetch/Auto-Pull für bestimmte Repos zum Ein- und Ausschalten, „alles übersichtlich auf einer Seite“. Erst nach bestehenden Tools suchen, sonst ein Spike „mit C# und dem selben UI-Stack wie FerretSharp“.

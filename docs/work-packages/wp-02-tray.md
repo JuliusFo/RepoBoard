@@ -1,6 +1,6 @@
 # WP-02 Infobereich, Autostart, Benachrichtigungen
 
-Branch `wp/02-tray`, 2026-11-20, noch ohne Release.
+Branch `wp/02-tray`, 2026-11-20, Release 0.1.0.
 
 ## Planung (aus `docs/roadmap.md`)
 - Fenster schließen → Symbol im Infobereich, Auto-Sync läuft weiter (ADR 0003, Konsequenzen: „immer aktuell“ gilt sonst nur bei offenem Fenster). Menü: Öffnen, Alle fetchen, Auto-Sync pausieren, Beenden.
