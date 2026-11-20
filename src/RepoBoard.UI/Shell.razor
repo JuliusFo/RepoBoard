@@ -156,7 +156,7 @@
         return Board.SetWantsDetailsAsync(repo, open, default);
     });
 
-    private Task FetchAll() => GuardAsync(() => Task.WhenAll(Board.Repos.Select(r => Board.FetchAsync(r, default))));
+    private Task FetchAll() => GuardAsync(() => Board.FetchAllAsync(default));
 
     private Task Add() => GuardAsync(async () =>
     {

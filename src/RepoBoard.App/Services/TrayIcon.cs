@@ -106,7 +106,7 @@ internal sealed class TrayIcon : IDisposable
     {
         try
         {
-            await Task.WhenAll(_board.Repos.Select(r => _board.FetchAsync(r, CancellationToken.None)));
+            await _board.FetchAllAsync(CancellationToken.None);
         }
         catch (Exception ex)
         {
