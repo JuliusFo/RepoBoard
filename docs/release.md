@@ -18,6 +18,11 @@ Vor Änderungen an `.github/workflows/`, an der Version oder vor einem Release l
 - **Pflicht-Checks (Entscheidung des Nutzers, 2026-11-20):** Das Ruleset „Protect main“ (wie in FerretSharp) verlangt für einen Merge die Jobs „Core, UI and tests (Linux)“, „Solution (Windows)“ und „Line endings“ (nicht aktuell mit `main` nötig) und verbietet Löschen und Force-Push von `main`. Repo-Admins stehen auf der Bypass-Liste: Doku-Commits gehen direkt auf `main`. Ein umbenannter oder neuer Job muss im Ruleset mitgeändert werden, sonst wartet jeder PR auf einen Check, der nie kommt.
 - Das Repo ist dafür öffentlich (Entscheidung des Nutzers, 2026-11-20): Auf dem kostenlosen Plan gibt es Rulesets nur für öffentliche Repos.
 
-## Distribution
+## Release und Distribution (WP-10, ADR 0007)
 
-Noch keine: `dotnet run --project src/RepoBoard.App` bzw. `dotnet publish src/RepoBoard.App -c Release -r win-x64 --self-contained -o artifacts/publish`. Installer und Updates (Velopack): Roadmap.
+- `.github/workflows/release.yml` läuft auf einen gepushten Tag `vX.Y.Z` (oder von Hand mit einem vorhandenen Tag): Version gegen `Directory.Build.props`, alle Tests, `dotnet publish` (self-contained, win-x64), Notizen aus dem CHANGELOG-Abschnitt der Version (fehlt er, bricht der Lauf ab), `vpk download github` (letztes Release als Basis für das Delta; beim ersten fehlt es, dann nur volle Pakete), `vpk pack` (Pack-Id `RepoBoard`), `vpk upload github` als Entwurf, `gh release edit` setzt Notizen und veröffentlicht.
+- Assets: `RepoBoard-win-Setup.exe`, `RepoBoard-win-Portable.zip`, volle und Delta-Pakete, `releases.win.json` (der Feed, den die App liest). Unsigniert.
+- Nur ein Release-Lauf zur selben Zeit (`concurrency: release`), Actions per Commit-SHA gepinnt, das Token nur in den vpk/gh-Schritten.
+- `vpk` steht in `dotnet-tools.json` in derselben Version wie das Paket `Velopack` – beide zusammen heben (und mit FerretSharp).
+- Lokal ohne Release: `dotnet run --project src/RepoBoard.App`; ein Build ist „nicht installiert“ und prüft nicht auf Updates.
+- Ein Update testen ohne GitHub: `docs/e2e-testing.md` › Updates.

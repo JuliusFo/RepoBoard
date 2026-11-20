@@ -26,6 +26,13 @@ public static class Autostart
         return paths.IsDefault ? command : $"{command} {Quote(CommandLine.DataDir + paths.Root)}";
     }
 
+    /// <summary>
+    /// Whether a Run value starts <paramref name="exe"/> – an entry of this installation, whatever its data folder. The
+    /// uninstaller removes those (WP-10): Windows would otherwise try to start a program that is gone at every sign-in.
+    /// </summary>
+    public static bool Starts(string? command, string exe) =>
+        command is not null && command.StartsWith(Quote(exe, always: true) + " ", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>On unless the Task Manager switched it off (no value there means on).</summary>
     public static bool IsApproved(byte[]? approved) => approved is not { Length: > 0 } || (approved[0] & 1) == 0;
 

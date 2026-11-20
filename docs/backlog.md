@@ -5,11 +5,13 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 ## Bekannte Lücken
 
 - Icon `Terminal` (Lucide `square-terminal`) ist nicht aus FerretSharp kopiert, sondern ohne Paket geschrieben – gegen `lucide-static` 1.55.0 prüfen (`wwwroot/lib/lucide/README.md`).
-- Programmsymbol (WP-02, `tools/icon/New-AppIcon.ps1`) ist ein schlichter Entwurf – mit WP-10 (Installer) überarbeiten?
+- Programmsymbol (WP-02, `tools/icon/New-AppIcon.ps1`) ist ein schlichter Entwurf – WP-10 hat es nicht überarbeitet; es steht jetzt auch in `Setup.exe` und im Startmenü.
+- Die Kopfzeile passt bei 1440 px Fensterbreite nicht ganz: der Einstellungsknopf liegt am Rand (WP-10 E2E, schon vorher so); mit dem Update-Knopf fehlen ~200 px. Chips oder Suche schmaler, Knöpfe nur als Symbol, oder eine zweite Zeile.
+- Installer und Updates unsigniert (WP-10, ADR 0007): SmartScreen warnt; Signieren wie in FerretSharp (Kosten, SignPath) im Blick behalten.
 - Theme und Sprache folgen Windows; eine Einstellungsseite fehlt (ADR 0005). Passt zu WP-12 oder WP-16, falls dort Einstellungen dazukommen.
 - Ein Repo zu scannen heißt, seiner Konfiguration zu vertrauen (`core.fsmonitor`, Hooks laufen mit jedem `git status`, ADR 0002) – beim Scannen die Liste vorher bestätigen lassen?
 - Fehlermeldungen von git können eine Remote-URL mit Token enthalten (`https://user:token@host`, ungefilterte `remote:`-Zeilen eines Servers); vor Aktivitätsprotokoll und Log schwärzen. Seit WP-02 auch eine Senke mit Bestand: Benachrichtigungen bleiben im Benachrichtigungscenter und ggf. auf dem Sperrbildschirm – vor dem `ActivityLog` schwärzen, dann ist sie mit abgedeckt (Review WP-02).
-- Beenden während eines Auto-Pulls bricht `git merge --ff-only` nach 3 s ab (`host.StopAsync`, `GitRunner` beendet den Prozessbaum): lokale Arbeit bleibt, aber ein halb aktualisierter Worktree oder `index.lock` kann liegen bleiben. Seit `--exit` (WP-02) gibt es dafür einen Auslöser von außen; laufende Operationen beim Beenden bis zum Zeitlimit zu Ende laufen lassen (Review WP-02, vorher schon da).
+- Beenden während eines Auto-Pulls bricht `git merge --ff-only` nach 3 s ab (`host.StopAsync`, `GitRunner` beendet den Prozessbaum): lokale Arbeit bleibt, aber ein halb aktualisierter Worktree oder `index.lock` kann liegen bleiben. Seit `--exit` (WP-02) gibt es dafür einen Auslöser von außen, seit WP-10 auch „Jetzt neu starten“ in der Kopfzeile (ein Klick ohne Rückfrage); laufende Operationen beim Beenden bis zum Zeitlimit zu Ende laufen lassen (Review WP-02, vorher schon da).
 - Status-Durchlauf alle 20 s über alle Repos: bei sehr vielen Repos messen (Prozessstarts); Abhilfe in WP-03.
 - WebView-Bild nach Ruhezustand/Dock/RDP: FerretSharp hat `WebViewCapture`/`CopyFence` (ADR 0038/0039 dort); hier nur das WebView2-Pin. Tritt es auf, von dort übernehmen.
 - Ein Push ohne Remote `origin` (anderer Name) setzt keinen Upstream – Remote wählen lassen.

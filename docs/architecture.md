@@ -14,6 +14,9 @@ Shell.razor ──► BoardService ──► GitClient ──► GitRunner ─�
 
 ActivityLog.Added ──► SyncNotifier (eine Meldung je Durchlauf) ──► TrayIcon (App: NotifyIcon, Balloon-Tip)
 TrayIcon / InstanceSignal ──► Fenster zeigen, BoardNavigation.Open(repo) ──► Shell öffnet die Zeile
+
+UpdateState ──► IAppUpdater (App: VelopackUpdater ──► GitHub-Releases) ── Announced ──► TrayIcon (einmal je Version)
+   └── Restart ──► AppExit ──► App beendet sich, danach startet der Updater die neue Version (ADR 0007)
 ```
 
 ### 1.1 Git-Weg (ADR 0002)
@@ -31,12 +34,12 @@ TrayIcon / InstanceSignal ──► Fenster zeigen, BoardNavigation.Open(repo) �
 - Je Repo: `fetch --all --prune` im Hintergrundmodus, dann bei Auto-Pull `PullCheck.Blocker` und ggf. `merge --ff-only @{u}`.
 
 ### 1.4 Konfiguration
-- `config.json` (Version 1): `repos` mit `path`, `autoFetch`, `autoPull`; `autoSyncMinutes`; `settings` (`AppSettings`: `closeToTray`, `notifications`, `trayHintShown`, ADR 0006). Autostart steht nicht darin, sondern im Run-Schlüssel der Registry. Beim Lesen bereinigt (null, leere oder relative Pfade, doppelte, Intervall außerhalb der Auswahl). Neuere oder unlesbare Datei: nichts wird gespeichert, bis zum Neustart; kaputte Datei: Kopie `config.json.bad-<Zeit>`, Liste beginnt leer.
+- `config.json` (Version 1): `repos` mit `path`, `autoFetch`, `autoPull`; `autoSyncMinutes`; `settings` (`AppSettings`: `closeToTray`, `notifications`, `trayHintShown`, ADR 0006; `checkForUpdates`, `updateCheckHours`, `updateNotified`, ADR 0007). Autostart steht nicht darin, sondern im Run-Schlüssel der Registry. Beim Lesen bereinigt (null, leere oder relative Pfade, doppelte, Intervall außerhalb der Auswahl). Neuere oder unlesbare Datei: nichts wird gespeichert, bis zum Neustart; kaputte Datei: Kopie `config.json.bad-<Zeit>`, Liste beginnt leer.
 
 ## 2. UI-Konzept
 
 Eine Seite (Wunsch des Nutzers: „Alles übersichtlich auf einer Seite“):
-- **Kopfzeile:** Suche (Name, Pfad, Branch), Filter-Chips mit Zahl (Alle, Änderungen, Hinterher, Voraus, Auto-Sync, Probleme), ggf. „Auto-Sync pausiert · Fortsetzen“, Intervall, Status neu lesen, Alle fetchen, Ordner scannen, Repo hinzufügen, Einstellungen (Menü: im Infobereich weiterlaufen, mit Windows starten, Auto-Sync pausieren, Benachrichtigungen).
+- **Kopfzeile:** Suche (Name, Pfad, Branch), Filter-Chips mit Zahl (Alle, Änderungen, Hinterher, Voraus, Auto-Sync, Probleme), ggf. „Auto-Sync pausiert · Fortsetzen“, Intervall, Status neu lesen, Alle fetchen, Ordner scannen, Repo hinzufügen, Einstellungen (Menü: im Infobereich weiterlaufen, mit Windows starten, Auto-Sync pausieren, Benachrichtigungen; Updates). Gibt es eine neuere Version, steht vor dem Intervall ein Knopf („Update … verfügbar“, Fortschritt, „Neu starten für …“), der den Update-Dialog öffnet.
 - **Tabelle:** je Repo Name und Pfad, Branch (Hauptbranches grau, Feature-Branches farbig, detached markiert, laufende Operation), Sync (↑ voraus, ↓ hinterher, „aktuell“, „kein Upstream“, Warnzeichen bei übersprungenem Auto-Pull), Änderungen (`!` Konflikte, `+` gestaged, `~` geändert, `?` neu), letzter Fetch (älter als ein Tag: Warnfarbe), Schalter Auto-Fetch und Auto-Pull, Aktionen (Fetch, Pull, Push – hervorgehoben, wenn sinnvoll –, Explorer, Terminal, VS Code, entfernen). Ein Fehler steht als Zeile darunter, bis er ausgeblendet oder durch einen Erfolg ersetzt wird.
 - **Geöffnete Zeile:** Änderungen mit Häkchen (stagen/unstagen), Commit bzw. „Alle committen“, Commit und Push; Branches (lokal, dann nur entfernte) mit Wechseln und Anlegen; letzte Commits mit Refs.
 - **Aktivität** unten: zu die neueste Meldung, offen die Liste (neueste zuerst, „auto“ markiert).
@@ -44,7 +47,7 @@ Eine Seite (Wunsch des Nutzers: „Alles übersichtlich auf einer Seite“):
 - Ein Klick auf eine Benachrichtigung zu einem Repo setzt den Filter auf „Alle“, leert die Suche, öffnet die Zeile und holt sie per Fokus in den Blick.
 
 ## 3. Host
-- `Program.Main`: UI-Kultur, Instanzsperre je Datenordner (ein zweiter Start setzt das Ereignis `show` der laufenden Instanz, `--exit` deren `exit`, `InstanceSignal`), dann WPF.
-- `App`: Serilog nach `<Datenordner>\logs`, Generic Host ohne Standards, `BoardService` laden, Infobereich (`TrayIcon`), `SyncNotifier`, `InstanceSignal`, Fenster zeigen (nicht mit `--minimized`), `AutoSyncService` starten.
+- `Program.Main`: Velopack (Hooks für Installieren/Update/Deinstallieren, ADR 0007), UI-Kultur, Instanzsperre je Datenordner (ein zweiter Start setzt das Ereignis `show` der laufenden Instanz, `--exit` deren `exit`, `InstanceSignal`), dann WPF.
+- `App`: Serilog nach `<Datenordner>\logs`, Generic Host ohne Standards, `BoardService` laden, Infobereich (`TrayIcon`), `SyncNotifier`, `InstanceSignal`, Fenster zeigen (nicht mit `--minimized`), `AutoSyncService` starten, dann die Update-Prüfung (`UpdateState.StartAsync`).
 - **Infobereich (ADR 0006):** `ShutdownMode=OnExplicitShutdown`; Schließen versteckt das Fenster (Einstellung), Beenden über Menü, `--exit` oder Sitzungsende. Benachrichtigungen nur, wenn das Fenster nicht sichtbar und aktiv ist.
-- Optionen: `--data-dir=`, `--lang=en|de`, `--theme=dark|light`, `--minimized`, `--exit`.
+- Optionen: `--data-dir=`, `--lang=en|de`, `--theme=dark|light`, `--minimized`, `--exit`, `--update-source=` (nur Tests, ADR 0007).

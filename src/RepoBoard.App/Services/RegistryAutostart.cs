@@ -49,4 +49,36 @@ internal sealed class RegistryAutostart(AppPaths paths, ILogger<RegistryAutostar
 
         logger.LogInformation("Start with Windows {State} ({Name})", on ? "on" : "off", Name);
     }
+
+    /// <summary>
+    /// The uninstaller (WP-10): removes every start entry of <paramref name="exe"/>, whatever its data folder – Windows would
+    /// otherwise try to start a program that is gone at every sign-in. Never throws: the uninstall goes on.
+    /// </summary>
+    public static void RemoveAllOf(string? exe)
+    {
+        if (string.IsNullOrEmpty(exe))
+        {
+            return;
+        }
+
+        try
+        {
+            using var run = Registry.CurrentUser.OpenSubKey(Autostart.RunKey, writable: true);
+            if (run is null)
+            {
+                return;
+            }
+
+            using var approved = Registry.CurrentUser.OpenSubKey(Autostart.ApprovedKey, writable: true);
+            foreach (var name in run.GetValueNames().Where(n => Autostart.Starts(run.GetValue(n) as string, exe)))
+            {
+                run.DeleteValue(name, throwOnMissingValue: false);
+                approved?.DeleteValue(name, throwOnMissingValue: false);
+            }
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or System.IO.IOException)
+        {
+            // Nothing to log to: the uninstaller runs before the log exists.
+        }
+    }
 }

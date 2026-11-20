@@ -23,8 +23,20 @@ sign-in, SSH, hooks and LFS work exactly as in your terminal.
   opens it, fetches all, pauses auto-sync (until the next start) and exits. Windows notifications for auto-pulls and
   problems, gathered per run – a click opens the repository. Optionally start with Windows, in the notification area
   only. All in the settings menu at the top right.
+- **Updates:** RepoBoard looks for a newer version at start and while it runs and tells you – in the top bar and once as
+  a Windows notification – with what is new; downloading and restarting wait for your click. Switch it off or check now
+  in the settings.
 - **Repositories:** add one, or scan a folder (three levels deep); open it in the Explorer, a terminal or VS Code.
 - English and German, light and dark.
+
+## Install
+
+Download from the [releases](https://github.com/JuliusFo/RepoBoard/releases) (Windows 10/11, x64):
+
+- `RepoBoard-win-Setup.exe` installs RepoBoard for your user (no admin rights) to `%LocalAppData%\RepoBoard`.
+- `RepoBoard-win-Portable.zip` runs from any folder without installing.
+
+Both update themselves. The installer is not signed: Windows SmartScreen warns once (More info › Run anyway).
 
 ## Requirements
 

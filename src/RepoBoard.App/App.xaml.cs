@@ -26,6 +26,8 @@ public partial class App : Application
     private TrayIcon? _tray;
     private InstanceSignal? _signal;
     private SyncNotifier? _notifier;
+    private UpdateState? _updates;
+    private AppExit? _appExit;
     private bool _exiting;
     private bool _shutdownRequested;
 
@@ -90,6 +92,9 @@ public partial class App : Application
         builder.Services.AddSingleton<IDesktop, WpfDesktop>();
         builder.Services.AddSingleton<IAutostart, RegistryAutostart>();
         builder.Services.AddSingleton<BoardNavigation>();
+        builder.Services.AddSingleton<IAppUpdater>(new VelopackUpdater(_args));
+        builder.Services.AddSingleton<AppExit>();
+        builder.Services.AddSingleton<UpdateState>();
         builder.Services.AddHostedService<AutoSyncService>();
         builder.Services.AddSingleton<MainWindow>();
         _host = builder.Build();
@@ -100,10 +105,14 @@ public partial class App : Application
         MainWindow = window;
         window.Closing += OnWindowClosing;
         SessionEnding += (_, _) => _exiting = true;
-        _tray = new TrayIcon(board, _host.Services.GetRequiredService<BoardNavigation>(), ShowWindow, ExitApp, _host.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<TrayIcon>>());
+        _tray = new TrayIcon(board, ShowWindow, ExitApp, _host.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<TrayIcon>>());
         _notifier = new SyncNotifier(board, _host.Services.GetRequiredService<TimeProvider>());
         _notifier.Show += n => Dispatcher.BeginInvoke(() => Notify(n));
         _signal = new InstanceSignal(_paths, request => Dispatcher.BeginInvoke(request == InstanceRequest.Exit ? ExitApp : ShowWindow));
+        _appExit = _host.Services.GetRequiredService<AppExit>();
+        _appExit.Requested += () => Dispatcher.BeginInvoke(ExitApp); // "Restart now" into an update (WP-10)
+        var updates = _updates = _host.Services.GetRequiredService<UpdateState>();
+        updates.Announced += update => Dispatcher.BeginInvoke(() => NotifyUpdate(update));
 
         // Started with Windows: in the notification area only (decision of the user); the page loads with the first show.
         if (!CommandLine.Has(_args, CommandLine.Minimized))
@@ -112,7 +121,10 @@ public partial class App : Application
         }
 
         await _host.StartAsync();
-        Log.Information("RepoBoard {Version} started on {DataFolder}", typeof(App).Assembly.GetName().Version, _paths.Root);
+        Log.Information("RepoBoard {Version} started on {DataFolder}", AppVersion.Current, _paths.Root);
+
+        // Never throws: a failed check is a note in the settings.
+        await updates.StartAsync();
     }
 
     /// <summary>From the tray, a notification or a second start: the window comes back as it was, in front.</summary>
@@ -171,7 +183,25 @@ public partial class App : Application
             return;
         }
 
-        _tray?.Notify(notification.Title, notification.Text, notification.Worst, notification.RepoPath);
+        var navigation = _host!.Services.GetRequiredService<BoardNavigation>();
+        _tray?.Notify(notification.Title, notification.Text, notification.Worst, notification.RepoPath is { } repo ? () => navigation.Open(repo) : null);
+    }
+
+    /// <summary>
+    /// A newer RepoBoard, once per version (WP-10): RepoBoard often runs in the notification area only, where the top bar is
+    /// not seen. Not over the window the user is looking at, and not with notifications off. A click opens the dialog.
+    /// </summary>
+    private void NotifyUpdate(AppUpdate update)
+    {
+        var board = _host!.Services.GetRequiredService<BoardService>();
+        if (board.Settings.Notifications == NotificationLevel.Off
+            || _window is { IsVisible: true, IsActive: true, WindowState: not WindowState.Minimized })
+        {
+            return;
+        }
+
+        Log.Information("Notifying update {Version}", update.Version);
+        _tray?.Notify(TextFormat.Format(UpdateText.Notify_Title, update.Version), UpdateText.Notify_Text, ActivityKind.Info, () => _updates?.ShowDetails());
     }
 
     private void ExitApp()
@@ -214,6 +244,9 @@ public partial class App : Application
                 host.Dispose();
             }).GetAwaiter().GetResult();
         }
+
+        // After the background work stopped: the updater waits for this process to end, installs and starts the new version.
+        _appExit?.Exiting();
 
         Log.Information("RepoBoard ended");
         Log.CloseAndFlush();

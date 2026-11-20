@@ -1,0 +1,93 @@
+@* The updates in the settings menu (WP-10): the version, when to check, and what the last check found. *@
+@inherits BoardComponent
+@implements IDisposable
+@inject UpdateState Updates
+
+<div class="setting-head">@UpdateText.Section</div>
+<div class="setting">
+    <span>@TextFormat.Format(UpdateText.Version, AppVersion.Current)</span>
+</div>
+<div class="setting-hint">
+    @(Updates.Phase == UpdatePhase.NotInstalled ? UpdateText.VersionNotInstalled : UpdateText.VersionInstalled)
+</div>
+@if (Updates.Phase != UpdatePhase.NotInstalled)
+{
+    <div class="setting" title="@UpdateText.CheckAutomatically_Hint">
+        <span>@UpdateText.CheckAutomatically</span>
+        <Toggle Value="Settings.CheckForUpdates" Title="@UpdateText.CheckAutomatically_Hint"
+                OnChange="on => GuardAsync(() => Board.UpdateSettingsAsync(s => s with { CheckForUpdates = on }, default))" />
+    </div>
+    <div class="setting" title="@UpdateText.Interval_Hint">
+        <span>@UpdateText.Interval</span>
+        <select value="@Settings.UpdateCheckHours" disabled="@(!Settings.CheckForUpdates)" @onchange="SetInterval">
+            @foreach (var hours in AppSettings.UpdateCheckIntervals)
+            {
+                <option value="@hours">@Label(hours)</option>
+            }
+        </select>
+    </div>
+    <div class="setting update-status @(Updates.Phase is UpdatePhase.CheckFailed or UpdatePhase.DownloadFailed ? "failed" : "")">
+        <span>
+            @switch (Updates.Phase)
+            {
+                case UpdatePhase.Checking:
+                    <span class="spinner inline"></span> @UpdateText.Checking
+                    break;
+                case UpdatePhase.UpToDate when Updates.LastChecked is { } at:
+                    @TextFormat.Format(UpdateText.UpToDate, at.ToString("t", CultureInfo.CurrentCulture))
+                    break;
+                case UpdatePhase.CheckFailed:
+                    @TextFormat.Format(UpdateText.CheckFailed, Updates.Error)
+                    break;
+                case UpdatePhase.Available when Updates.Update is { } update:
+                    @TextFormat.Format(UpdateText.Available, update.Version)
+                    <button class="link-btn" @onclick="Updates.ShowDetails">@UpdateText.ShowChanges</button>
+                    break;
+                case UpdatePhase.Downloading when Updates.Update is { } update:
+                    <span class="spinner inline"></span> @TextFormat.Format(UpdateText.Downloading, update.Version, Updates.Progress)
+                    break;
+                case UpdatePhase.Ready when Updates.Update is { } update:
+                    @TextFormat.Format(UpdateText.Ready, update.Version)
+                    <button class="link-btn" @onclick="() => Guard(Updates.Restart)">@UpdateText.RestartNow</button>
+                    break;
+                case UpdatePhase.DownloadFailed when Updates.Update is { } update:
+                    @TextFormat.Format(UpdateText.DownloadFailed, update.Version, Updates.Error)
+                    <button class="link-btn" @onclick="Updates.ShowDetails">@UpdateText.TryAgain</button>
+                    break;
+            }
+        </span>
+        @if (Updates.CanCheck)
+        {
+            <button class="btn small" @onclick="() => GuardAsync(Updates.CheckAsync)">@UpdateText.CheckNow</button>
+        }
+    </div>
+}
+
+@code {
+    /// <summary>From the settings menu, which has it from the shell (a component without parameters is not rendered with its parent).</summary>
+    [Parameter, EditorRequired] public AppSettings Settings { get; set; } = null!;
+
+    private static string Label(int hours) => hours switch
+    {
+        0 => UpdateText.Interval_Never,
+        1 => UpdateText.Interval_Hourly,
+        24 => UpdateText.Interval_Daily,
+        _ => UpdateText.Interval_Every4Hours,
+    };
+
+    private Task SetInterval(ChangeEventArgs e) => GuardAsync(() =>
+        int.TryParse((string?)e.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var hours) && AppSettings.UpdateCheckIntervals.Contains(hours)
+            ? Board.UpdateSettingsAsync(s => s with { UpdateCheckHours = hours }, default)
+            : Task.CompletedTask);
+
+    protected override void OnInitialized() => Updates.Changed += OnChanged;
+
+    /// <summary>From any thread (the download's progress comes from the thread pool).</summary>
+    private void OnChanged() => Fire(() =>
+    {
+        StateHasChanged();
+        return Task.CompletedTask;
+    });
+
+    public void Dispose() => Updates.Changed -= OnChanged;
+}

@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Section" xml:space="preserve">
+    <value>Updates</value>
+  </data>
+  <data name="Version" xml:space="preserve">
+    <value>Version {0}</value>
+  </data>
+  <data name="VersionInstalled" xml:space="preserve">
+    <value>Installiert – Updates kommen aus den GitHub-Releases.</value>
+  </data>
+  <data name="VersionNotInstalled" xml:space="preserve">
+    <value>Nicht installiert (ein Build): Updates gibt es nur für ein RepoBoard aus den Releases (Setup.exe oder das Portable-Zip).</value>
+  </data>
+  <data name="CheckAutomatically" xml:space="preserve">
+    <value>Automatisch prüfen</value>
+  </data>
+  <data name="CheckAutomatically_Hint" xml:space="preserve">
+    <value>Fragt beim Start und während RepoBoard läuft bei GitHub, ob es eine neuere Version gibt, und zeigt sie oben in der Leiste und einmal als Benachrichtigung. Herunterladen und Installieren erst nach deinem Klick.</value>
+  </data>
+  <data name="Interval" xml:space="preserve">
+    <value>Während RepoBoard läuft</value>
+  </data>
+  <data name="Interval_Hint" xml:space="preserve">
+    <value>Prüft so lange nach der letzten Prüfung erneut – für den Fall, dass RepoBoard tagelang läuft. Nur mit automatischer Prüfung.</value>
+  </data>
+  <data name="Interval_Never" xml:space="preserve">
+    <value>Nie</value>
+  </data>
+  <data name="Interval_Hourly" xml:space="preserve">
+    <value>Stündlich</value>
+  </data>
+  <data name="Interval_Every4Hours" xml:space="preserve">
+    <value>Alle 4 Stunden</value>
+  </data>
+  <data name="Interval_Daily" xml:space="preserve">
+    <value>Täglich</value>
+  </data>
+  <data name="CheckNow" xml:space="preserve">
+    <value>Jetzt prüfen</value>
+  </data>
+  <data name="Checking" xml:space="preserve">
+    <value>Suche nach Updates …</value>
+  </data>
+  <data name="UpToDate" xml:space="preserve">
+    <value>RepoBoard ist aktuell (geprüft um {0}).</value>
+  </data>
+  <data name="Available" xml:space="preserve">
+    <value>Version {0} ist verfügbar.</value>
+  </data>
+  <data name="ShowChanges" xml:space="preserve">
+    <value>Änderungen ansehen und herunterladen …</value>
+  </data>
+  <data name="Downloading" xml:space="preserve">
+    <value>Lade {0} herunter – {1} %</value>
+  </data>
+  <data name="Ready" xml:space="preserve">
+    <value>Version {0} ist heruntergeladen – ein Neustart installiert sie.</value>
+  </data>
+  <data name="RestartNow" xml:space="preserve">
+    <value>Jetzt neu starten</value>
+  </data>
+  <data name="CheckFailed" xml:space="preserve">
+    <value>Prüfung auf Updates nicht möglich: {0}</value>
+  </data>
+  <data name="CheckTimedOut" xml:space="preserve">
+    <value>GitHub hat nicht innerhalb von {0} s geantwortet.</value>
+  </data>
+  <data name="DownloadFailed" xml:space="preserve">
+    <value>Herunterladen von {0} fehlgeschlagen: {1}</value>
+  </data>
+  <data name="TryAgain" xml:space="preserve">
+    <value>Erneut versuchen</value>
+  </data>
+  <data name="Top_Available" xml:space="preserve">
+    <value>Update {0} verfügbar</value>
+  </data>
+  <data name="Top_Available_Hint" xml:space="preserve">
+    <value>Neuerungen in {0} ansehen und herunterladen</value>
+  </data>
+  <data name="Top_Downloading" xml:space="preserve">
+    <value>Update {0} – {1} %</value>
+  </data>
+  <data name="Top_Ready" xml:space="preserve">
+    <value>Neu starten für {0}</value>
+  </data>
+  <data name="Top_Ready_Hint" xml:space="preserve">
+    <value>Beendet RepoBoard, installiert Version {0} und startet es wieder.</value>
+  </data>
+  <data name="Top_Failed" xml:space="preserve">
+    <value>Update fehlgeschlagen</value>
+  </data>
+  <data name="DialogTitle" xml:space="preserve">
+    <value>Update auf {0}</value>
+  </data>
+  <data name="YouHave" xml:space="preserve">
+    <value>Installiert ist Version {0}. Das ist neu:</value>
+  </data>
+  <data name="NoNotes" xml:space="preserve">
+    <value>Dieses Release hat keine Notizen.</value>
+  </data>
+  <data name="NotesOnlyTarget" xml:space="preserve">
+    <value>Hier sind nur die Notizen von {0} bekannt; dazwischen erschienene Versionen, falls es welche gibt, stehen auf GitHub.</value>
+  </data>
+  <data name="AllReleases" xml:space="preserve">
+    <value>Alle Releases auf GitHub</value>
+  </data>
+  <data name="RestartHint" xml:space="preserve">
+    <value>Nach dem Herunterladen beendet „Jetzt neu starten“ RepoBoard, installiert das Update und startet es wieder. Repositories und Einstellungen bleiben.</value>
+  </data>
+  <data name="Later" xml:space="preserve">
+    <value>Später</value>
+  </data>
+  <data name="Download" xml:space="preserve">
+    <value>Herunterladen</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>Abbrechen</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Schließen</value>
+  </data>
+  <data name="Notify_Title" xml:space="preserve">
+    <value>RepoBoard {0} ist verfügbar</value>
+  </data>
+  <data name="Notify_Text" xml:space="preserve">
+    <value>Klicken, um die Neuerungen zu sehen. Herunterladen und Installieren erst nach deinem Klick.</value>
+  </data>
+</root>

@@ -23,6 +23,33 @@ public static class CommandLine
     /// <summary>Ends the instance running on the data folder (as the tray's Exit) instead of starting one.</summary>
     public const string Exit = "--exit";
 
+    /// <summary>
+    /// A folder with update packages to read instead of the GitHub releases (WP-10): only for testing an update without
+    /// GitHub, not advertised.
+    /// </summary>
+    public const string UpdateSource = "--update-source=";
+
+    /// <summary>Options whose value is a path: made full by <see cref="Restart"/>.</summary>
+    private static readonly string[] PathOptions = [DataDir, UpdateSource];
+
+    /// <summary>
+    /// The arguments to start RepoBoard again after an update (WP-10): as it was started, but with full paths – the updater
+    /// may start it in another working folder, and a relative <c>--data-dir</c> would point at an empty one (FerretSharp
+    /// review 3.31.0, A44) – and with the window: the restart follows a click, so neither <see cref="Minimized"/> nor
+    /// <see cref="Exit"/>.
+    /// </summary>
+    public static IReadOnlyList<string> Restart(IEnumerable<string> args) =>
+    [
+        .. args.Where(a => !string.Equals(a, Minimized, StringComparison.OrdinalIgnoreCase) && !string.Equals(a, Exit, StringComparison.OrdinalIgnoreCase))
+            .Select(WithFullPath),
+    ];
+
+    private static string WithFullPath(string argument) =>
+        PathOptions.FirstOrDefault(p => argument.StartsWith(p, StringComparison.OrdinalIgnoreCase)) is { } prefix
+        && argument.Length > prefix.Length
+            ? prefix + Path.GetFullPath(argument[prefix.Length..])
+            : argument;
+
     /// <summary>Whether the switch <paramref name="option"/> (no value) is given.</summary>
     public static bool Has(IEnumerable<string> args, string option) =>
         args.Any(a => string.Equals(a, option, StringComparison.OrdinalIgnoreCase));
