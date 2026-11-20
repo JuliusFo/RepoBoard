@@ -12,7 +12,7 @@ Shell.razor ──► BoardService ──► GitClient ──► GitRunner ─�
    │   └──► IDesktop (App: Ordnerdialog, Explorer, Terminal, VS Code), IAutostart (App: Run-Schlüssel)
    └── Changed (beliebiger Thread) → ein Rendern je Schub
 
-ActivityLog.Added ──► SyncNotifier (2 s bündeln) ──► TrayIcon (App: NotifyIcon, Balloon-Tip)
+ActivityLog.Added ──► SyncNotifier (eine Meldung je Durchlauf) ──► TrayIcon (App: NotifyIcon, Balloon-Tip)
 TrayIcon / InstanceSignal ──► Fenster zeigen, BoardNavigation.Open(repo) ──► Shell öffnet die Zeile
 ```
 
