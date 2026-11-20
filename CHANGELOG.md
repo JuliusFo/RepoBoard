@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-21
+
 ### Security
 - Credentials in git’s messages are masked before they reach the row, the activity log and Windows notifications: the password or token in a remote URL (`https://user:***@host`, `https://***@host`) and GitHub and GitLab tokens in a server’s `remote:` lines.
 
