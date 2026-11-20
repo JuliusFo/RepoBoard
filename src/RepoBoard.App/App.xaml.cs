@@ -24,7 +24,7 @@ public partial class App : Application
     private IHost? _host;
     private MainWindow? _window;
     private TrayIcon? _tray;
-    private ShowSignal? _showSignal;
+    private InstanceSignal? _signal;
     private SyncNotifier? _notifier;
     private bool _exiting;
     private bool _shutdownRequested;
@@ -103,7 +103,7 @@ public partial class App : Application
         _tray = new TrayIcon(board, _host.Services.GetRequiredService<BoardNavigation>(), ShowWindow, ExitApp, _host.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<TrayIcon>>());
         _notifier = new SyncNotifier(board, _host.Services.GetRequiredService<TimeProvider>());
         _notifier.Show += n => Dispatcher.BeginInvoke(() => Notify(n));
-        _showSignal = new ShowSignal(_paths, () => Dispatcher.BeginInvoke(ShowWindow));
+        _signal = new InstanceSignal(_paths, request => Dispatcher.BeginInvoke(request == InstanceRequest.Exit ? ExitApp : ShowWindow));
 
         // Started with Windows: in the notification area only (decision of the user); the page loads with the first show.
         if (!CommandLine.Has(_args, CommandLine.Minimized))
@@ -204,7 +204,7 @@ public partial class App : Application
     {
         // On the UI thread: the icon belongs to it (and would stay in the notification area until the mouse passes).
         _tray?.Dispose();
-        _showSignal?.Dispose();
+        _signal?.Dispose();
         _notifier?.Dispose();
         if (_host is { } host)
         {

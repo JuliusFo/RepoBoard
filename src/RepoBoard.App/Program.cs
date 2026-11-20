@@ -24,9 +24,14 @@ internal static class Program
         {
             if (!InstanceLock.TryAcquire(paths, Environment.ProcessId, out instance, out var running))
             {
+                if (CommandLine.Has(args, CommandLine.Exit))
+                {
+                    return InstanceSignal.Send(paths, InstanceRequest.Exit, running) ? 0 : 1;
+                }
+
                 // Two instances would fetch and pull the same repositories at once: the running one comes forward instead –
                 // through its signal, as its window may be hidden in the notification area (ADR 0006).
-                if (!ShowSignal.Send(paths, running) && !RunningInstance.BringForward(running))
+                if (!InstanceSignal.Send(paths, InstanceRequest.Show, running) && !RunningInstance.BringForward(running))
                 {
                     MessageBox.Show(TextFormat.Format(BoardText.App_AlreadyRunning, paths.Root), "RepoBoard", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
@@ -37,6 +42,12 @@ internal static class Program
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // The data folder cannot be written: the start reports that itself (log, config), with or without the lock.
+        }
+
+        if (CommandLine.Has(args, CommandLine.Exit))
+        {
+            instance?.Dispose();
+            return 0; // nothing running on this data folder: nothing to end
         }
 
         using (instance)

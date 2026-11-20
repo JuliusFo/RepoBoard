@@ -20,6 +20,9 @@ public static class CommandLine
     /// <summary>Start in the notification area without showing the window (start with Windows, ADR 0006).</summary>
     public const string Minimized = "--minimized";
 
+    /// <summary>Ends the instance running on the data folder (as the tray's Exit) instead of starting one.</summary>
+    public const string Exit = "--exit";
+
     /// <summary>Whether the switch <paramref name="option"/> (no value) is given.</summary>
     public static bool Has(IEnumerable<string> args, string option) =>
         args.Any(a => string.Equals(a, option, StringComparison.OrdinalIgnoreCase));

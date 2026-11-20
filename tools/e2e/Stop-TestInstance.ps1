@@ -4,7 +4,8 @@
 
 .DESCRIPTION
     Only closes the process if its executable lies below <Root>\app - never an instance of the user or of another
-    session. Closes the window first, kills the process after 10 s.
+    session. Asks it to end with "RepoBoard.exe --exit" (closing the window only hides it in the notification area),
+    kills the process after 10 s – then its icon stays in the notification area until the mouse passes over it.
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File tools/e2e/Stop-TestInstance.ps1 -Root <scratch>\e2e -ProcessId 12345
@@ -22,8 +23,11 @@ if ($process) {
     if (-not $process.Path -or -not $process.Path.StartsWith($app, [StringComparison]::OrdinalIgnoreCase)) {
         throw "Process $ProcessId ($($process.Path)) is not a test instance below $app - left running."
     }
-    $process.CloseMainWindow() | Out-Null
-    if (-not $process.WaitForExit(10000)) { Stop-Process -Id $ProcessId }
+    & $process.Path "--data-dir=$(Join-Path $Root 'data')" --exit
+    if (-not $process.WaitForExit(10000)) {
+        Stop-Process -Id $ProcessId
+        "Killed $ProcessId: it did not end on --exit."
+    }
     "Closed $ProcessId."
 } else {
     "Process $ProcessId is not running."
