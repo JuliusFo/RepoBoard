@@ -86,12 +86,24 @@ jobs:
         run: dotnet tool restore
 
       # The last Velopack release, so vpk can make a delta package from it. None for the first release: full packages only.
+      # If there is one and the download fails (API, rate limit, token), stop (WP-10 review): the release would quietly have
+      # no delta, and the update dialog would miss the notes of the versions skipped.
       - name: Previous release for delta packages
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          $previous = gh release list --repo $env:REPO_URL --exclude-drafts --exclude-pre-releases --limit 20 --json tagName --jq '.[].tagName' |
+            Where-Object { $_ -ne $env:TAG } | Select-Object -First 1
+          if ($LASTEXITCODE -ne 0) { throw 'gh release list failed.' }
+          $hasFeed = $false
+          if ($previous) {
+            $assets = gh release view $previous --repo $env:REPO_URL --json assets --jq '.assets[].name'
+            if ($LASTEXITCODE -ne 0) { throw "gh release view $previous failed." }
+            $hasFeed = @($assets) -contains 'releases.win.json'
+          }
           dotnet vpk download github --repoUrl $env:REPO_URL --token $env:GH_TOKEN --outputDir releases
           if ($LASTEXITCODE -ne 0) {
+            if ($hasFeed) { throw "Release $previous has Velopack packages, but vpk could not download them." }
             Write-Warning "No previous Velopack release found – this release has full packages only."
             $global:LASTEXITCODE = 0
           }
