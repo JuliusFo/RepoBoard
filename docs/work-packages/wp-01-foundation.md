@@ -5,7 +5,7 @@ Ordner `C:\Dev-Repos\RepoBoard`, 2026-11-20, noch ohne Release (0.1.0).
 ## Anlass (Gespräch mit dem Nutzer, 2026-11-20)
 - Wunsch: ein Git-Tool wie GitHub Desktop (aktueller Branch, Commit, Pull, Fetch …), dazu eine direkte Übersicht über alle Repos und ihre Branches, Auto-Fetch/Auto-Pull für bestimmte Repos zum Ein- und Ausschalten, „alles übersichtlich auf einer Seite“. Erst nach bestehenden Tools suchen, sonst ein Spike „mit C# und dem selben UI-Stack wie FerretSharp“.
 - Recherche: kein Tool deckt alles ab (ADR 0001, Kontext). Spike in einem Scratch-Ordner gebaut, mit den Repos des Nutzers (nur Status gelesen) angesehen.
-- Nutzer: „Der Spike sieht richtig gut aus!“; danach die Ideenliste (jetzt `docs/backlog.md`), dann: neues Projekt im normalen Projektordner „mit der Projektstruktur von FerretSharp inklusive Regeln, Claude-Skills, etc.“, „direkt sauber aufbauen und das Gelernte aus FS übernehmen“.
+- Nutzer: „Der Spike sieht richtig gut aus!“; danach die Ideenliste (jetzt WP-02 … WP-24 in `docs/roadmap.md`), dann: neues Projekt im normalen Projektordner „mit der Projektstruktur von FerretSharp inklusive Regeln, Claude-Skills, etc.“, „direkt sauber aufbauen und das Gelernte aus FS übernehmen“.
 
 ## Entscheidungen des Nutzers
 - Stack und Aufbau wie FerretSharp (ADR 0001).
