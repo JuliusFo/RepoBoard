@@ -15,7 +15,8 @@ Vor Änderungen an `.github/workflows/`, an der Version oder vor einem Release l
 - **Windows:** ganze Solution mit `-warnaserror`, alle Tests.
 - **Concurrency:** PR-Läufe nach PR-Nummer gruppiert, nie nur nach `github.ref`.
 - **Lokal wie der Linux-Job:** `pwsh -NoProfile -File tools/linux/Test-Linux.ps1` kopiert den Arbeitsstand in einen Container mit .NET-10-SDK (mit git), baut Core und UI und führt die Tests aus; ins Repo schreibt er nichts. Vorher prüft er lesend auf CRLF im Index.
-- Pflicht-Checks im Ruleset von `main`, sobald das Repo auf GitHub liegt: Vorschlag (nicht bestätigt) – Linux, Windows, Line endings.
+- **Pflicht-Checks (Entscheidung des Nutzers, 2026-11-20):** Das Ruleset „Protect main“ (wie in FerretSharp) verlangt für einen Merge die Jobs „Core, UI and tests (Linux)“, „Solution (Windows)“ und „Line endings“ (nicht aktuell mit `main` nötig) und verbietet Löschen und Force-Push von `main`. Repo-Admins stehen auf der Bypass-Liste: Doku-Commits gehen direkt auf `main`. Ein umbenannter oder neuer Job muss im Ruleset mitgeändert werden, sonst wartet jeder PR auf einen Check, der nie kommt.
+- Das Repo ist dafür öffentlich (Entscheidung des Nutzers, 2026-11-20): Auf dem kostenlosen Plan gibt es Rulesets nur für öffentliche Repos.
 
 ## Distribution
 

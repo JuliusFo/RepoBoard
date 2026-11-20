@@ -18,4 +18,4 @@ Vor jeder Änderung hier `docs/release.md` lesen.
 - **CI-Concurrency:** PR-Läufe nach der PR-Nummer gruppieren, nie nur nach `github.ref` (FerretSharp `fix-ci-concurrency`).
 - **Zeilenenden:** der Job `line-endings` bricht ab, wenn eine committete Textdatei CRLF hat; beheben mit `git add --renormalize <Datei>`. `*.md text` steht in `.gitattributes`, weil ein einzelnes CR eine Datei unter `text=auto` binär macht (FerretSharp `fix-line-endings`).
 - Ein Job, der pushen darf, pinnt seine Actions per Commit-SHA (Tag als Kommentar); Dependabot hält sie aktuell.
-- Pflicht-Checks (sobald das Repo auf GitHub liegt, Vorschlag – nicht bestätigt): „Core, UI and tests (Linux)“, „Solution (Windows)“, „Line endings“. Einen Job umbenennen nur zusammen mit dem Ruleset.
+- **Pflicht-Checks:** Das Ruleset „Protect main“ verlangt die CI-Jobs nach ihrem `name:` („Core, UI and tests (Linux)“, „Solution (Windows)“, „Line endings“) – einen Job umbenennen oder einen Pflicht-Job ergänzen nur zusammen mit dem Ruleset (`docs/release.md`), sonst hängt jeder PR.
