@@ -19,16 +19,18 @@ internal static class Program
         // async method is undone when it returns – Blazor would render in the Windows language again (FerretSharp ui.md).
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.CurrentUICulture = CommandLine.UiCulture(args, CultureInfo.CurrentUICulture);
         var paths = DataFolder(args);
+        if (CommandLine.Has(args, CommandLine.Exit))
+        {
+            // Only the signal: no lock, no data folder created – a start at the same moment must not see "already running"
+            // because of us (Review WP-02). 1 = nothing listens on this data folder.
+            return InstanceSignal.Send(paths, InstanceRequest.Exit, null) ? 0 : 1;
+        }
+
         InstanceLock? instance = null;
         try
         {
             if (!InstanceLock.TryAcquire(paths, Environment.ProcessId, out instance, out var running))
             {
-                if (CommandLine.Has(args, CommandLine.Exit))
-                {
-                    return InstanceSignal.Send(paths, InstanceRequest.Exit, running) ? 0 : 1;
-                }
-
                 // Two instances would fetch and pull the same repositories at once: the running one comes forward instead –
                 // through its signal, as its window may be hidden in the notification area (ADR 0006).
                 if (!InstanceSignal.Send(paths, InstanceRequest.Show, running) && !RunningInstance.BringForward(running))
@@ -42,12 +44,6 @@ internal static class Program
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // The data folder cannot be written: the start reports that itself (log, config), with or without the lock.
-        }
-
-        if (CommandLine.Has(args, CommandLine.Exit))
-        {
-            instance?.Dispose();
-            return 0; // nothing running on this data folder: nothing to end
         }
 
         using (instance)
