@@ -27,7 +27,7 @@ Branch `wp/10-installer`, 2026-11-20, noch ohne Release.
 - **Werkzeuge:** `Start-TestInstance.ps1 -Exe current\RepoBoard.exe` startet eine Portable-Testversion aus `<Root>\app`.
 
 ## Geprüft
-- `dotnet build -warnaserror` und `dotnet test`: 192 Tests grün (120 Core, 72 UI).
+- `dotnet build -warnaserror` und `dotnet test`: 192 Tests grün (120 Core, 72 UI); nach dem Review 196 (121 Core, 75 UI).
 - E2E (2026-11-20, alles im Scratchpad): Testversionen 0.1.90/0.1.91/0.1.92 mit eigener Pack-Id `RepoBoardE2E` (`vpk pack` lokal), Portable-Zip von 0.1.90 nach `<Root>\app`, eigener Daten- und WebView2-Ordner, Feed per `--update-source`. Eingeschleuste Eingaben kamen durch (`Test-InjectedInput.ps1`), Klicks mit `Invoke-RealClick.ps1`.
   - Prüfung beim Start → „Update 0.1.91 verfügbar“ in der Kopfzeile, `updateNotified` = 0.1.91 gespeichert.
   - Klick → Dialog mit Notizen (Absatz, Überschriften, Aufzählung mit Fortsetzungszeile, Inline-Code, Link als Text), Hinweis „nur die Notizen von 0.1.91“ (Portable hat kein lokales volles Paket), Bild.
@@ -41,3 +41,15 @@ Branch `wp/10-installer`, 2026-11-20, noch ohne Release.
 ## Offen
 - Die Kopfzeile passt bei 1440 px Fensterbreite schon ohne den Update-Knopf nicht ganz (Einstellungsknopf am Rand abgeschnitten); mit dem Knopf fehlen ~200 px – Backlog.
 - Signieren (SmartScreen) wie in FerretSharp: Backlog.
+
+## Nachtrag: Code-Review (2026-11-20)
+Unabhängiger Reviewer über den ganzen Branch (Build und 192 Tests grün, keine Befunde S/M). Entscheidung des Nutzers: „Deine Vorschläge passen“ – alle Punkte nach den Vorschlägen beheben, die Wiederholung nach 15 min.
+1. K – Eine gescheiterte Prüfung beim Start (kein Netz nach der Anmeldung) kam erst nach dem Intervall wieder, bei „Nie“ gar nicht → behoben: Wiederholung nach 15 min, bis eine antwortet, auch bei „Nie“; nicht nach einem gescheiterten „Jetzt prüfen“ bei abgeschalteter Prüfung. Tests scheitern ohne den Fix.
+2. K – `BoardService.UpdateSettingsAsync` las und änderte ohne Sperre, die Update-Prüfung speichert vom Thread-Pool → behoben: `_settingsLock`; Test mit zwei gleichzeitigen Änderungen scheitert ohne. Regel in `git.md`.
+3. K – Klick auf eine ältere Meldung führt die Aktion der neueren aus (Verdacht) → nicht reproduziert: ein zweiter Balloon-Tip desselben Symbols schließt das Popup des ersten nach 17 ms (Probe mit `NotifyIcon`, `BalloonTipClosed`), es ist immer nur das zuletzt gezeigte da. Keine Änderung; in ADR 0007 vermerkt.
+4. K – `updater.Downloaded` außerhalb von try: ein unlesbarer Download hätte den Start der App beendet (Verdacht) → abgesichert: gilt als keiner, Log, weiter mit der Prüfung; Test scheitert ohne.
+5. K – Der Release-Workflow machte aus jedem Fehler von `vpk download` eine Warnung (Release still ohne Delta) → behoben: gibt es ein veröffentlichtes Release mit `releases.win.json`, bricht ein gescheiterter Download den Lauf ab. Abfrage lesend gegen RepoBoard (kein Release) und FerretSharp (Feed vorhanden) geprüft.
+6. K – „30 s“ stand im Text und im Code → Platzhalter aus `UpdateState.CheckTimeout`.
+7. K – Ein zweites Profil aus derselben Installation würde der Updater vermutlich hart beenden (Verdacht) → in ADR 0007 dokumentiert, wie vorgeschlagen.
+- Verworfen: Rennen zwischen stiller Prüfung und „Herunterladen“ – die stille Prüfung meldet nur bei geschlossenem Dialog, der Download startet nur aus dem offenen.
+- Vorher schon da: Beenden bricht laufende git-Operationen ab; „Jetzt neu starten“ ist ein weiterer Auslöser → im Backlog ergänzt.
