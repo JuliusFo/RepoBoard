@@ -43,3 +43,7 @@ The repository list is kept in `%APPDATA%\RepoBoard\config.json`, logs in `%APPD
 
 `CLAUDE.md` (how the project is built and worked on), `docs/architecture.md`, `docs/decisions/` (ADRs),
 `docs/roadmap.md`, `docs/backlog.md`.
+
+## License
+
+[MIT](LICENSE). The icons come from [Lucide](https://lucide.dev) (ISC, see `src/RepoBoard.UI/wwwroot/lib/lucide/LICENSE.txt`).
