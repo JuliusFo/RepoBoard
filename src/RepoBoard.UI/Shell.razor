@@ -41,7 +41,7 @@
         <button class="btn" title="@BoardText.FetchAll_Hint" @onclick="FetchAll">@Icons.Fetch @BoardText.FetchAll</button>
         <button class="btn" title="@BoardText.Scan_Hint" @onclick="Scan">@BoardText.Scan</button>
         <button class="btn primary" title="@BoardText.Add_Hint" @onclick="Add">@Icons.Plus @BoardText.Add</button>
-        <SettingsMenu />
+        <SettingsMenu Settings="Board.Settings" Paused="Board.AutoSyncPaused" />
     </header>
 
     <main class="board">

@@ -11,7 +11,7 @@
         <div class="menu-panel" role="dialog" aria-label="@BoardText.Settings_Hint">
             <div class="setting">
                 <span>@BoardText.Settings_CloseToTray</span>
-                <Toggle Value="Board.Settings.CloseToTray" Title="@BoardText.Settings_CloseToTray"
+                <Toggle Value="Settings.CloseToTray" Title="@BoardText.Settings_CloseToTray"
                         OnChange="on => GuardAsync(() => Board.UpdateSettingsAsync(s => s with { CloseToTray = on }, default))" />
             </div>
             <div class="setting">
@@ -20,11 +20,11 @@
             </div>
             <div class="setting">
                 <span>@BoardText.Tray_PauseAutoSync</span>
-                <Toggle Value="Board.AutoSyncPaused" Title="@BoardText.Paused_Hint" OnChange="on => Guard(() => Board.SetAutoSyncPaused(on))" />
+                <Toggle Value="Paused" Title="@BoardText.Tray_PauseAutoSync" OnChange="on => Guard(() => Board.SetAutoSyncPaused(on))" />
             </div>
             <div class="setting">
                 <span>@BoardText.Settings_Notifications</span>
-                <select value="@Board.Settings.Notifications" @onchange="SetNotifications">
+                <select value="@Settings.Notifications" @onchange="SetNotifications">
                     @foreach (var level in Levels)
                     {
                         <option value="@level">@Label(level)</option>
@@ -36,6 +36,14 @@
 </div>
 
 @code {
+    /// <summary>
+    /// From the shell, not read from the board here: a component without parameters is not rendered again with its parent,
+    /// a pause from the tray menu would not show while the menu is open (Review WP-02).
+    /// </summary>
+    [Parameter, EditorRequired] public AppSettings Settings { get; set; } = null!;
+
+    [Parameter] public bool Paused { get; set; }
+
     private static readonly NotificationLevel[] Levels = [NotificationLevel.PullsAndProblems, NotificationLevel.Problems, NotificationLevel.Off];
     private bool _open;
     private bool _autostart;
