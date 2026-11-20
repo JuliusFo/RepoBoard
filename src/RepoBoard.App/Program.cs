@@ -24,8 +24,9 @@ internal static class Program
         {
             if (!InstanceLock.TryAcquire(paths, Environment.ProcessId, out instance, out var running))
             {
-                // Two instances would fetch and pull the same repositories at once: the running one comes forward instead.
-                if (!RunningInstance.BringForward(running))
+                // Two instances would fetch and pull the same repositories at once: the running one comes forward instead –
+                // through its signal, as its window may be hidden in the notification area (ADR 0006).
+                if (!ShowSignal.Send(paths, running) && !RunningInstance.BringForward(running))
                 {
                     MessageBox.Show(TextFormat.Format(BoardText.App_AlreadyRunning, paths.Root), "RepoBoard", MessageBoxButton.OK, MessageBoxImage.Information);
                 }

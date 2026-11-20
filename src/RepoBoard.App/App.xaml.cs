@@ -22,6 +22,12 @@ public partial class App : Application
     private readonly AppPaths _paths;
     private readonly string[] _args;
     private IHost? _host;
+    private MainWindow? _window;
+    private TrayIcon? _tray;
+    private ShowSignal? _showSignal;
+    private SyncNotifier? _notifier;
+    private bool _exiting;
+    private bool _shutdownRequested;
 
     /// <summary>Started by <see cref="Program.Main"/>, which holds the data folder's instance lock.</summary>
     internal App(AppPaths paths, string[] args)
@@ -82,16 +88,100 @@ public partial class App : Application
         builder.Services.AddSingleton(services => new ConfigStore(_paths.ConfigFile, services.GetRequiredService<TimeProvider>()));
         builder.Services.AddSingleton<BoardService>();
         builder.Services.AddSingleton<IDesktop, WpfDesktop>();
+        builder.Services.AddSingleton<IAutostart, RegistryAutostart>();
+        builder.Services.AddSingleton<BoardNavigation>();
         builder.Services.AddHostedService<AutoSyncService>();
         builder.Services.AddSingleton<MainWindow>();
         _host = builder.Build();
 
-        await _host.Services.GetRequiredService<BoardService>().LoadAsync(CancellationToken.None);
-        var window = _host.Services.GetRequiredService<MainWindow>();
+        var board = _host.Services.GetRequiredService<BoardService>();
+        await board.LoadAsync(CancellationToken.None);
+        var window = _window = _host.Services.GetRequiredService<MainWindow>();
         MainWindow = window;
-        window.Show();
+        window.Closing += OnWindowClosing;
+        SessionEnding += (_, _) => _exiting = true;
+        _tray = new TrayIcon(board, _host.Services.GetRequiredService<BoardNavigation>(), ShowWindow, ExitApp, _host.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<TrayIcon>>());
+        _notifier = new SyncNotifier(board, _host.Services.GetRequiredService<TimeProvider>());
+        _notifier.Show += n => Dispatcher.BeginInvoke(() => Notify(n));
+        _showSignal = new ShowSignal(_paths, () => Dispatcher.BeginInvoke(ShowWindow));
+
+        // Started with Windows: in the notification area only (decision of the user); the page loads with the first show.
+        if (!CommandLine.Has(_args, CommandLine.Minimized))
+        {
+            window.Show();
+        }
+
         await _host.StartAsync();
         Log.Information("RepoBoard {Version} started on {DataFolder}", typeof(App).Assembly.GetName().Version, _paths.Root);
+    }
+
+    /// <summary>From the tray, a notification or a second start: the window comes back as it was, in front.</summary>
+    private void ShowWindow()
+    {
+        if (_window is not { } window)
+        {
+            return;
+        }
+
+        window.Show();
+        if (window.WindowState == WindowState.Minimized)
+        {
+            window.WindowState = WindowState.Normal;
+        }
+
+        window.Activate();
+    }
+
+    /// <summary>
+    /// Closing keeps RepoBoard in the notification area (default, decision of the user) – the first time with a hint – or
+    /// ends it, as set. The tray's Exit and the end of the Windows session always end it.
+    /// </summary>
+    private async void OnWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        var board = _host!.Services.GetRequiredService<BoardService>();
+        if (_exiting || !board.Settings.CloseToTray)
+        {
+            ExitApp();
+            return;
+        }
+
+        e.Cancel = true;
+        _window!.Hide();
+        if (board.Settings.TrayHintShown)
+        {
+            return;
+        }
+
+        _tray?.Notify(BoardText.Tray_HintTitle, BoardText.Tray_HintText, ActivityKind.Info, null);
+        try
+        {
+            await board.UpdateSettingsAsync(s => s with { TrayHintShown = true }, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Saving that the tray hint was shown failed");
+        }
+    }
+
+    /// <summary>Not over the window the user is looking at: there the activity log shows it.</summary>
+    private void Notify(SyncNotification notification)
+    {
+        if (_window is { IsVisible: true, IsActive: true, WindowState: not WindowState.Minimized })
+        {
+            return;
+        }
+
+        _tray?.Notify(notification.Title, notification.Text, notification.Worst, notification.RepoPath);
+    }
+
+    private void ExitApp()
+    {
+        _exiting = true;
+        if (!_shutdownRequested)
+        {
+            _shutdownRequested = true;
+            Shutdown();
+        }
     }
 
     private void RegisterGlobalExceptionHandlers()
@@ -112,6 +202,10 @@ public partial class App : Application
     /// <summary>The host is disposed on a pool thread: the UI thread waits for it and must not be needed meanwhile.</summary>
     protected override void OnExit(ExitEventArgs e)
     {
+        // On the UI thread: the icon belongs to it (and would stay in the notification area until the mouse passes).
+        _tray?.Dispose();
+        _showSignal?.Dispose();
+        _notifier?.Dispose();
         if (_host is { } host)
         {
             Task.Run(async () =>

@@ -12,7 +12,24 @@
     <AssemblyName>RepoBoard</AssemblyName>
     <!-- Per-monitor DPI awareness, see the comment in the manifest. -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>RepoBoard.ico</ApplicationIcon>
+    <!-- Only for NotifyIcon, the icon in the notification area (ADR 0006); WPF has none. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <!-- WinForms' analyzer wants the DPI mode from Application.SetHighDpiMode instead of the manifest – that is for a WinForms
+         app; here WPF owns the process and the manifest sets it (see app.manifest). -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
   </PropertyGroup>
+
+  <!-- WinForms' implicit usings would make Application, MessageBox, Color … ambiguous with WPF: WinForms types are named. -->
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <!-- Program, window and notification-area icon; drawn by tools/icon/New-AppIcon.ps1. -->
+  <ItemGroup>
+    <Resource Include="RepoBoard.ico" />
+  </ItemGroup>
 
   <!-- Own entry point (Program.Main): the instance lock before WPF starts. -->
   <ItemGroup>
