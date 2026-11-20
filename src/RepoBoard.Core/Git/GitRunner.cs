@@ -10,7 +10,10 @@ public sealed record GitResult(int ExitCode, string Output, string Error)
 {
     public bool Success => ExitCode == 0;
 
-    /// <summary>What to show the user: git writes progress and errors to stderr, results to stdout; hints are left out.</summary>
+    /// <summary>
+    /// What to show the user: git writes progress and errors to stderr, results to stdout; hints are left out, credentials
+    /// masked (<see cref="GitSecrets"/>).
+    /// </summary>
     public string Message
     {
         get
@@ -18,7 +21,7 @@ public sealed record GitResult(int ExitCode, string Output, string Error)
             var text = string.IsNullOrWhiteSpace(Error) ? Output : Error;
             var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Where(l => !l.StartsWith("hint:", StringComparison.Ordinal));
-            return string.Join(Environment.NewLine, lines);
+            return GitSecrets.Redact(string.Join(Environment.NewLine, lines));
         }
     }
 
