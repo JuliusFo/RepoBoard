@@ -61,7 +61,7 @@ Branch `wp/09-history`.
 Branch `wp/10-installer`.
 - Velopack wie FerretSharp (ADR 0024 dort): `Program.Main` ruft Velopack zuerst, Release-Workflow auf Tag (Version gegen `Directory.Build.props`), Setup und Portable, Update-Prüfung mit Dialog, Notizen aus dem CHANGELOG.
 - App-Icon (`tools/icon` wie FerretSharp).
-- Offen: automatische Update-Prüfung beim Start oder nur auf Klick?
+- Entscheidung des Nutzers (2026-11-20): **automatisch nach Updates suchen, wie FerretSharp** (dort WP-32 und Nachträge): Prüfung beim Start und während die App läuft (Nie / Stündlich / Alle 4 Stunden (Standard) / Täglich), abschaltbar, dazu „Jetzt prüfen“; nur melden (Statusleiste, Dialog mit Notizen), Herunterladen und „Jetzt neu starten“ erst nach Klick; eine gescheiterte Prüfung ist nur ein Hinweis in den Einstellungen; vor dem Herunterladen noch einmal prüfen; Quelle GitHub-Releases ohne Token; eine Instanz je Datenordner.
 
 ### Gruppe B – sehr nützlich, weil RepoBoard alle Repos sieht
 
