@@ -73,6 +73,14 @@ internal static class Icons
     public static readonly MarkupString Terminal = Svg(
         """<path d="m7 11 2-2-2-2"/><path d="M11 13h4"/><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>""");
 
+    /// <summary>Lucide <c>sliders-horizontal</c>: the settings.</summary>
+    public static readonly MarkupString Settings = Svg(
+        """<path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/>""");
+
+    /// <summary>Lucide <c>play</c>: resume the paused auto-sync.</summary>
+    public static readonly MarkupString Resume = Svg(
+        """<path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/>""");
+
     private static MarkupString Svg(string paths) =>
         new($"""<svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{paths}</svg>""");
 }

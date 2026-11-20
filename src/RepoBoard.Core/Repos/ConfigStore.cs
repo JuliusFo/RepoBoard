@@ -47,12 +47,15 @@ public sealed class ConfigStore(string file, TimeProvider time)
     public Task SaveAsync(BoardConfig config, CancellationToken ct) =>
         AtomicJsonFile.WriteAsync(file, config with { Version = BoardConfig.CurrentVersion }, JsonFiles.Options, ct);
 
-    /// <summary>A file edited by hand: no null entries, no empty paths, each repository once, a sane interval.</summary>
+    /// <summary>A file edited by hand: no null entries, no empty paths, each repository once, a sane interval and settings.</summary>
     private static BoardConfig Normalize(BoardConfig config) => config with
     {
         Repos = [.. (config.Repos ?? []).OfType<RepoEntry>()
             .Where(r => !string.IsNullOrWhiteSpace(r.Path) && Path.IsPathFullyQualified(r.Path))
             .DistinctBy(r => Path.GetFullPath(r.Path), StringComparer.OrdinalIgnoreCase)],
         AutoSyncMinutes = BoardConfig.Intervals.Contains(config.AutoSyncMinutes) ? config.AutoSyncMinutes : BoardConfig.DefaultAutoSyncMinutes,
+        Settings = config.Settings is { } settings
+            ? settings with { Notifications = Enum.IsDefined(settings.Notifications) ? settings.Notifications : new AppSettings().Notifications }
+            : new AppSettings(),
     };
 }

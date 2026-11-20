@@ -144,4 +144,22 @@
   <data name="Scan_AddedOther" xml:space="preserve">
     <value>{0} Repositories hinzugefügt.</value>
   </data>
+  <data name="AutoSync_Paused" xml:space="preserve">
+    <value>Auto-Sync pausiert, bis du ihn fortsetzt oder RepoBoard neu startet.</value>
+  </data>
+  <data name="AutoSync_Resumed" xml:space="preserve">
+    <value>Auto-Sync läuft wieder.</value>
+  </data>
+  <data name="Notify_TitleOne" xml:space="preserve">
+    <value>Auto-Sync: {0} Repository</value>
+  </data>
+  <data name="Notify_TitleOther" xml:space="preserve">
+    <value>Auto-Sync: {0} Repositories</value>
+  </data>
+  <data name="Notify_Line" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="Notify_More" xml:space="preserve">
+    <value>… und {0} weitere</value>
+  </data>
 </root>

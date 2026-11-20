@@ -19,13 +19,21 @@ internal static class Program
         // async method is undone when it returns – Blazor would render in the Windows language again (FerretSharp ui.md).
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.CurrentUICulture = CommandLine.UiCulture(args, CultureInfo.CurrentUICulture);
         var paths = DataFolder(args);
+        if (CommandLine.Has(args, CommandLine.Exit))
+        {
+            // Only the signal: no lock, no data folder created – a start at the same moment must not see "already running"
+            // because of us (Review WP-02). 1 = nothing listens on this data folder.
+            return InstanceSignal.Send(paths, InstanceRequest.Exit, null) ? 0 : 1;
+        }
+
         InstanceLock? instance = null;
         try
         {
             if (!InstanceLock.TryAcquire(paths, Environment.ProcessId, out instance, out var running))
             {
-                // Two instances would fetch and pull the same repositories at once: the running one comes forward instead.
-                if (!RunningInstance.BringForward(running))
+                // Two instances would fetch and pull the same repositories at once: the running one comes forward instead –
+                // through its signal, as its window may be hidden in the notification area (ADR 0006).
+                if (!InstanceSignal.Send(paths, InstanceRequest.Show, running) && !RunningInstance.BringForward(running))
                 {
                     MessageBox.Show(TextFormat.Format(BoardText.App_AlreadyRunning, paths.Root), "RepoBoard", MessageBoxButton.OK, MessageBoxImage.Information);
                 }

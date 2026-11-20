@@ -15,6 +15,7 @@ Zustand und testbare Logik: `ui-state.md`; CSS: `ui-css.md`; WPF-Host: `app-host
 - Komponenten erben von `BoardComponent`. Click-Handler laufen über `GuardAsync`/`Guard` (Fehler ins Aktivitätsprotokoll statt Blazor-Fehlerleiste); Arbeit, die nicht aus einem Blazor-Event startet (Timer, Dienst-Ereignis), über `Fire(...)`, nie `_ = …`. Ein Abbruch darf nie entkommen: der WPF-Dispatcher wirft ihn sonst als „Unerwarteter Fehler“ neu (FerretSharp `fixes-guard-cancel`).
 - Ein Kind, das einen Wert des Elternteils zeigt und ändert (Schalter), meldet die Änderung als `EventCallback<T>`, nicht als `Func<T, Task>`: nur der Callback rendert den Empfänger neu (FerretSharp R6b, `Toggle`).
 - `BoardService.Changed` feuert von beliebigen Threads und in Schüben: nur die Shell abonniert, rendert einmal je Schub (`OnBoardChanged`); Kinder rendern mit ihr. Wer selbst abonniert, meldet sich im `Dispose` ab.
+- „Kinder rendern mit ihr“ gilt nur für Kinder **mit Parametern**: ein Kind ohne Parameter, das `Board` selbst liest, bleibt beim Rendern der Shell stehen. Was es vom Board zeigt, als Parameter übergeben (Review WP-02, `SettingsMenu`).
 - Komponenten rufen git nie selbst: alles über `BoardService`.
 
 ## Bausteine

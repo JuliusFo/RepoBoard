@@ -8,6 +8,7 @@
         Height="860"
         MinWidth="1000"
         MinHeight="500"
+        Icon="RepoBoard.ico"
         WindowStartupLocation="CenterScreen">
     <blazor:BlazorWebView x:Name="WebView" HostPage="wwwroot\index.html">
         <blazor:BlazorWebView.RootComponents>

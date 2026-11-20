@@ -270,4 +270,61 @@
 
 Log: {1}</value>
   </data>
+  <data name="Tray_Open" xml:space="preserve">
+    <value>RepoBoard öffnen</value>
+  </data>
+  <data name="Tray_PauseAutoSync" xml:space="preserve">
+    <value>Auto-Sync pausieren</value>
+  </data>
+  <data name="Tray_Exit" xml:space="preserve">
+    <value>Beenden</value>
+  </data>
+  <data name="Tray_HintTitle" xml:space="preserve">
+    <value>RepoBoard läuft weiter</value>
+  </data>
+  <data name="Tray_HintText" xml:space="preserve">
+    <value>Auto-Sync läuft im Infobereich weiter. Beenden kannst du über das Menü des Symbols; was Schließen tut, stellst du in den Einstellungen um.</value>
+  </data>
+  <data name="Tray_ReposOne" xml:space="preserve">
+    <value>{0} Repository</value>
+  </data>
+  <data name="Tray_ReposOther" xml:space="preserve">
+    <value>{0} Repositories</value>
+  </data>
+  <data name="Tray_Behind" xml:space="preserve">
+    <value>{0} hinterher</value>
+  </data>
+  <data name="Tray_Problems" xml:space="preserve">
+    <value>{0} mit Problemen</value>
+  </data>
+  <data name="Paused" xml:space="preserve">
+    <value>Auto-Sync pausiert</value>
+  </data>
+  <data name="Paused_Hint" xml:space="preserve">
+    <value>Auto-Sync ist pausiert, bis du ihn fortsetzt oder RepoBoard neu startet. Der Status wird weiter gelesen, alle Knöpfe funktionieren.</value>
+  </data>
+  <data name="Resume" xml:space="preserve">
+    <value>Fortsetzen</value>
+  </data>
+  <data name="Settings_Hint" xml:space="preserve">
+    <value>Einstellungen</value>
+  </data>
+  <data name="Settings_CloseToTray" xml:space="preserve">
+    <value>Beim Schließen im Infobereich weiterlaufen</value>
+  </data>
+  <data name="Settings_Autostart" xml:space="preserve">
+    <value>Mit Windows starten (im Infobereich)</value>
+  </data>
+  <data name="Settings_Notifications" xml:space="preserve">
+    <value>Benachrichtigungen</value>
+  </data>
+  <data name="Notify_PullsAndProblems" xml:space="preserve">
+    <value>Auto-Pulls und Probleme</value>
+  </data>
+  <data name="Notify_Problems" xml:space="preserve">
+    <value>Nur Probleme</value>
+  </data>
+  <data name="Notify_Off" xml:space="preserve">
+    <value>Aus</value>
+  </data>
 </root>

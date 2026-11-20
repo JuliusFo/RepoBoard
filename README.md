@@ -19,6 +19,10 @@ sign-in, SSH, hooks and LFS work exactly as in your terminal.
   that has only fallen behind – never a merge, never over your local commits, never during a merge or rebase – and says
   why when it keeps out. Background syncs never ask for credentials.
 - **Activity log** of what happened while you were not looking.
+- **Notification area:** closing the window keeps RepoBoard and auto-sync running next to the clock; the icon’s menu
+  opens it, fetches all, pauses auto-sync (until the next start) and exits. Windows notifications for auto-pulls and
+  problems, gathered per run – a click opens the repository. Optionally start with Windows, in the notification area
+  only. All in the settings menu at the top right.
 - **Repositories:** add one, or scan a folder (three levels deep); open it in the Explorer, a terminal or VS Code.
 - English and German, light and dark.
 
@@ -36,7 +40,8 @@ dotnet run --project src/RepoBoard.App
 dotnet test --project tests/RepoBoard.Core.Tests
 ```
 
-Options: `--data-dir=<folder>` (own repository list and logs), `--lang=en|de`, `--theme=dark|light`.
+Options: `--data-dir=<folder>` (own repository list and logs), `--lang=en|de`, `--theme=dark|light`, `--minimized` (start
+in the notification area), `--exit` (end the RepoBoard running on that data folder).
 The repository list is kept in `%APPDATA%\RepoBoard\config.json`, logs in `%APPDATA%\RepoBoard\logs`.
 
 ## Docs

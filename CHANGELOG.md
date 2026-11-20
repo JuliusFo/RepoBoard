@@ -13,6 +13,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - An activity log of what happened, above all what auto-sync did; the same failure is logged once.
 - Add a repository or scan a folder for repositories (three levels deep); open a repository in the Explorer, a terminal or VS Code.
 - English and German (`--lang=en|de`, otherwise the language of Windows), light and dark following Windows (`--theme=dark|light`).
+- Notification area (WP-02): closing the window keeps RepoBoard and auto-sync running; the icon’s menu opens the window, fetches all, pauses auto-sync until the next start and exits, its tooltip counts repositories behind or with problems. Starting RepoBoard again brings the hidden window back.
+- Windows notifications for auto-pulls, failures and skipped auto-pulls, one per auto-sync run; a click on the notification opens the repository’s row. Choose auto-pulls and problems, problems only or off.
+- Start with Windows in the notification area (`--minimized`), and a settings menu for closing, start with Windows, notifications and the pause.
+- `--exit` ends the RepoBoard running on a data folder; a program icon.
 
 ### Internal
 - Project set up like FerretSharp: .NET 10, WPF host with BlazorWebView, Razor class library, Core without Windows APIs; rules, skills, ADRs, CI on Linux and Windows.
+- E2E: `Invoke-TrayIcon.ps1` drives the notification-area icon without injected input; `Stop-TestInstance.ps1` ends through `--exit`.

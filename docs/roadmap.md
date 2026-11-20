@@ -8,14 +8,6 @@ Der Nutzer wollte die Ideenliste als Pakete abgelegt haben (2026-11-20). Zuschni
 
 ### Gruppe A – nötig für den Alltag
 
-#### WP-02 Tray-Icon, Autostart, Benachrichtigungen
-Branch `wp/02-tray`.
-- Fenster schließen → Symbol im Infobereich, Auto-Sync läuft weiter (ADR 0003, Konsequenzen: „immer aktuell“ gilt sonst nur bei offenem Fenster). Menü: Öffnen, Alle fetchen, Auto-Sync pausieren, Beenden.
-- Autostart mit Windows (Eintrag unter `HKCU\…\Run` oder Verknüpfung im Autostart-Ordner), schaltbar.
-- Windows-Benachrichtigung bei Auto-Pull und Fehlern; Klick öffnet das Repo im Fenster.
-- Offen: Schließen = in den Infobereich oder beenden (oder fragen)? Benachrichtigung bei jedem Auto-Pull oder nur bei Fehlern/übersprungenen? Autostart minimiert?
-- Hinweis: WPF hat kein Tray-Icon; WinForms `NotifyIcon` (UseWindowsForms, Namenskonflikte mit WPF beachten) oder `Shell_NotifyIcon` per P/Invoke – beim Start entscheiden (ADR).
-
 #### WP-03 Sofort aktualisieren (Dateiwächter)
 Branch `wp/03-file-watch`.
 - `FileSystemWatcher` je Repo auf `.git/HEAD`, `.git/index`, `.git/refs`, `FETCH_HEAD` und den Worktree; Ruhezeit nach einer Änderungsserie, dann ein Status. Der 20-s-Takt bleibt als Rückfallebene (verpasste Ereignisse, Netzlaufwerke).
@@ -129,7 +121,7 @@ Branch `wp/19-daily`.
 - Standup-Ansicht: eigene Commits von gestern bzw. seit dem letzten Arbeitstag über alle Repos, gruppiert, kopierbar.
 - Feierabend-Check: zu einer Uhrzeit oder beim Abmelden Hinweis auf Uncommittetes und Ungepushtes.
 - Morgenroutine: bei der Anmeldung alles fetchen und sicher fast-forwarden, Zusammenfassung.
-- Braucht WP-02 (Infobereich, Benachrichtigungen, Autostart). Offen: Identität „eigene Commits“ (E-Mail aus der Git-Konfiguration)?
+- Baut auf WP-02 auf (Infobereich, Benachrichtigungen, Autostart – erledigt). Offen: Identität „eigene Commits“ (E-Mail aus der Git-Konfiguration)?
 
 #### WP-20 Commit-Nachricht per KI
 Branch `wp/20-ai-commit-message`.

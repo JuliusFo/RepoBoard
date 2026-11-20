@@ -165,4 +165,26 @@
     <value>{0} repositories added.</value>
     <comment>{0} = number of repositories</comment>
   </data>
+  <data name="AutoSync_Paused" xml:space="preserve">
+    <value>Auto-sync paused until you resume it or RepoBoard restarts.</value>
+  </data>
+  <data name="AutoSync_Resumed" xml:space="preserve">
+    <value>Auto-sync resumed.</value>
+  </data>
+  <data name="Notify_TitleOne" xml:space="preserve">
+    <value>Auto-sync: {0} repository</value>
+    <comment>Title of a Windows notification. {0} = 1</comment>
+  </data>
+  <data name="Notify_TitleOther" xml:space="preserve">
+    <value>Auto-sync: {0} repositories</value>
+    <comment>Title of a Windows notification. {0} = number of repositories</comment>
+  </data>
+  <data name="Notify_Line" xml:space="preserve">
+    <value>{0}: {1}</value>
+    <comment>One line of a notification. {0} = repository name, {1} = what happened</comment>
+  </data>
+  <data name="Notify_More" xml:space="preserve">
+    <value>… and {0} more</value>
+    <comment>Last line of a notification. {0} = number of further messages</comment>
+  </data>
 </root>

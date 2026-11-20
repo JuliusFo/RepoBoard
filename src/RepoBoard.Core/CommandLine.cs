@@ -17,6 +17,16 @@ public static class CommandLine
     /// <summary><c>en</c> or <c>de</c> for this session.</summary>
     public const string Language = "--lang=";
 
+    /// <summary>Start in the notification area without showing the window (start with Windows, ADR 0006).</summary>
+    public const string Minimized = "--minimized";
+
+    /// <summary>Ends the instance running on the data folder (as the tray's Exit) instead of starting one.</summary>
+    public const string Exit = "--exit";
+
+    /// <summary>Whether the switch <paramref name="option"/> (no value) is given.</summary>
+    public static bool Has(IEnumerable<string> args, string option) =>
+        args.Any(a => string.Equals(a, option, StringComparison.OrdinalIgnoreCase));
+
     /// <summary>The value of the first <paramref name="option"/>; null if it is not given.</summary>
     public static string? ValueOf(IEnumerable<string> args, string option) =>
         args.FirstOrDefault(a => a.StartsWith(option, StringComparison.OrdinalIgnoreCase))?[option.Length..];

@@ -2,6 +2,7 @@ using Microsoft.Extensions.Time.Testing;
 using RepoBoard.Core.Board;
 using RepoBoard.Core.Git;
 using RepoBoard.Core.Repos;
+using RepoBoard.Core.Sync;
 
 namespace RepoBoard.Core.Tests.Sync;
 
@@ -32,7 +33,7 @@ public sealed class AutoSyncTests : IDisposable
         Assert.Null(repo.Error);
         Assert.Equal(0, repo.Status!.Behind);
         Assert.True(File.Exists(Path.Combine(_git.Mine, "c.txt")));
-        Assert.Contains(_board.Activity.Entries, e => e.Text == "2 Commits gepullt (main)" && e.IsAuto);
+        Assert.Contains(_board.Activity.Entries, e => e is { Text: "2 Commits gepullt (main)", Kind: ActivityKind.Pulled, IsAuto: true } && e.RepoPath == repo.Path);
     }
 
     [Fact]
@@ -47,7 +48,7 @@ public sealed class AutoSyncTests : IDisposable
 
         Assert.Equal(1, repo.Status!.Behind);
         Assert.False(File.Exists(Path.Combine(_git.Mine, "b.txt")));
-        Assert.Contains(_board.Activity.Entries, e => e.Text == "1 Commit neu auf origin/main");
+        Assert.Contains(_board.Activity.Entries, e => e is { Text: "1 Commit neu auf origin/main", Kind: ActivityKind.NewCommits });
     }
 
     [Fact]
@@ -64,7 +65,7 @@ public sealed class AutoSyncTests : IDisposable
         Assert.Equal((1, 1), (repo.Status!.Ahead, repo.Status.Behind));
         Assert.NotNull(repo.AutoPullBlocked);
         Assert.False(File.Exists(Path.Combine(_git.Mine, "b.txt")));
-        Assert.Single(_board.Activity.Entries, e => e.Text.StartsWith("Auto-Pull übersprungen", StringComparison.Ordinal));
+        Assert.Single(_board.Activity.Entries, e => e.Text.StartsWith("Auto-Pull übersprungen", StringComparison.Ordinal) && e.Kind == ActivityKind.Skipped);
     }
 
     [Fact]
@@ -96,6 +97,45 @@ public sealed class AutoSyncTests : IDisposable
         _time.Advance(TimeSpan.FromSeconds(1));
         await _board.AutoSyncDueAsync(Ct);
         Assert.Equal(_time.GetUtcNow(), repo.LastAutoSync);
+    }
+
+    /// <summary>Review WP-02: real fetches take seconds; a run that outlasts the gathering time is still one notification.</summary>
+    [Fact]
+    public async Task One_auto_sync_run_is_one_notification_however_long_its_fetches_take()
+    {
+        var mine = await AddMineAsync(autoPull: true);
+        var second = Path.Combine(_git.Root, "second");
+        GitSandbox.Git(_git.Root, "clone", "-q", _git.Remote, second);
+        await _board.AddAsync([second], Ct);
+        await _board.SetAutoPullAsync(_board.Repos.Single(r => r != mine), true, Ct);
+        GitSandbox.Commit(_git.Theirs, "b.txt", "two");
+        GitSandbox.Git(_git.Theirs, "push");
+        using var notifier = new SyncNotifier(_board, _time);
+        var shown = new List<SyncNotification>();
+        notifier.Show += shown.Add;
+        _board.Activity.Added += _ => _time.Advance(SyncNotifier.Gather + TimeSpan.FromSeconds(1)); // each pull "takes" 3 s
+
+        await _board.AutoSyncDueAsync(Ct);
+
+        var notification = Assert.Single(shown);
+        Assert.Contains("2", notification.Title, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_paused_auto_sync_syncs_nothing_until_resumed()
+    {
+        var repo = await AddMineAsync(autoPull: true);
+        GitSandbox.Commit(_git.Theirs, "b.txt", "two");
+        GitSandbox.Git(_git.Theirs, "push");
+
+        _board.SetAutoSyncPaused(true);
+        await _board.AutoSyncDueAsync(Ct);
+        Assert.Null(repo.LastAutoSync);
+        Assert.False(File.Exists(Path.Combine(_git.Mine, "b.txt")));
+
+        _board.SetAutoSyncPaused(false);
+        await _board.AutoSyncDueAsync(Ct);
+        Assert.True(File.Exists(Path.Combine(_git.Mine, "b.txt")));
     }
 
     [Fact]

@@ -285,4 +285,72 @@
 Log: {1}</value>
     <comment>{0} = the error, {1} = the log folder</comment>
   </data>
+  <data name="Tray_Open" xml:space="preserve">
+    <value>Open RepoBoard</value>
+    <comment>Menu item of the notification-area icon</comment>
+  </data>
+  <data name="Tray_PauseAutoSync" xml:space="preserve">
+    <value>Pause auto-sync</value>
+    <comment>Menu item (checked while paused) and switch in the settings</comment>
+  </data>
+  <data name="Tray_Exit" xml:space="preserve">
+    <value>Exit</value>
+    <comment>Menu item of the notification-area icon: ends RepoBoard</comment>
+  </data>
+  <data name="Tray_HintTitle" xml:space="preserve">
+    <value>RepoBoard is still running</value>
+    <comment>Notification after the window was closed for the first time</comment>
+  </data>
+  <data name="Tray_HintText" xml:space="preserve">
+    <value>Auto-sync goes on in the notification area. Exit from the icon’s menu, or change what closing does in the settings.</value>
+  </data>
+  <data name="Tray_ReposOne" xml:space="preserve">
+    <value>{0} repository</value>
+    <comment>Tooltip of the notification-area icon. {0} = 1</comment>
+  </data>
+  <data name="Tray_ReposOther" xml:space="preserve">
+    <value>{0} repositories</value>
+    <comment>Tooltip of the notification-area icon. {0} = number of repositories</comment>
+  </data>
+  <data name="Tray_Behind" xml:space="preserve">
+    <value>{0} behind</value>
+    <comment>Tooltip. {0} = number of repositories behind their upstream</comment>
+  </data>
+  <data name="Tray_Problems" xml:space="preserve">
+    <value>{0} with problems</value>
+    <comment>Tooltip. {0} = number of repositories with an error or a blocked auto-pull</comment>
+  </data>
+  <data name="Paused" xml:space="preserve">
+    <value>Auto-sync paused</value>
+  </data>
+  <data name="Paused_Hint" xml:space="preserve">
+    <value>Auto-sync is paused until you resume it or RepoBoard restarts. The status is still read, and every button works.</value>
+  </data>
+  <data name="Resume" xml:space="preserve">
+    <value>Resume</value>
+    <comment>Button: resume the paused auto-sync</comment>
+  </data>
+  <data name="Settings_Hint" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="Settings_CloseToTray" xml:space="preserve">
+    <value>Keep running in the notification area when the window is closed</value>
+  </data>
+  <data name="Settings_Autostart" xml:space="preserve">
+    <value>Start with Windows (in the notification area)</value>
+  </data>
+  <data name="Settings_Notifications" xml:space="preserve">
+    <value>Notifications</value>
+    <comment>Label of the choice when Windows notifications are shown</comment>
+  </data>
+  <data name="Notify_PullsAndProblems" xml:space="preserve">
+    <value>Auto-pulls and problems</value>
+  </data>
+  <data name="Notify_Problems" xml:space="preserve">
+    <value>Problems only</value>
+  </data>
+  <data name="Notify_Off" xml:space="preserve">
+    <value>Off</value>
+    <comment>Notifications switched off</comment>
+  </data>
 </root>

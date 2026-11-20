@@ -2,6 +2,7 @@
 @inherits BoardComponent
 @implements IDisposable
 @inject TimeProvider Time
+@inject BoardNavigation Navigation
 
 <div class="app">
     <header class="topbar">
@@ -20,6 +21,13 @@
             }
         </nav>
         <div class="spacer"></div>
+        @if (Board.AutoSyncPaused)
+        {
+            <span class="paused" title="@BoardText.Paused_Hint">
+                @BoardText.Paused
+                <button class="btn small" @onclick="() => Guard(() => Board.SetAutoSyncPaused(false))">@Icons.Resume @BoardText.Resume</button>
+            </span>
+        }
         <label class="interval" title="@BoardText.Interval_Hint">
             @BoardText.Interval_Label
             <select value="@Board.AutoSyncMinutes" @onchange="e => GuardAsync(() => Board.SetAutoSyncMinutesAsync(int.Parse((string)e.Value!, System.Globalization.CultureInfo.InvariantCulture), default))">
@@ -33,6 +41,7 @@
         <button class="btn" title="@BoardText.FetchAll_Hint" @onclick="FetchAll">@Icons.Fetch @BoardText.FetchAll</button>
         <button class="btn" title="@BoardText.Scan_Hint" @onclick="Scan">@BoardText.Scan</button>
         <button class="btn primary" title="@BoardText.Add_Hint" @onclick="Add">@Icons.Plus @BoardText.Add</button>
+        <SettingsMenu Settings="Board.Settings" Paused="Board.AutoSyncPaused" />
     </header>
 
     <main class="board">
@@ -65,7 +74,8 @@
                 </div>
                 @foreach (var repo in visible)
                 {
-                    <RepoRow @key="repo" Repo="repo" Now="now" Expanded="_expanded.Contains(repo)" OnToggle="() => Toggle(repo)" />
+                    <RepoRow @key="repo" Repo="repo" Now="now" Expanded="_expanded.Contains(repo)" OnToggle="() => Toggle(repo)"
+                             ScrollRequest="repo == _scrollTo ? _scrollRequest : 0" />
                 }
                 @if (visible.Count == 0)
                 {
@@ -84,6 +94,8 @@
     private string _search = "";
     private int _renderQueued;
     private ITimer? _clock;
+    private RepoState? _scrollTo;
+    private int _scrollRequest;
 
     private static string Label(BoardFilterKind kind) => kind switch
     {
@@ -100,7 +112,29 @@
         Board.Changed += OnBoardChanged;
         // "3 min ago" stays true without a change on the board.
         _clock = Time.CreateTimer(_ => OnBoardChanged(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+        Navigation.Requested += OnNavigationRequested;
+        OnNavigationRequested(); // asked for before the page existed (started in the notification area)
     }
+
+    /// <summary>A click on a notification: the repository's row, open and in view, whatever the filter hid.</summary>
+    private void OnNavigationRequested() => Fire(async () =>
+    {
+        if (Navigation.Take() is not { } path
+            || Board.Repos.FirstOrDefault(r => string.Equals(r.Path, path, StringComparison.OrdinalIgnoreCase)) is not { } repo)
+        {
+            return;
+        }
+
+        _filter = BoardFilterKind.All;
+        _search = "";
+        _scrollTo = repo;
+        _scrollRequest++;
+        StateHasChanged();
+        if (_expanded.Add(repo))
+        {
+            await Board.SetWantsDetailsAsync(repo, true, default);
+        }
+    });
 
     /// <summary>Changes come from any thread and in bursts: one render per burst.</summary>
     private void OnBoardChanged()
@@ -122,7 +156,7 @@
         return Board.SetWantsDetailsAsync(repo, open, default);
     });
 
-    private Task FetchAll() => GuardAsync(() => Task.WhenAll(Board.Repos.Select(r => Board.FetchAsync(r, default))));
+    private Task FetchAll() => GuardAsync(() => Board.FetchAllAsync(default));
 
     private Task Add() => GuardAsync(async () =>
     {
@@ -143,6 +177,7 @@
     public void Dispose()
     {
         Board.Changed -= OnBoardChanged;
+        Navigation.Requested -= OnNavigationRequested;
         _clock?.Dispose();
     }
 }
