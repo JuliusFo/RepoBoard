@@ -39,7 +39,9 @@ $data = Join-Path $Root 'data'
 $webView = Join-Path $Root 'webview2'
 New-Item -ItemType Directory -Force $app, $data, $webView | Out-Null
 
-if (Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue) {
+# Asked over HTTP as well: some machines list no listeners (WP-02 E2E), and an answer here means another instance.
+$answers = try { [bool](Invoke-RestMethod "http://127.0.0.1:$Port/json/version" -TimeoutSec 2) } catch { $false }
+if ($answers -or (Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue)) {
     throw "Port $Port is taken (another test instance?). Use -Port with a free port."
 }
 
@@ -77,8 +79,9 @@ if ($owner) {
     $parent = (Get-CimInstance Win32_Process -Filter "ProcessId=$owner").ParentProcessId
     $ours = $parent -eq $process.Id
 } else {
-    # Some machines list no listener at all (WP-02 E2E: neither the CIM query nor netstat, while CDP works): then the new
-    # instance's own WebView2 browser process must be the one started with this port.
+    # Some machines list no listener at all (WP-02 E2E: neither the CIM query nor netstat, while CDP works). The port was
+    # free before the start (HTTP check above), so what answers now is the new instance – if its own WebView2 browser
+    # process was started with this port (Review WP-02: WebView2 writes no DevToolsActivePort to compare with).
     $ours = [bool](Get-CimInstance Win32_Process -Filter "ParentProcessId=$($process.Id)" |
         Where-Object { $_.CommandLine -match "--remote-debugging-port=$Port(\s|$)" })
     $owner = 'unknown'
