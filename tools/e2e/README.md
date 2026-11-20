@@ -29,4 +29,5 @@ powershell -ExecutionPolicy Bypass -File tools/e2e/Stop-TestInstance.ps1 -Root <
 | `Start-TestInstance.ps1` | Build to `<Root>\app`, start with own data/WebView2 folders and debug port, fixed window position |
 | `Invoke-RealClick.ps1` | `SendInput` mouse through the WPF host; stops if the window is not in front or not under the point |
 | `cdp.mjs` | `eval`, `calls` (several CDP calls in one connection), `screenshot` |
-| `Stop-TestInstance.ps1` | Close only that instance, report `[ERR]`/`[WRN]` |
+| `Invoke-TrayIcon.ps1` | Right or left click on the notification-area icon by message, menu items through UI Automation |
+| `Stop-TestInstance.ps1` | End only that instance (`--exit`), report `[ERR]`/`[WRN]` |

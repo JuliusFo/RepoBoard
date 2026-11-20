@@ -17,6 +17,6 @@ Ein Pull, den niemand ansieht, darf nichts kaputt machen: keine Merge-Commits, k
 
 ## Konsequenzen
 
-- „Immer aktuell“ gilt nur, solange RepoBoard läuft – Tray-Icon und Autostart sind das nächste Paket (Roadmap).
+- „Immer aktuell“ gilt nur, solange RepoBoard läuft: seit WP-02 läuft es nach dem Schließen im Infobereich weiter und startet auf Wunsch mit Windows (ADR 0006). Auto-Sync lässt sich bis zum Neustart pausieren.
 - Ein Branch mit eigenen, ungepushten Commits wird nie automatisch aktualisiert; die Übersicht zeigt ihn als divergiert.
 - `AutoSyncTests` (gegen echte Repos) und `PullCheckTests` halten jeden Fall fest.

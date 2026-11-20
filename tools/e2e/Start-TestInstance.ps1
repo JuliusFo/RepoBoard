@@ -72,7 +72,11 @@ for ($i = 0; $i -lt 60 -and -not $ready; $i++) {
 }
 if (-not $ready) { throw "No RepoBoard page on port $Port after 30 s." }
 
-$owner = (Get-NetTCPConnection -State Listen -LocalPort $Port).OwningProcess | Select-Object -First 1
+$owner = (Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue).OwningProcess | Select-Object -First 1
+if (-not $owner) {
+    # The CIM query fails on some machines (WP-02 E2E): netstat lists the listener too, whatever the Windows language.
+    $owner = netstat -ano -p tcp | ForEach-Object { $f = -split $_; if ($f.Count -ge 5 -and $f[1] -match ":$Port$" -and $f[2] -match ':0$') { [int]$f[4] } } | Select-Object -First 1
+}
 $parent = (Get-CimInstance Win32_Process -Filter "ProcessId=$owner").ParentProcessId
 if ($parent -ne $process.Id) {
     Stop-Process -Id $process.Id

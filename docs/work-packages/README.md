@@ -15,3 +15,4 @@ Reihenfolge wie die Releases.
 | Paket | Datei | Inhalt | Bereiche | Release | ADR |
 |---|---|---|---|---|---|
 | WP-01 | [wp-01-foundation.md](wp-01-foundation.md) | Projekt nach dem Muster von FerretSharp, Spike übernommen: Übersicht, Fetch/Pull/Push, Stage/Commit, Branches, Auto-Fetch/Auto-Pull, Aktivität | alles (`Core/Git`, `Core/Board`, `Core/Sync`, `Core/Repos`, `UI`, `App`) | – | 0001–0005 |
+| WP-02 | [wp-02-tray.md](wp-02-tray.md) | Infobereich (Schließen versteckt, Menü), Benachrichtigungen bei Auto-Sync, Autostart, Pause, Einstellungsmenü, Programmsymbol, `--minimized`/`--exit` | `App/Services` (`TrayIcon`, `RegistryAutostart`, `InstanceSignal`), `Core/Sync/SyncNotifier`, `Core/Autostart`, `Repos/BoardConfig` (`AppSettings`), `UI/Components/Board/SettingsMenu`, `UI/State` (`BoardNavigation`, `TrayStatus`) | – | 0006 |

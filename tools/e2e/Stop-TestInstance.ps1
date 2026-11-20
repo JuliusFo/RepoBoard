@@ -26,7 +26,7 @@ if ($process) {
     & $process.Path "--data-dir=$(Join-Path $Root 'data')" --exit
     if (-not $process.WaitForExit(10000)) {
         Stop-Process -Id $ProcessId
-        "Killed $ProcessId: it did not end on --exit."
+        "Killed ${ProcessId}: it did not end on --exit."
     }
     "Closed $ProcessId."
 } else {
