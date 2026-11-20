@@ -3,6 +3,7 @@ using Microsoft.Extensions.Time.Testing;
 using RepoBoard.Core.Board;
 using RepoBoard.Core.Git;
 using RepoBoard.Core.Repos;
+using RepoBoard.Core.Resources;
 using RepoBoard.UI.Resources;
 using RepoBoard.UI.State;
 
@@ -110,7 +111,7 @@ public sealed class UpdateStateTests : IDisposable
         await check;
 
         Assert.Equal(UpdatePhase.CheckFailed, updates.Phase);
-        Assert.Equal(UpdateText.CheckTimedOut, updates.Error);
+        Assert.Equal(TextFormat.Format(UpdateText.CheckTimedOut, 30), updates.Error); // the limit from the code, not a second copy in the text
     }
 
     [Fact]
@@ -395,20 +396,59 @@ public sealed class UpdateStateTests : IDisposable
         Assert.Equal((UpdatePhase.UpToDate, null, false), (updates.Phase, updates.Update, updates.DetailsOpen));
     }
 
-    [Fact]
-    public async Task While_running_a_failed_check_counts_as_a_check_and_the_interval_follows_the_setting()
+    /// <summary>
+    /// Review WP-10: started with Windows, the network is often not there yet. A failed check is tried again after 15 min
+    /// (also with "never" – it stands for the check at start), until one answers; then the interval counts again.
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(24)]
+    public async Task While_running_a_failed_check_is_tried_again_after_15_minutes_until_one_answers(int hours)
     {
+        await SettingsAsync(s => s with { UpdateCheckHours = hours });
         _updater.CheckFails = new HttpRequestException("No such host is known.");
         using var updates = Create();
         await updates.StartAsync();
-        await SettingsAsync(s => s with { UpdateCheckHours = 1 });
 
-        _time.Advance(TimeSpan.FromHours(1));
-        Assert.Equal((UpdatePhase.CheckFailed, 2), (updates.Phase, _updater.Checks));
+        _time.Advance(UpdateState.RetryAfterFailure - UpdateState.BackgroundTick);
+        Assert.Equal((UpdatePhase.CheckFailed, 1), (updates.Phase, _updater.Checks));
+
+        _time.Advance(UpdateState.BackgroundTick);
+        Assert.Equal((UpdatePhase.CheckFailed, 2), (updates.Phase, _updater.Checks)); // a failed retry counts as a check
 
         _updater.CheckFails = null;
-        _time.Advance(TimeSpan.FromHours(1));
+        _time.Advance(UpdateState.RetryAfterFailure);
         Assert.Equal((UpdatePhase.UpToDate, 3), (updates.Phase, _updater.Checks));
+
+        _time.Advance(TimeSpan.FromHours(23));
+        Assert.Equal(3, _updater.Checks); // answered: back to the interval (or none with "never")
+    }
+
+    [Fact]
+    public async Task A_failed_check_now_with_automatic_checks_off_is_not_tried_again()
+    {
+        await SettingsAsync(s => s with { CheckForUpdates = false });
+        _updater.CheckFails = new HttpRequestException("No such host is known.");
+        using var updates = Create();
+        await updates.StartAsync();
+        await updates.CheckAsync();
+
+        _time.Advance(TimeSpan.FromHours(2));
+
+        Assert.Equal((UpdatePhase.CheckFailed, 1), (updates.Phase, _updater.Checks));
+    }
+
+    /// <summary>Review WP-10: a download that cannot be read must not end the start of the app.</summary>
+    [Fact]
+    public async Task A_download_that_cannot_be_read_is_none_and_the_check_goes_on()
+    {
+        _updater.DownloadedFails = new UnauthorizedAccessException("packages is locked");
+        _updater.Found = Next;
+        var updates = Create();
+
+        await updates.StartAsync();
+
+        Assert.Equal((UpdatePhase.Available, Next, 1), (updates.Phase, updates.Update, _updater.Checks));
     }
 
     [Fact]
@@ -485,7 +525,13 @@ public sealed class UpdateStateTests : IDisposable
     {
         public bool IsInstalled { get; set; } = true;
 
-        public AppUpdate? Downloaded { get; set; }
+        public AppUpdate? Downloaded
+        {
+            get => DownloadedFails is { } fails ? throw fails : field;
+            set;
+        }
+
+        public Exception? DownloadedFails { get; set; }
 
         public AppUpdate? Found { get; set; }
 

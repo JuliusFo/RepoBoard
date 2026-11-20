@@ -82,7 +82,8 @@
     <comment>{0} = the error message</comment>
   </data>
   <data name="CheckTimedOut" xml:space="preserve">
-    <value>GitHub did not answer within 30 s.</value>
+    <value>GitHub did not answer within {0} s.</value>
+    <comment>{0} = seconds the check waited</comment>
   </data>
   <data name="DownloadFailed" xml:space="preserve">
     <value>Download of {0} failed: {1}</value>

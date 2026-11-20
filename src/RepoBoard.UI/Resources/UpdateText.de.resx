@@ -76,7 +76,7 @@
     <value>Prüfung auf Updates nicht möglich: {0}</value>
   </data>
   <data name="CheckTimedOut" xml:space="preserve">
-    <value>GitHub hat nicht innerhalb von 30 s geantwortet.</value>
+    <value>GitHub hat nicht innerhalb von {0} s geantwortet.</value>
   </data>
   <data name="DownloadFailed" xml:space="preserve">
     <value>Herunterladen von {0} fehlgeschlagen: {1}</value>

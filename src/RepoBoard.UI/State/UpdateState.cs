@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using RepoBoard.Core.Board;
 using RepoBoard.Core.Repos;
+using RepoBoard.Core.Resources;
 using RepoBoard.UI.Resources;
 
 namespace RepoBoard.UI.State;
@@ -51,6 +52,13 @@ public sealed class UpdateState(IAppUpdater updater, BoardService board, AppExit
     /// changed setting needs no new timer.
     /// </summary>
     public static readonly TimeSpan BackgroundTick = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// A failed check without a known update is tried again after this, whatever the interval – also with "never", as it
+    /// stands for the check at start: started with Windows, the network is often not there yet (Review WP-10). Not every
+    /// tick: a rate limit of GitHub (60 requests per hour) would only get worse.
+    /// </summary>
+    public static readonly TimeSpan RetryAfterFailure = TimeSpan.FromMinutes(15);
 
     private readonly TimeProvider _time = time ?? TimeProvider.System;
 
@@ -119,7 +127,7 @@ public sealed class UpdateState(IAppUpdater updater, BoardService board, AppExit
 
         _started = _time.GetLocalNow();
         _background = _time.CreateTimer(_ => CheckIfDue(), null, BackgroundTick, BackgroundTick);
-        if (updater.Downloaded is { } downloaded)
+        if (Downloaded() is { } downloaded)
         {
             Update = downloaded;
             Set(UpdatePhase.Ready);
@@ -129,6 +137,20 @@ public sealed class UpdateState(IAppUpdater updater, BoardService board, AppExit
         if (board.Settings.CheckForUpdates)
         {
             await CheckAsync();
+        }
+    }
+
+    /// <summary>A download that cannot be read is none: the start goes on and checks (Review WP-10).</summary>
+    private AppUpdate? Downloaded()
+    {
+        try
+        {
+            return updater.Downloaded;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Reading the update downloaded before failed");
+            return null;
         }
     }
 
@@ -163,7 +185,7 @@ public sealed class UpdateState(IAppUpdater updater, BoardService board, AppExit
             }
             else
             {
-                Error = ex is TimeoutException ? UpdateText.CheckTimedOut : ex.Message;
+                Error = ex is TimeoutException ? TextFormat.Format(UpdateText.CheckTimedOut, CheckTimeout.TotalSeconds) : ex.Message;
                 Set(UpdatePhase.CheckFailed);
             }
         }
@@ -174,20 +196,23 @@ public sealed class UpdateState(IAppUpdater updater, BoardService board, AppExit
     }
 
     /// <summary>
-    /// The check while the app runs, if it is on and due: the interval has passed since the last check (or the start). Not
-    /// while the dialog is open, downloading or waiting for the restart; with an update available it checks silently
-    /// (<see cref="CheckSilentlyAsync"/>).
+    /// The check while the app runs, if it is on and due: the interval has passed since the last check (or the start), or
+    /// <see cref="RetryAfterFailure"/> after a failed one. Not while the dialog is open, downloading or waiting for the
+    /// restart; with an update available it checks silently (<see cref="CheckSilentlyAsync"/>).
     /// </summary>
     private void CheckIfDue()
     {
         var current = board.Settings;
-        if (!current.CheckForUpdates || current.UpdateCheckHours <= 0 || DetailsOpen
+        if (!current.CheckForUpdates || DetailsOpen
             || Phase is not (UpdatePhase.Idle or UpdatePhase.UpToDate or UpdatePhase.CheckFailed or UpdatePhase.Available))
         {
             return;
         }
 
-        if (_time.GetLocalNow() - (LastChecked ?? _started) >= TimeSpan.FromHours(current.UpdateCheckHours))
+        TimeSpan? interval = Phase == UpdatePhase.CheckFailed ? RetryAfterFailure
+            : current.UpdateCheckHours > 0 ? TimeSpan.FromHours(current.UpdateCheckHours)
+            : null;
+        if (interval is { } due && _time.GetLocalNow() - (LastChecked ?? _started) >= due)
         {
             // Neither throws: a failed check is a note in the settings, or nothing while an update is available.
             _ = Phase == UpdatePhase.Available ? CheckSilentlyAsync() : CheckAsync();
