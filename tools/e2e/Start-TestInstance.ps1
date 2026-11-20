@@ -19,6 +19,10 @@
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File tools/e2e/Start-TestInstance.ps1 -Root <scratch>\e2e -Port 9334 -NoBuild
+
+.EXAMPLE
+    # A portable Velopack test version unzipped into <Root>\app (WP-10, docs/e2e-testing.md "Updates").
+    powershell -ExecutionPolicy Bypass -File tools/e2e/Start-TestInstance.ps1 -Root <scratch>\e2e -NoBuild -Exe current\RepoBoard.exe -AppArgs '--update-source=<scratch>\feed'
 #>
 param(
     # Scratch folder for build, data and WebView2 (for example in the session's scratchpad).
@@ -28,6 +32,8 @@ param(
     [ValidateSet('dark', 'light')][string]$Theme = 'dark',
     # Starts the build already in <Root>\app.
     [switch]$NoBuild,
+    # The program below <Root>\app: current\RepoBoard.exe for an unzipped portable Velopack version (WP-10).
+    [string]$Exe = 'RepoBoard.exe',
     # More arguments for the app, for example a repoboard:// link or --import-appdata=<scratch>.
     [string[]]$AppArgs = @()
 )
@@ -58,7 +64,7 @@ try {
     $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=$Port"
     $env:WEBVIEW2_USER_DATA_FOLDER = $webView
     $arguments = @("--data-dir=`"$data`"", "--lang=$Lang", "--theme=$Theme") + $AppArgs
-    $process = Start-Process (Join-Path $app 'RepoBoard.exe') -ArgumentList $arguments -PassThru
+    $process = Start-Process (Join-Path $app $Exe) -ArgumentList $arguments -PassThru
 } finally {
     foreach ($name in $saved.Keys) { Set-Item "env:$name" -Value $saved[$name] }
 }

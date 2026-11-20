@@ -200,6 +200,7 @@ public partial class App : Application
             return;
         }
 
+        Log.Information("Notifying update {Version}", update.Version);
         _tray?.Notify(TextFormat.Format(UpdateText.Notify_Title, update.Version), UpdateText.Notify_Text, ActivityKind.Info, () => _updates?.ShowDetails());
     }
 
