@@ -18,6 +18,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
 
     private readonly SemaphoreSlim _network = new(MaxParallelNetwork);
     private readonly SemaphoreSlim _saveGate = new(1, 1);
+    private readonly Lock _settingsLock = new();
     private ImmutableList<RepoState> _repos = [];
     private int _autoSyncMinutes = BoardConfig.DefaultAutoSyncMinutes;
     private AppSettings _settings = new();
@@ -126,9 +127,17 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         Notify();
     }
 
+    /// <summary>
+    /// From any thread: the update check saves which version it announced from the thread pool while the user may switch a
+    /// setting – read and change under one lock, or one of the two is lost (Review WP-10).
+    /// </summary>
     public async Task UpdateSettingsAsync(Func<AppSettings, AppSettings> change, CancellationToken ct)
     {
-        _settings = change(_settings);
+        lock (_settingsLock)
+        {
+            _settings = change(_settings);
+        }
+
         await SaveAsync(ct);
         Notify();
     }
