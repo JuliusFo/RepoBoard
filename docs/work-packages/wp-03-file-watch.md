@@ -1,6 +1,6 @@
 # WP-03 Sofort aktualisieren (Dateiwächter)
 
-Branch `wp/03-file-watch`, 2026-11-21.
+Branch `wp/03-file-watch`, 2026-11-21, Release 0.3.0.
 
 ## Planung (aus `docs/roadmap.md`)
 - `FileSystemWatcher` je Repo auf `.git/HEAD`, `.git/index`, `.git/refs`, `FETCH_HEAD` und den Worktree; Ruhezeit nach einer Änderungsserie, dann ein Status. Der 20-s-Takt bleibt als Rückfallebene (verpasste Ereignisse, Netzlaufwerke).
