@@ -13,7 +13,11 @@ public enum BoardFilterKind
     Problems,
 }
 
-/// <summary>Which repositories the table shows: one chip and the search text (name, path or branch).</summary>
+/// <summary>
+/// Which rows the table shows: one chip and the search text (name, path or branch). Worktrees (WP-04) answer the same
+/// questions; a repository is shown when it or one of its worktrees answers yes, and the worktrees that do are shown
+/// under it even when its group is closed.
+/// </summary>
 public static class BoardFilter
 {
     public static IReadOnlyList<BoardFilterKind> Kinds { get; } = Enum.GetValues<BoardFilterKind>();
@@ -29,12 +33,31 @@ public static class BoardFilter
         _ => true,
     };
 
+    /// <summary>
+    /// Name, path or branch. A worktree's path is not searched: it mostly holds its repository's (<c>.claude\worktrees</c>),
+    /// and searching for the repository would open every worktree.
+    /// </summary>
     public static bool MatchesSearch(string search, RepoState repo) =>
         string.IsNullOrWhiteSpace(search)
         || repo.Name.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase)
-        || repo.Path.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase)
+        || (!repo.IsWorktree && repo.Path.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase))
         || (repo.Status?.Branch?.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase) ?? false);
 
+    /// <summary>A chip other than "all" or a search: matching worktrees show without opening their group.</summary>
+    public static bool IsNarrowed(BoardFilterKind kind, string search) => kind != BoardFilterKind.All || !string.IsNullOrWhiteSpace(search);
+
+    private static bool Shows(RepoState row, BoardFilterKind kind, string search) => Matches(kind, row) && MatchesSearch(search, row);
+
     public static IEnumerable<RepoState> Visible(IEnumerable<RepoState> repos, BoardFilterKind kind, string search) =>
-        repos.Where(r => Matches(kind, r) && MatchesSearch(search, r));
+        repos.Where(r => Shows(r, kind, search) || (IsNarrowed(kind, search) && r.Worktrees.Any(w => Shows(w, kind, search))));
+
+    /// <summary>The worktree rows under <paramref name="repo"/>: all of an opened group, else those the filter or search finds.</summary>
+    public static IEnumerable<RepoState> VisibleWorktrees(RepoState repo, bool groupOpen, BoardFilterKind kind, string search) =>
+        repo.Worktrees.Where(w => groupOpen || (IsNarrowed(kind, search) && Shows(w, kind, search)));
+
+    /// <summary>The number on a chip: repositories for "all", every row that answers yes – worktrees too – for the others.</summary>
+    public static int Count(IEnumerable<RepoState> repos, BoardFilterKind kind) =>
+        kind == BoardFilterKind.All
+            ? repos.Count()
+            : repos.Sum(r => (Matches(kind, r) ? 1 : 0) + r.Worktrees.Count(w => Matches(kind, w)));
 }

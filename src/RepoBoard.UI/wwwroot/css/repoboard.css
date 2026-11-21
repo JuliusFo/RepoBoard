@@ -166,6 +166,36 @@ code { font-family: var(--mono); font-size: 12px; }
 .row.repo:hover { background: var(--hover); }
 .row.repo.open { background: var(--accent-weak); }
 
+/* ---------- worktrees (WP-04) ---------- */
+.row.worktree { min-height: 40px; background: var(--surface-2); }
+.row.worktree:hover { background: var(--hover); }
+.row.worktree.open { background: var(--accent-weak); }
+.row.worktree .chev { padding-left: 14px; }
+.row.worktree .name { padding-left: 14px; border-left: 2px solid var(--border-strong); }
+.row.worktree .name strong { font-weight: 500; font-size: 13px; }
+.name-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.name-line strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.name-line .badge { height: 18px; padding: 0 6px; font-size: 11px; flex: none; }
+.badge.worktrees { border: 1px solid var(--border-strong); background: var(--surface); color: var(--muted); gap: 3px; }
+.badge.worktrees:hover { color: var(--text); background: var(--hover); }
+.badge.worktrees.open { border-color: var(--accent); color: var(--accent); background: var(--accent-weak); }
+.badge.claude { background: var(--purple-weak); color: var(--purple); }
+.worktree-foot { display: flex; padding: 6px 12px 6px 62px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+
+.btn.danger { background: var(--danger); border-color: var(--danger); color: var(--accent-text); }
+.btn.danger:hover:not(:disabled) { background: var(--danger); filter: brightness(1.08); }
+
+.wt-list { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.wt-item { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+.wt-item input { margin-top: 3px; }
+.wt-item.blocked { cursor: default; background: var(--surface-2); }
+.wt-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wt-name { display: flex; align-items: center; gap: 8px; }
+.wt-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.wt-block { display: inline-flex; align-items: center; gap: 5px; color: var(--warn); }
+.wt-ignored { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
+.wt-ignored code { padding: 0 5px; border-radius: 4px; background: var(--hover); color: var(--text); }
+
 .chev { color: var(--faint); display: flex; }
 .name { display: flex; flex-direction: column; min-width: 0; }
 .name strong { font-weight: 600; font-size: 13.5px; }

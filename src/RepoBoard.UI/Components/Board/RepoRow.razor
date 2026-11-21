@@ -1,11 +1,27 @@
-@* One repository: the row (a click opens the details), an error line below it if the last operation failed. *@
+@* One repository – or one of its linked worktrees, indented below it (WP-04) –: the row (a click opens the details), an
+   error line below it if the last operation failed. *@
 @inherits BoardComponent
 
-<div class="row repo @(Expanded ? "open" : "")" tabindex="-1" @ref="_row" @onclick="OnToggle">
+<div class="row repo @(Expanded ? "open" : "") @(Repo.IsWorktree ? "worktree" : "")" tabindex="-1" @ref="_row" @onclick="OnToggle">
     <span class="chev">@(Expanded ? Icons.ChevronDown : Icons.ChevronRight)</span>
 
     <span class="name">
-        <strong>@Repo.Name</strong>
+        <span class="name-line">
+            <strong>@Repo.Name</strong>
+            @if (Repo.Worktrees.Count > 0)
+            {
+                <button class="badge worktrees @(WorktreesOpen ? "open" : "")" title="@TextFormat.Format(BoardText.Worktrees_Hint, Repo.Worktrees.Count)"
+                        @onclick="OnToggleWorktrees" @onclick:stopPropagation>@Icons.Worktrees @Repo.Worktrees.Count</button>
+            }
+            @if (Repo.IsClaudeWorktree)
+            {
+                <span class="badge claude" title="@BoardText.Worktree_Claude_Hint">@BoardText.Worktree_Claude</span>
+            }
+            @if (Repo.Worktree?.Locked is { } locked)
+            {
+                <span class="badge warn" title="@(locked.Length > 0 ? TextFormat.Format(BoardText.Worktree_Locked_Reason, locked) : BoardText.Worktree_Locked_Hint)">@Icons.Locked @BoardText.Worktree_Locked</span>
+            }
+        </span>
         <small title="@Repo.Path">@Repo.Path</small>
     </span>
 
@@ -89,24 +105,47 @@
 
     <span class="fetched @(RelativeTime.IsStale(Repo.LastFetch, Now) ? "stale" : "")" title="@RelativeTime.Exact(Repo.LastFetch)">@RelativeTime.Text(Repo.LastFetch, Now)</span>
 
-    <span class="switch"><Toggle Value="Repo.Entry.AutoFetch" Title="@BoardText.Col_AutoFetch_Hint" OnChange="v => GuardAsync(() => Board.SetAutoFetchAsync(Repo, v, default))" /></span>
-    <span class="switch"><Toggle Value="Repo.Entry.AutoPull" Title="@BoardText.Col_AutoPull_Hint" OnChange="v => GuardAsync(() => Board.SetAutoPullAsync(Repo, v, default))" /></span>
+    @if (Repo.IsWorktree)
+    {
+        @* No auto-sync of its own (decision of the user): a fetch of the repository brings the worktree's refs too. *@
+        <span></span>
+        <span></span>
+    }
+    else
+    {
+        <span class="switch"><Toggle Value="Repo.Entry.AutoFetch" Title="@BoardText.Col_AutoFetch_Hint" OnChange="v => GuardAsync(() => Board.SetAutoFetchAsync(Repo, v, default))" /></span>
+        <span class="switch"><Toggle Value="Repo.Entry.AutoPull" Title="@BoardText.Col_AutoPull_Hint" OnChange="v => GuardAsync(() => Board.SetAutoPullAsync(Repo, v, default))" /></span>
+    }
 
     <span class="actions" @onclick:stopPropagation>
         @if (Repo.Busy is { } busy)
         {
             <span class="spinner"></span><span class="busy-text">@busy …</span>
         }
+        else if (Repo is { IsWorktree: true, Missing: true })
+        {
+            @* Nothing to run in a folder that is gone; removing cleans up git's data about it. *@
+        }
         else
         {
-            <button class="btn small" title="@BoardText.Fetch_Hint" @onclick="() => GuardAsync(() => Board.FetchAsync(Repo, default))">@Icons.Fetch</button>
+            @if (!Repo.IsWorktree)
+            {
+                <button class="btn small" title="@BoardText.Fetch_Hint" @onclick="() => GuardAsync(() => Board.FetchAsync(Repo, default))">@Icons.Fetch</button>
+            }
             <button class="btn small @(Status is { Behind: > 0 } ? "hot" : "")" title="@BoardText.Pull_Hint" @onclick="() => GuardAsync(() => Board.PullAsync(Repo, default))">@Icons.Pull @BoardText.Pull</button>
             <button class="btn small @(Status is { Ahead: > 0 } or { HasUpstream: false, IsDetached: false } ? "hot" : "")" title="@BoardText.Push_Hint" @onclick="() => GuardAsync(() => Board.PushAsync(Repo, default))">@Icons.Push @BoardText.Push</button>
         }
-        <button class="btn small ghost" title="@BoardText.OpenFolder_Hint" @onclick="() => Guard(() => Desktop.OpenFolder(Repo.Path))">@Icons.Folder</button>
-        <button class="btn small ghost" title="@BoardText.OpenTerminal_Hint" @onclick="() => Guard(() => Desktop.OpenTerminal(Repo.Path))">@Icons.Terminal</button>
-        <button class="btn small ghost" title="@BoardText.OpenEditor_Hint" @onclick="() => Guard(() => Desktop.OpenInEditor(Repo.Path))">@Icons.Code</button>
-        <button class="btn small ghost danger-hover" title="@BoardText.Remove_Hint" @onclick="() => GuardAsync(() => Board.RemoveAsync(Repo, default))">@Icons.Close</button>
+        <button class="btn small ghost" title="@BoardText.OpenFolder_Hint" disabled="@Repo.Missing" @onclick="() => Guard(() => Desktop.OpenFolder(Repo.Path))">@Icons.Folder</button>
+        <button class="btn small ghost" title="@BoardText.OpenTerminal_Hint" disabled="@Repo.Missing" @onclick="() => Guard(() => Desktop.OpenTerminal(Repo.Path))">@Icons.Terminal</button>
+        <button class="btn small ghost" title="@BoardText.OpenEditor_Hint" disabled="@Repo.Missing" @onclick="() => Guard(() => Desktop.OpenInEditor(Repo.Path))">@Icons.Code</button>
+        @if (Repo.IsWorktree)
+        {
+            <button class="btn small ghost danger-hover" title="@BoardText.Worktree_Remove_Hint" disabled="@(Repo.Busy is not null)" @onclick="OnRemoveWorktree">@Icons.Trash</button>
+        }
+        else
+        {
+            <button class="btn small ghost danger-hover" title="@BoardText.Remove_Hint" @onclick="() => GuardAsync(() => Board.RemoveAsync(Repo, default))">@Icons.Close</button>
+        }
     </span>
 </div>
 
@@ -128,6 +167,14 @@
     [Parameter] public DateTimeOffset Now { get; set; }
     [Parameter] public bool Expanded { get; set; }
     [Parameter] public EventCallback OnToggle { get; set; }
+
+    /// <summary>A repository's worktree rows are shown (its count badge is a toggle).</summary>
+    [Parameter] public bool WorktreesOpen { get; set; }
+
+    [Parameter] public EventCallback OnToggleWorktrees { get; set; }
+
+    /// <summary>A worktree's remove button: the shell asks first (ADR 0010).</summary>
+    [Parameter] public EventCallback OnRemoveWorktree { get; set; }
 
     /// <summary>Changes when the row is to come into view (a click on a notification); 0 = no request.</summary>
     [Parameter] public int ScrollRequest { get; set; }

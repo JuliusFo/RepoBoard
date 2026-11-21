@@ -14,7 +14,7 @@
         <nav class="chips">
             @foreach (var kind in BoardFilter.Kinds)
             {
-                var count = Board.Repos.Count(r => BoardFilter.Matches(kind, r));
+                var count = BoardFilter.Count(Board.Repos, kind);
                 <button class="chip @(kind == _filter ? "active" : "")" @onclick="() => _filter = kind">
                     @Label(kind) <b>@count</b>
                 </button>
@@ -75,8 +75,21 @@
                 </div>
                 @foreach (var repo in visible)
                 {
+                    var groupOpen = _worktreesOpen.Contains(repo);
                     <RepoRow @key="repo" Repo="repo" Now="now" Expanded="_expanded.Contains(repo)" OnToggle="() => Toggle(repo)"
-                             ScrollRequest="repo == _scrollTo ? _scrollRequest : 0" />
+                             ScrollRequest="repo == _scrollTo ? _scrollRequest : 0"
+                             WorktreesOpen="groupOpen" OnToggleWorktrees="() => ToggleWorktrees(repo)" />
+                    @foreach (var worktree in BoardFilter.VisibleWorktrees(repo, groupOpen, _filter, _search))
+                    {
+                        <RepoRow @key="worktree" Repo="worktree" Now="now" Expanded="_expanded.Contains(worktree)" OnToggle="() => Toggle(worktree)"
+                                 OnRemoveWorktree="() => _worktreeDialog = new(repo, worktree)" />
+                    }
+                    @if (groupOpen && repo.Worktrees.Count > 0)
+                    {
+                        <div @key="(repo, 1)" class="worktree-foot">
+                            <button class="btn small" title="@BoardText.Worktrees_CleanUp_Hint" @onclick="() => _worktreeDialog = new(repo, null)">@BoardText.Worktrees_CleanUp</button>
+                        </div>
+                    }
                 }
                 @if (visible.Count == 0)
                 {
@@ -91,8 +104,18 @@
 
 <UpdateDialog />
 
+@if (_worktreeDialog is { } dialog)
+{
+    <WorktreeDialog @key="dialog" Repo="dialog.Repo" Worktree="dialog.Worktree" OnClose="() => _worktreeDialog = null" />
+}
+
 @code {
     private readonly HashSet<RepoState> _expanded = [];
+    private readonly HashSet<RepoState> _worktreesOpen = [];
+    private WorktreeDialogRequest? _worktreeDialog;
+
+    /// <summary>The open question: clean up a repository's worktrees, or remove one.</summary>
+    private sealed record WorktreeDialogRequest(RepoState Repo, RepoState? Worktree);
     private BoardFilterKind _filter = BoardFilterKind.All;
     private string _search = "";
     private int _renderQueued;
@@ -157,6 +180,22 @@
     {
         var open = _expanded.Add(repo) || !_expanded.Remove(repo);
         return Board.SetWantsDetailsAsync(repo, open, default);
+    });
+
+    /// <summary>A repository's worktrees start closed (decision of the user) and stay as set while the app runs.</summary>
+    private Task ToggleWorktrees(RepoState repo) => GuardAsync(async () =>
+    {
+        if (_worktreesOpen.Add(repo))
+        {
+            return;
+        }
+
+        // Closing the group closes its opened rows too: hidden, they would read branches and history with every status.
+        _worktreesOpen.Remove(repo);
+        foreach (var worktree in repo.Worktrees.Where(_expanded.Remove))
+        {
+            await Board.SetWantsDetailsAsync(worktree, false, default);
+        }
     });
 
     private Task FetchAll() => GuardAsync(() => Board.FetchAllAsync(default));
