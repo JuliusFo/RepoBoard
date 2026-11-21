@@ -20,5 +20,6 @@ Beobachtung des Nutzers beim E2E von WP-05 (2026-11-21, Testinstanz 1440×900): 
 - `tests/RepoBoard.App.Tests` (Windows): `CopyFence` gegen ein WARP-Gerät, die privaten WebView2-Member gegen das Pin. Gegenprobe: ein fehlender Slot in `ID3D11Device` bzw. `ID3D11DeviceContext` macht den Test rot (der zweite erst mit der Prüfung des Query-Werts).
 - `tools/e2e/Measure-PictureDelay.ps1` für die Gegenprobe beim nächsten Heben von WebView2/BlazorWebView.
 
-## Offen
-- Einmal mit echter Maus im großen Fenster gegenprüfen (beim Nutzer, maximiert).
+## E2E mit dem Nutzer (2026-11-21)
+- Zwei Testinstanzen nebeneinander, Fix dunkel und `main` hell, echte Maus: Hover und Klicks mit Fix „flüssig“ (Nutzer). Log der Fix-Instanz: keine Wartezeit ab 2 ms, kein Bild zurückgehalten, keine Warnungen oder Fehler.
+- Der Nutzer hat ADR 0008 akzeptiert.
