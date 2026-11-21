@@ -48,6 +48,27 @@
   <data name="Op_Diff" xml:space="preserve">
     <value>Diff</value>
   </data>
+  <data name="Op_StageHunk" xml:space="preserve">
+    <value>Hunk stagen</value>
+  </data>
+  <data name="Op_StageLines" xml:space="preserve">
+    <value>Zeilen stagen</value>
+  </data>
+  <data name="Op_UnstageHunk" xml:space="preserve">
+    <value>Hunk unstagen</value>
+  </data>
+  <data name="Op_UnstageLines" xml:space="preserve">
+    <value>Zeilen unstagen</value>
+  </data>
+  <data name="Hunk_Incomplete" xml:space="preserve">
+    <value>Dieser Hunk ist an der Zeilengrenze des Diffs abgeschnitten und lässt sich nicht in Teilen stagen. Stage stattdessen die ganze Datei.</value>
+  </data>
+  <data name="Hunk_NotUtf8" xml:space="preserve">
+    <value>Diese Datei ist kein UTF-8 – Teile davon lassen sich hier nicht stagen. Stage stattdessen die ganze Datei.</value>
+  </data>
+  <data name="Hunk_SplitsLastLine" xml:space="preserve">
+    <value>Die letzte Zeile der Datei hat keinen Zeilenumbruch – wähle sie zusammen mit den Zeilen daneben aus.</value>
+  </data>
   <data name="Op_Commit" xml:space="preserve">
     <value>Commit</value>
   </data>

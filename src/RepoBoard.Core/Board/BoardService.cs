@@ -394,6 +394,36 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         RunAsync(repo, SyncText.Op_Unstage, network: false,
             c => git.UnstageAsync(repo.Path, paths.Count == 0 ? ["."] : paths, repo.Status?.IsInitial == true, c), null, ct);
 
+    /// <summary>
+    /// Stages (or, from the staged side, unstages) one hunk of <paramref name="diff"/> or the selected lines in it (WP-25,
+    /// ADR 0012). Writes only to the index. The patch is built from the diff the user sees; if the file changed since,
+    /// git refuses it and the new status brings the current diff.
+    /// </summary>
+    /// <param name="lines">Indexes of the selected lines in the hunk; null for the whole hunk.</param>
+    public Task<bool> StageHunkAsync(RepoState repo, FileChange change, FileDiff diff, bool staged, int hunk,
+        IReadOnlySet<int>? lines, CancellationToken ct)
+    {
+        var label = (staged, lines is null) switch
+        {
+            (false, true) => SyncText.Op_StageHunk,
+            (false, false) => SyncText.Op_StageLines,
+            (true, true) => SyncText.Op_UnstageHunk,
+            (true, false) => SyncText.Op_UnstageLines,
+        };
+        var patch = HunkPatch.Build(change.Path, diff, hunk, lines, reverse: staged);
+        return RunAsync(repo, label, network: false, c => patch.Kind switch
+        {
+            HunkPatchKind.Patch => git.ApplyToIndexAsync(repo.Path, patch, reverse: staged, c),
+            HunkPatchKind.WholeFile => staged
+                ? git.UnstageAsync(repo.Path, [change.Path], repo.Status?.IsInitial == true, c)
+                : git.StageAsync(repo.Path, [change.Path], c),
+            HunkPatchKind.Nothing => Task.FromResult(new GitResult(0, "", "")),
+            HunkPatchKind.Incomplete => Task.FromResult(GitResult.Failed(SyncText.Hunk_Incomplete)),
+            HunkPatchKind.NotUtf8 => Task.FromResult(GitResult.Failed(SyncText.Hunk_NotUtf8)),
+            _ => Task.FromResult(GitResult.Failed(SyncText.Hunk_SplitsLastLine)),
+        }, null, ct);
+    }
+
     /// <summary>Commits what is staged; with nothing staged, everything (like "commit all" elsewhere).</summary>
     public Task<bool> CommitAsync(RepoState repo, string message, bool push, CancellationToken ct)
     {

@@ -53,6 +53,29 @@
     <value>Diff</value>
     <comment>Name of the operation that reads a file's changes (git diff), used in "{0} failed: …".</comment>
   </data>
+  <data name="Op_StageHunk" xml:space="preserve">
+    <value>Stage hunk</value>
+    <comment>Operation: put one block of changes of a file into the index</comment>
+  </data>
+  <data name="Op_StageLines" xml:space="preserve">
+    <value>Stage lines</value>
+    <comment>Operation: put the selected changed lines of a file into the index</comment>
+  </data>
+  <data name="Op_UnstageHunk" xml:space="preserve">
+    <value>Unstage hunk</value>
+  </data>
+  <data name="Op_UnstageLines" xml:space="preserve">
+    <value>Unstage lines</value>
+  </data>
+  <data name="Hunk_Incomplete" xml:space="preserve">
+    <value>This hunk is cut off at the line limit of the diff and cannot be staged in parts. Stage the whole file instead.</value>
+  </data>
+  <data name="Hunk_NotUtf8" xml:space="preserve">
+    <value>This file is not UTF-8 – parts of it cannot be staged here. Stage the whole file instead.</value>
+  </data>
+  <data name="Hunk_SplitsLastLine" xml:space="preserve">
+    <value>The last line of the file has no newline – select it together with the lines next to it.</value>
+  </data>
   <data name="Op_Commit" xml:space="preserve">
     <value>Commit</value>
   </data>

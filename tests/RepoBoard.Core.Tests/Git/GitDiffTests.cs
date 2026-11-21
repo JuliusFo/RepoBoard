@@ -102,7 +102,7 @@ public sealed class GitDiffTests : IDisposable
     {
         // For, not ForPartsOf: setting up Returns must not call the real RunAsync (third review pass WP-05).
         var runner = Substitute.For<GitRunner>("git");
-        runner.RunAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<GitCallMode>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
+        runner.RunAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<GitCallMode>(), Arg.Any<TimeSpan>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(new GitResult(1, "", message));
         var gone = new FileChange("gone.txt", null, '.', '?', Untracked: true, Conflict: false);
 

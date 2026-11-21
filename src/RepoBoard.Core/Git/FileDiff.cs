@@ -30,7 +30,10 @@ public sealed record DiffHunk(int OldStart, int OldCount, int NewStart, int NewC
 /// </summary>
 /// <param name="IsTruncated">Only the first <c>maxLines</c> lines were kept.</param>
 /// <param name="IsTooLarge">Not read at all: the file is above <see cref="MaxFileBytes"/>.</param>
-public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBinary, bool IsTruncated, bool IsTooLarge = false)
+/// <param name="NewFileMode">The file is new on the diff's new side, with this mode (<c>100644</c>); a staging patch creates it (WP-25).</param>
+/// <param name="DeletedFileMode">The file is gone on the diff's new side; it had this mode.</param>
+public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBinary, bool IsTruncated, bool IsTooLarge = false,
+    string? NewFileMode = null, string? DeletedFileMode = null)
 {
     public const int MaxLines = 5000;
 
@@ -51,6 +54,9 @@ public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBina
     [GeneratedRegex(@"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@ ?(.*)$", RegexOptions.CultureInvariant)]
     private static partial Regex HunkHeader();
 
+    [GeneratedRegex(@"^(new|deleted) file mode ([0-7]+)$", RegexOptions.CultureInvariant)]
+    private static partial Regex FileMode();
+
     /// <summary>
     /// Parses the output of <c>git diff</c> for one file. The lines of a hunk are counted by its header, so an empty context
     /// line (<c>diff.suppressBlankEmpty</c>) is read as one; a removed block followed by an added block is paired line by
@@ -62,6 +68,7 @@ public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBina
         var hunks = new List<DiffHunk>();
         var wordCells = MaxWordCells;
         var binary = false;
+        string? newMode = null, deletedMode = null;
         var kept = 0;
         var truncated = false;
         while (!truncated && lines.Next() is { } line)
@@ -69,7 +76,20 @@ public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBina
             var header = HunkHeader().Match(line.TrimEnd('\r'));
             if (!header.Success)
             {
+                // Outside a hunk: the lines of git's file header.
                 binary |= line.StartsWith("Binary files ", StringComparison.Ordinal) || line.StartsWith("GIT binary patch", StringComparison.Ordinal);
+                if (FileMode().Match(line.TrimEnd('\r')) is { Success: true } mode)
+                {
+                    if (mode.Groups[1].Value == "new")
+                    {
+                        newMode = mode.Groups[2].Value;
+                    }
+                    else
+                    {
+                        deletedMode = mode.Groups[2].Value;
+                    }
+                }
+
                 continue;
             }
 
@@ -131,7 +151,7 @@ public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBina
             }
         }
 
-        return new FileDiff(hunks, binary, truncated);
+        return new FileDiff(hunks, binary, truncated, NewFileMode: newMode, DeletedFileMode: deletedMode);
     }
 
     /// <summary>Removed lines followed by added lines replace each other: the n-th removed one pairs with the n-th added one.</summary>

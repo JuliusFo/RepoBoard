@@ -17,10 +17,10 @@ public enum GitOperation
 public sealed class GitClient(GitRunner runner)
 {
     private Task<GitResult> Local(string repo, CancellationToken ct, params string[] args) =>
-        runner.RunAsync(repo, args, GitCallMode.Interactive, GitRunner.LocalTimeout, ct);
+        runner.RunAsync(repo, args, GitCallMode.Interactive, GitRunner.LocalTimeout, null, ct);
 
     private Task<GitResult> Network(string repo, GitCallMode mode, CancellationToken ct, params string[] args) =>
-        runner.RunAsync(repo, args, mode, GitRunner.NetworkTimeout, ct);
+        runner.RunAsync(repo, args, mode, GitRunner.NetworkTimeout, null, ct);
 
     /// <summary>The worktree root of <paramref name="path"/>, or null if it is not inside a repository.</summary>
     public async Task<string?> FindRootAsync(string path, CancellationToken ct)
@@ -95,6 +95,29 @@ public sealed class GitClient(GitRunner runner)
         initial
             ? Local(repo, ct, [LiteralPaths, "rm", "--cached", "-r", "-q", "--", .. paths])
             : Local(repo, ct, [LiteralPaths, "restore", "--staged", "--", .. paths]);
+
+    /// <summary>
+    /// Applies part of a hunk to the index (WP-25, ADR 0012): always <c>--cached</c>, so the worktree is never touched; git
+    /// checks the patch against the index and applies all of it or nothing. The user's <c>apply.whitespace</c> must not
+    /// refuse a line that is already in the file (<c>--whitespace=nowarn</c>); a hunk without context lines (the user's
+    /// <c>diff.context=0</c>) needs <c>--unidiff-zero</c>.
+    /// </summary>
+    public Task<GitResult> ApplyToIndexAsync(string repo, HunkPatch patch, bool reverse, CancellationToken ct)
+    {
+        List<string> args = ["apply", "--cached", "--whitespace=nowarn"];
+        if (reverse)
+        {
+            args.Add("--reverse");
+        }
+
+        if (!patch.HasContext)
+        {
+            args.Add("--unidiff-zero");
+        }
+
+        args.Add("-");
+        return runner.RunAsync(repo, args, GitCallMode.Interactive, GitRunner.LocalTimeout, patch.Text, ct);
+    }
 
     public Task<GitResult> CommitAsync(string repo, string message, CancellationToken ct) =>
         Local(repo, ct, "commit", "-m", message);
