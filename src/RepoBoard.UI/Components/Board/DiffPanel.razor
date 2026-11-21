@@ -59,28 +59,8 @@
                 @for (var i = 0; i < hunk.Lines.Count; i++)
                 {
                     var lineIndex = i;
-                    var line = hunk.Lines[i];
-                    var pickable = LineSelection.CanPick(line);
-                    <div class="diff-line @KindClass(line.Kind) @(_selection.IsPicked(hunkIndex, lineIndex) ? "picked" : "")">
-                        <span class="gutter @(pickable ? "pick" : "")" title="@(pickable ? BoardText.Diff_PickLine_Hint : null)"
-                              @onclick="e => Pick(hunk, hunkIndex, lineIndex, e)"><span class="no">@line.OldNumber</span><span class="no">@line.NewNumber</span><span class="sign">@Sign(line.Kind)</span></span><span class="text">@foreach (var (text, changed) in Segments(line))
-                            {
-                                @if (changed)
-                                {
-                                    <mark>@text</mark>
-                                }
-                                else
-                                {
-                                    @text
-                                }
-                            }@if (line.EndsWithCr)
-                            {
-                                <span class="eol" title="@BoardText.Diff_Cr">␍</span>
-                            }@if (line.NoNewlineAtEnd)
-                            {
-                                <span class="eol" title="@BoardText.Diff_NoNewline">⊘</span>
-                            }</span>
-                    </div>
+                    <DiffLineView Line="hunk.Lines[i]" Picked="_selection.IsPicked(hunkIndex, lineIndex)"
+                                  OnPick="shift => Pick(hunk, hunkIndex, lineIndex, shift)" />
                 }
             }
         </div>
@@ -179,11 +159,11 @@
     };
 
     // Not while a hunk is being staged: its success clears the selection, a pick made meanwhile would go with it (review WP-25).
-    private void Pick(DiffHunk hunk, int hunkIndex, int line, MouseEventArgs e)
+    private void Pick(DiffHunk hunk, int hunkIndex, int line, bool shift)
     {
         if (!_staging)
         {
-            _selection.Click(hunk, hunkIndex, line, e.ShiftKey);
+            _selection.Click(hunk, hunkIndex, line, shift);
         }
     }
 
@@ -218,41 +198,6 @@
         if (e.Key == "Escape")
         {
             await OnClose.InvokeAsync();
-        }
-    }
-
-    private static string KindClass(DiffLineKind kind) => kind switch
-    {
-        DiffLineKind.Added => "add",
-        DiffLineKind.Removed => "del",
-        _ => "",
-    };
-
-    private static string Sign(DiffLineKind kind) => kind switch
-    {
-        DiffLineKind.Added => "+",
-        DiffLineKind.Removed => "−",
-        _ => " ",
-    };
-
-    /// <summary>The line's text cut at its changed spans (word highlighting).</summary>
-    private static IEnumerable<(string Text, bool Changed)> Segments(DiffLine line)
-    {
-        var at = 0;
-        foreach (var span in line.Changed)
-        {
-            if (span.Start > at)
-            {
-                yield return (line.Text[at..span.Start], false);
-            }
-
-            yield return (line.Text.Substring(span.Start, span.Length), true);
-            at = span.Start + span.Length;
-        }
-
-        if (at < line.Text.Length)
-        {
-            yield return (line.Text[at..], false);
         }
     }
 }
