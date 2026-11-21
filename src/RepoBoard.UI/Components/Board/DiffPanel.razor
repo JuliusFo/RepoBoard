@@ -52,7 +52,7 @@
                 var picked = _selection.CountIn(hunkIndex);
                 <div class="diff-hunk">
                     <span class="range">@($"@@ -{hunk.OldStart},{hunk.OldCount} +{hunk.NewStart},{hunk.NewCount} @@") <span class="section">@hunk.Section</span></span>
-                    <button class="btn small hunk-stage" disabled="@(_staging || IsCutOff(hunkIndex))"
+                    <button class="btn small hunk-stage" disabled="@(_staging || !_current || IsCutOff(hunkIndex))"
                             title="@(IsCutOff(hunkIndex) ? SyncText.Hunk_Incomplete : picked > 0 ? BoardText.Diff_StageLines_Hint : BoardText.Diff_StageHunk_Hint)"
                             @onclick="() => GuardAsync(() => StageAsync(hunkIndex))">@HunkLabel(picked)</button>
                 </div>
@@ -90,13 +90,17 @@
     private readonly LineSelection _selection = new();
     private bool _staging;
 
+    // The shown diff belongs to the latest status. Not while the next one loads: a hunk staged from it right after another
+    // one would only meet "the file changed" (second review pass WP-25).
+    private bool _current;
+
     // What the markup last showed: the page renders on every change of any repository, the lines only when this changes
     // (review WP-05 – up to 5,000 lines).
-    private (FileDiff? Diff, string? Error, FileChange Change, bool Staged, int Picks, bool Staging)? _shown;
+    private (FileDiff? Diff, string? Error, FileChange Change, bool Staged, int Picks, bool Staging, bool Current)? _shown;
 
     protected override bool ShouldRender()
     {
-        var now = (_diff, _error, Change, Staged, _selection.Version, _staging);
+        var now = (_diff, _error, Change, Staged, _selection.Version, _staging, _current);
         if (_shown == now)
         {
             return false;
@@ -125,6 +129,7 @@
         }
 
         var read = ++_reads;
+        _current = false;
         var change = Change;
         var staged = Staged;
         Fire(async () =>
@@ -142,6 +147,7 @@
                 }
 
                 (_diff, _error) = (diff, error);
+                _current = true;
                 StateHasChanged();
             }
         });
@@ -170,7 +176,7 @@
     /// <summary>Stages (unstages on the staged side) the picked lines of the hunk, or all of it with none picked.</summary>
     private async Task StageAsync(int hunk)
     {
-        if (_diff is not { } diff)
+        if (_diff is not { } diff || !_current)
         {
             return;
         }
@@ -187,6 +193,11 @@
         finally
         {
             _staging = false;
+            // The board read the new status before returning; until this panel reads its diff, the buttons stay off.
+            if (_readFor is not { } readFor || !ReferenceEquals(readFor.Status, Repo.Status))
+            {
+                _current = false;
+            }
         }
     }
 

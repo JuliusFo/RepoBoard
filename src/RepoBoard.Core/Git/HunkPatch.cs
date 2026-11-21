@@ -23,8 +23,11 @@ public enum HunkPatchKind
     /// <summary>The selection splits the last line of a file without a final newline from what follows it.</summary>
     SplitsLastLine,
 
-    /// <summary>A symbolic link, submodule or change of type (<see cref="FileDiff.IsSpecialFile"/>): only as a whole.</summary>
+    /// <summary>A symbolic link or submodule (<see cref="FileDiff.IsSpecialFile"/>): only as a whole.</summary>
     SpecialFile,
+
+    /// <summary>One file deleted and one added (<see cref="FileDiff.IsTwoFiles"/>): only as a whole.</summary>
+    TwoFiles,
 }
 
 /// <summary>
@@ -71,6 +74,11 @@ public sealed record HunkPatch(HunkPatchKind Kind, string Text = "", bool Unidif
         if (diff.IsSpecialFile)
         {
             return new HunkPatch(HunkPatchKind.SpecialFile);
+        }
+
+        if (diff.IsTwoFiles)
+        {
+            return new HunkPatch(HunkPatchKind.TwoFiles);
         }
 
         if (source.Lines.Any(l => l.Text.Contains('�', StringComparison.Ordinal)))

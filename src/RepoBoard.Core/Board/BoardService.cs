@@ -421,48 +421,55 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             (true, true) => SyncText.Op_UnstageHunk,
             (true, false) => SyncText.Op_UnstageLines,
         };
+        // On the thread pool: the click comes from the renderer's context, and reading, parsing and comparing a large diff
+        // twice would stall the window (as in DiffAsync; second review pass WP-25).
+        return RunAsync(repo, label, network: false, c => Task.Run(() => StageHunkCoreAsync(repo, change, diff, staged, hunk, lines, c), c),
+            null, ct);
+    }
+
+    private async Task<GitResult> StageHunkCoreAsync(RepoState repo, FileChange change, FileDiff diff, bool staged, int hunk,
+        IReadOnlySet<int>? lines, CancellationToken c)
+    {
         // Unstaging a rename as a whole would take the rename back too: the patch keeps it and takes out the hunk.
         var patch = HunkPatch.Build(change.Path, diff, hunk, lines, reverse: staged, wholeFile: !(staged && change.OriginalPath is not null));
-        return RunAsync(repo, label, network: false, async c =>
+        var (current, read) = await git.DiffAsync(repo.Path, change, staged, c);
+        if (current is null)
         {
-            var (current, read) = await git.DiffAsync(repo.Path, change, staged, c);
-            if (current is null)
+            return read;
+        }
+
+        if (!current.SameAs(diff))
+        {
+            return GitResult.Failed(SyncText.Hunk_Changed);
+        }
+
+        if (patch.Kind == HunkPatchKind.Patch)
+        {
+            var (own, readOwn) = await git.DiffAsync(repo.Path, change, staged, c, textconv: false);
+            if (own is null)
             {
-                return read;
+                return readOwn;
             }
 
-            if (!current.SameAs(diff))
+            if (!own.SameAs(diff))
             {
-                return GitResult.Failed(SyncText.Hunk_Changed);
+                return GitResult.Failed(SyncText.Hunk_DiffDriver);
             }
+        }
 
-            if (patch.Kind == HunkPatchKind.Patch)
-            {
-                var (own, readOwn) = await git.DiffAsync(repo.Path, change, staged, c, textconv: false);
-                if (own is null)
-                {
-                    return readOwn;
-                }
-
-                if (!own.SameAs(diff))
-                {
-                    return GitResult.Failed(SyncText.Hunk_DiffDriver);
-                }
-            }
-
-            return patch.Kind switch
-            {
-                HunkPatchKind.Patch => await git.ApplyToIndexAsync(repo.Path, patch, reverse: staged, c),
-                HunkPatchKind.WholeFile => staged
-                    ? await git.UnstageAsync(repo.Path, [change.Path], repo.Status?.IsInitial == true, c)
-                    : await git.StageAsync(repo.Path, [change.Path], c),
-                HunkPatchKind.Nothing => new GitResult(0, "", ""),
-                HunkPatchKind.Incomplete => GitResult.Failed(SyncText.Hunk_Incomplete),
-                HunkPatchKind.NotUtf8 => GitResult.Failed(SyncText.Hunk_NotUtf8),
-                HunkPatchKind.SpecialFile => GitResult.Failed(SyncText.Hunk_SpecialFile),
-                _ => GitResult.Failed(SyncText.Hunk_SplitsLastLine),
-            };
-        }, null, ct);
+        return patch.Kind switch
+        {
+            HunkPatchKind.Patch => await git.ApplyToIndexAsync(repo.Path, patch, reverse: staged, c),
+            HunkPatchKind.WholeFile => staged
+                ? await git.UnstageAsync(repo.Path, [change.Path], repo.Status?.IsInitial == true, c)
+                : await git.StageAsync(repo.Path, [change.Path], c),
+            HunkPatchKind.Nothing => new GitResult(0, "", ""),
+            HunkPatchKind.Incomplete => GitResult.Failed(SyncText.Hunk_Incomplete),
+            HunkPatchKind.NotUtf8 => GitResult.Failed(SyncText.Hunk_NotUtf8),
+            HunkPatchKind.SpecialFile => GitResult.Failed(SyncText.Hunk_SpecialFile),
+            HunkPatchKind.TwoFiles => GitResult.Failed(SyncText.Hunk_TwoFiles),
+            _ => GitResult.Failed(SyncText.Hunk_SplitsLastLine),
+        };
     }
 
     /// <summary>Commits what is staged; with nothing staged, everything (like "commit all" elsewhere).</summary>

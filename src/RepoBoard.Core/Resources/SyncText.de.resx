@@ -73,7 +73,10 @@
     <value>Diese Datei wird über einen Diff-Treiber (textconv) angezeigt – Teile davon lassen sich hier nicht stagen. Stage stattdessen die ganze Datei.</value>
   </data>
   <data name="Hunk_SpecialFile" xml:space="preserve">
-    <value>Symbolische Links, Submodule und Wechsel des Dateityps lassen sich nicht in Teilen stagen. Stage stattdessen die ganze Datei.</value>
+    <value>Symbolische Links und Submodule lassen sich nicht in Teilen stagen. Stage stattdessen die ganze Datei.</value>
+  </data>
+  <data name="Hunk_TwoFiles" xml:space="preserve">
+    <value>git zeigt diese Änderung als eine gelöschte und eine neue Datei – sie lässt sich nur als Ganzes stagen.</value>
   </data>
   <data name="Hunk_SplitsLastLine" xml:space="preserve">
     <value>Die letzte Zeile der Datei hat keinen Zeilenumbruch – wähle sie zusammen mit den Zeilen daneben aus.</value>

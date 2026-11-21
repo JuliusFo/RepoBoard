@@ -360,18 +360,29 @@ public sealed class HunkStagingTests : IDisposable
         Assert.Equal("a\r\nb\r\nc", Index("f.txt"));
     }
 
-    /// <summary>Review WP-25: a link target, submodule commit or change of type is no text to stage in parts.</summary>
+    /// <summary>Review WP-25: a link target or submodule commit is no text to stage in parts, also when a file became a link.</summary>
     [Theory]
     [InlineData("diff --git a/l b/l\nindex 1a2b..3c4d 120000\n--- a/l\n+++ b/l\n@@ -1 +1,2 @@\n-old\n+new\n+more\n")]
     [InlineData("diff --git a/s b/s\nindex 1a2b..3c4d 160000\n--- a/s\n+++ b/s\n@@ -1 +1,2 @@\n-Subproject commit 1\n+Subproject commit 2\n+x\n")]
     [InlineData("diff --git a/t b/t\ndeleted file mode 100644\nindex 1a2b..0000000\n--- a/t\n+++ /dev/null\n@@ -1 +0,0 @@\n-x\n"
         + "diff --git a/t b/t\nnew file mode 120000\nindex 0000000..3c4d\n--- /dev/null\n+++ b/t\n@@ -0,0 +1 @@\n+target\n")]
-    public void Links_submodules_and_type_changes_are_not_staged_in_parts(string output)
+    public void Links_and_submodules_are_not_staged_in_parts(string output)
     {
         var diff = FileDiff.Parse(output);
 
         Assert.True(diff.IsSpecialFile);
         Assert.Equal(HunkPatchKind.SpecialFile, HunkPatch.Build("l", diff, 0, new HashSet<int> { 0 }, reverse: false).Kind);
+    }
+
+    /// <summary>Second review pass WP-25: a rename diff -M does not pair is two files – refused as such, not as a link.</summary>
+    [Fact]
+    public void A_deleted_and_an_added_file_in_one_diff_are_not_staged_in_parts()
+    {
+        var diff = FileDiff.Parse("diff --git a/old b/old\ndeleted file mode 100644\nindex 1a2b..0000000\n--- a/old\n+++ /dev/null\n@@ -1 +0,0 @@\n-x\n"
+            + "diff --git a/new b/new\nnew file mode 100644\nindex 0000000..3c4d\n--- /dev/null\n+++ b/new\n@@ -0,0 +1 @@\n+y\n");
+
+        Assert.False(diff.IsSpecialFile);
+        Assert.Equal(HunkPatchKind.TwoFiles, HunkPatch.Build("new", diff, 0, new HashSet<int> { 0 }, reverse: true).Kind);
     }
 
     public void Dispose() => _git.Dispose();

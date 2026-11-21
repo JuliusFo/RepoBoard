@@ -80,7 +80,10 @@
     <value>This file is shown through a diff driver (textconv) – parts of it cannot be staged here. Stage the whole file instead.</value>
   </data>
   <data name="Hunk_SpecialFile" xml:space="preserve">
-    <value>Symbolic links, submodules and changes of file type cannot be staged in parts. Stage the whole file instead.</value>
+    <value>Symbolic links and submodules cannot be staged in parts. Stage the whole file instead.</value>
+  </data>
+  <data name="Hunk_TwoFiles" xml:space="preserve">
+    <value>git shows this change as one file deleted and another one added – it can only be staged as a whole.</value>
   </data>
   <data name="Hunk_SplitsLastLine" xml:space="preserve">
     <value>The last line of the file has no newline – select it together with the lines next to it.</value>

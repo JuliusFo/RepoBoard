@@ -40,14 +40,16 @@ public sealed record DiffHunk(int OldStart, int OldCount, int NewStart, int NewC
 /// <param name="IsTooLarge">Not read at all: the file is above <see cref="MaxFileBytes"/>.</param>
 /// <param name="NewFileMode">The file is new on the diff's new side, with this mode (<c>100644</c>); a staging patch creates it (WP-25).</param>
 /// <param name="DeletedFileMode">The file is gone on the diff's new side; it had this mode.</param>
-/// <param name="IsSpecialFile">A symbolic link or submodule on either side, or a change of type (file ↔ link): its "lines" are
-/// a link target or commit, not text to stage in parts (review WP-25).</param>
+/// <param name="IsSpecialFile">A symbolic link or submodule on either side, also when a file became one: its "lines" are a
+/// link target or commit, not text to stage in parts (review WP-25).</param>
+/// <param name="IsTwoFiles">git shows the change as one file deleted and one added (a change of type, or a rename that
+/// <c>diff -M</c> does not pair): its hunks belong to two files, no single patch (second review pass WP-25).</param>
 public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBinary, bool IsTruncated, bool IsTooLarge = false,
-    string? NewFileMode = null, string? DeletedFileMode = null, bool IsSpecialFile = false)
+    string? NewFileMode = null, string? DeletedFileMode = null, bool IsSpecialFile = false, bool IsTwoFiles = false)
 {
     /// <summary>The same hunks with the same lines (<see cref="DiffHunk.SameAs"/>).</summary>
     public bool SameAs(FileDiff other) =>
-        (IsBinary, IsTruncated, IsTooLarge, IsSpecialFile) == (other.IsBinary, other.IsTruncated, other.IsTooLarge, other.IsSpecialFile)
+        (IsBinary, IsTruncated, IsTooLarge, IsSpecialFile, IsTwoFiles) == (other.IsBinary, other.IsTruncated, other.IsTooLarge, other.IsSpecialFile, other.IsTwoFiles)
         && Hunks.Count == other.Hunks.Count && Hunks.Zip(other.Hunks).All(p => p.First.SameAs(p.Second));
 
     public const int MaxLines = 5000;
@@ -174,9 +176,8 @@ public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBina
             }
         }
 
-        // Both a deleted and a new file: git shows a change of type (file ↔ link) as the one removed and the other added.
-        special |= newMode is not null && deletedMode is not null;
-        return new FileDiff(hunks, binary, truncated, NewFileMode: newMode, DeletedFileMode: deletedMode, IsSpecialFile: special);
+        return new FileDiff(hunks, binary, truncated, NewFileMode: newMode, DeletedFileMode: deletedMode, IsSpecialFile: special,
+            IsTwoFiles: newMode is not null && deletedMode is not null);
     }
 
     /// <summary>Removed lines followed by added lines replace each other: the n-th removed one pairs with the n-th added one.</summary>
