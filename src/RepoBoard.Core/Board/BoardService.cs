@@ -248,9 +248,9 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     /// <summary>How often the tick reads a repository a file watcher sees (decision of the user, 2026-11-21).</summary>
     public static readonly TimeSpan WatchedRefresh = TimeSpan.FromMinutes(2);
 
-    /// <summary>A repository with an error (a status that failed, too) is read on every tick, as without a watcher.</summary>
+    /// <summary>A repository whose last status failed is read on every tick, as without a watcher.</summary>
     private bool IsStale(RepoState repo) =>
-        !repo.Watched || repo.Error is not null || repo.StatusReadAt is not { } read || time.GetElapsedTime(read) >= WatchedRefresh;
+        !repo.Watched || repo.StatusFailed || repo.StatusReadAt is not { } read || time.GetElapsedTime(read) >= WatchedRefresh;
 
     /// <summary>After a fetch or pull in a repository: its worktrees share the refs, their ahead and behind changed too.</summary>
     private Task RefreshWorktreesAsync(RepoState repo, CancellationToken ct, RepoState? except = null) =>
@@ -275,6 +275,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         {
             // One repository's surprise must not stop the status – and auto-sync – of all the others (review WP-04).
             repo.Error = TextFormat.Format(SyncText.OperationFailed, SyncText.Op_Status, ex.Message);
+            repo.StatusFailed = true;
         }
         finally
         {
@@ -292,6 +293,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         if (!Directory.Exists(repo.Path))
         {
             repo.StatusReadAt = started;
+            repo.StatusFailed = false;
             repo.Missing = true;
             repo.Status = null;
             repo.Worktrees = [];
@@ -304,11 +306,13 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         if (status is null)
         {
             repo.Error = TextFormat.Format(SyncText.OperationFailed, SyncText.Op_Status, result.Message);
+            repo.StatusFailed = true;
             return;
         }
 
         repo.Status = status;
         repo.StatusReadAt = started;
+        repo.StatusFailed = false;
         if (repo.GitDir is { } dir)
         {
             repo.LastFetch = GitClient.LastFetchIn(dir);

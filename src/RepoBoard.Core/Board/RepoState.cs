@@ -93,6 +93,18 @@ public sealed class RepoState(RepoEntry entry, RepoState? mainRepo = null)
     private long _statusReadAt;
 
     /// <summary>
+    /// The last status read failed (WP-03): the tick reads it every time, watched or not. Not <see cref="Error"/>, which
+    /// also holds failed operations and auto-fetches – offline, every repository would be read every 20 s (review WP-03).
+    /// </summary>
+    internal bool StatusFailed
+    {
+        get => Volatile.Read(ref _statusFailed);
+        set => Volatile.Write(ref _statusFailed, value);
+    }
+
+    private bool _statusFailed;
+
+    /// <summary>
     /// A file watcher sees its folder and git folder (WP-03, ADR 0011): the status tick reads it only as a fallback, every
     /// <see cref="BoardService.WatchedRefresh"/>.
     /// </summary>

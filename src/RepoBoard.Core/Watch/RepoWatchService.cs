@@ -141,6 +141,16 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
                 }
             }
 
+            // A folder warned about stays quiet while it fails the same way – also a watcher that starts and fails after
+            // (review WP-03); off the board, it is forgotten.
+            lock (_warned)
+            {
+                foreach (var root in _warned.Keys.Where(r => !map.Roots.Contains(r, PathComparer)).ToList())
+                {
+                    _warned.Remove(root);
+                }
+            }
+
             var wanted = map.Roots.Where(r => Directory.Exists(r) && !LeftToTheTick(r)).ToHashSet(PathComparer);
             foreach (var root in _watchers.Keys.Where(r => !wanted.Contains(r)).ToList())
             {
@@ -220,10 +230,6 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
             watcher.Error += (_, e) => OnError(root, e.GetException());
             watcher.EnableRaisingEvents = true;
             _watchers[root] = watcher;
-            lock (_warned)
-            {
-                _warned.Remove(root);
-            }
         }
         catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException or PlatformNotSupportedException)
         {

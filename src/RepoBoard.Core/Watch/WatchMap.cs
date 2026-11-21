@@ -26,11 +26,14 @@ internal sealed class WatchMap
 
     /// <inheritdoc cref="StateFiles"/>
     private static readonly ImmutableHashSet<string> StateFolders = ImmutableHashSet.Create(StringComparer.Ordinal,
-        "refs", "rebase-merge", "rebase-apply", "sequencer", "info");
+        "refs", "reftable", "rebase-merge", "rebase-apply", "sequencer", "info");
 
-    /// <summary>What a repository shares with its worktrees: branches and upstreams (config), excludes (info).</summary>
+    /// <summary>
+    /// What a repository shares with its worktrees: refs (also as reftable, git 2.45), branches and upstreams (config),
+    /// excludes (info).
+    /// </summary>
     private static readonly ImmutableHashSet<string> SharedState = ImmutableHashSet.Create(StringComparer.Ordinal,
-        "refs", "packed-refs", "config", "info");
+        "refs", "reftable", "packed-refs", "config", "info");
 
     private static readonly StringComparison PathComparison =
         OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;

@@ -139,7 +139,7 @@ public sealed class RepoWatchTests : IDisposable
         if (fsmonitor)
         {
             GitSandbox.Git(_git.Mine, "config", "core.fsmonitor", "true");
-            Assert.SkipUnless(TryGit(_git.Mine, "fsmonitor--daemon", "start"), "git has no fsmonitor daemon on this platform.");
+            Assert.SkipUnless(GitSandbox.TryGit(_git.Mine, "fsmonitor--daemon", "start"), "git has no fsmonitor daemon on this platform.");
         }
 
         try
@@ -164,7 +164,7 @@ public sealed class RepoWatchTests : IDisposable
         {
             if (fsmonitor)
             {
-                TryGit(_git.Mine, "fsmonitor--daemon", "stop"); // it holds the folder the test deletes
+                GitSandbox.TryGit(_git.Mine, "fsmonitor--daemon", "stop"); // it holds the folder the test deletes
             }
         }
     }
@@ -280,29 +280,19 @@ public sealed class RepoWatchTests : IDisposable
 
         time.Advance(TimeSpan.FromSeconds(20));
         await board.RefreshStaleAsync(Ct);
-        Assert.Equal(time.GetTimestamp(), repo.StatusReadAt);
+        var again = repo.StatusReadAt;
+        Assert.Equal(time.GetTimestamp(), again);
+
+        // Read again, the error stays in the row – the tick goes back to the fallback (review WP-03).
+        time.Advance(TimeSpan.FromSeconds(20));
+        await board.RefreshStaleAsync(Ct);
+        Assert.NotNull(repo.Error);
+        Assert.Equal(again, repo.StatusReadAt);
 
         repo.Watched = false; // no watcher: every tick
-        repo.Error = null;
         time.Advance(TimeSpan.FromSeconds(20));
         await board.RefreshStaleAsync(Ct);
         Assert.Equal(time.GetTimestamp(), repo.StatusReadAt);
-    }
-
-    /// <summary>git without failing the test: false when it ends with an error.</summary>
-    private static bool TryGit(string dir, params string[] args)
-    {
-        var start = new System.Diagnostics.ProcessStartInfo("git") { WorkingDirectory = dir, RedirectStandardOutput = true, RedirectStandardError = true };
-        foreach (var arg in args)
-        {
-            start.ArgumentList.Add(arg);
-        }
-
-        using var process = System.Diagnostics.Process.Start(start)!;
-        _ = process.StandardOutput.ReadToEndAsync();
-        _ = process.StandardError.ReadToEndAsync();
-        process.WaitForExit();
-        return process.ExitCode == 0;
     }
 
     public void Dispose() => _git.Dispose();
