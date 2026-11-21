@@ -10,7 +10,7 @@
     <NeutralLanguage>en</NeutralLanguage>
     <!-- Only the UI languages: no satellite folders of other cultures from packages (WPF, WebView2). -->
     <SatelliteResourceLanguages>en;de</SatelliteResourceLanguages>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
   </PropertyGroup>
 
 </Project>

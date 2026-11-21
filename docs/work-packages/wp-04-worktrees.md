@@ -1,6 +1,6 @@
 # WP-04 Worktrees
 
-Branch `wp/04-worktrees`, 2026-11-21, noch ohne Release.
+Branch `wp/04-worktrees`, 2026-11-21, Release 0.2.0.
 
 ## Planung (aus `docs/roadmap.md`)
 - Worktrees eines Repos (`git worktree list --porcelain`) als Unterzeilen mit Branch, Status, Pfad; dieselben Aktionen wie für ein Repo.

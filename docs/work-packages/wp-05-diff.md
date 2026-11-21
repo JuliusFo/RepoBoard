@@ -1,6 +1,6 @@
 # WP-05 Diff-Ansicht
 
-Branch `wp/05-diff`, 2026-11-21, noch ohne Release.
+Branch `wp/05-diff`, 2026-11-21, Release 0.2.0.
 
 ## Planung (aus `docs/roadmap.md`)
 - Diff einer Datei (gestaged/ungestaged) neben der Liste, Monaco als Diff-Editor wie in FerretSharp (lokal mitgeliefert, `JsModule`-Muster).
