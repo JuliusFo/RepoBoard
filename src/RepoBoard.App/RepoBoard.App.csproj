@@ -45,6 +45,11 @@
     <PackageReference Include="Velopack" />
   </ItemGroup>
 
+  <!-- CopyFence and the WebView2 members WebViewCapture reaches by reflection (ADR 0008). -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="RepoBoard.App.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\RepoBoard.Core\RepoBoard.Core.csproj" />
     <ProjectReference Include="..\RepoBoard.UI\RepoBoard.UI.csproj" />

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The parts of the WPF host that can break unseen with a package update: CopyFence's Direct3D interfaces and the
+       private WebView2 members WebViewCapture uses (ADR 0008). Windows only, like the host; the Linux CI leaves it out. -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\RepoBoard.App\RepoBoard.App.csproj" />
+  </ItemGroup>
+
+</Project>

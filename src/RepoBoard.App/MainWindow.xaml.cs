@@ -12,14 +12,18 @@ public partial class MainWindow : Window
     private readonly ILogger<MainWindow> _logger;
     private DateTime _lastActivated;
 
-    public MainWindow(IServiceProvider services, WindowTheme theme, BoardService board, ILogger<MainWindow> logger)
+    public MainWindow(IServiceProvider services, WindowTheme theme, WebViewCapture capture, BoardService board, ILogger<MainWindow> logger)
     {
         _logger = logger;
         theme.PrepareWebViewBackground();
         InitializeComponent();
         WebView.Services = services;
         theme.Attach(this);
-        WebView.BlazorWebViewInitialized += (_, e) => theme.AttachWebView(e.WebView.CoreWebView2);
+        WebView.BlazorWebViewInitialized += (_, e) =>
+        {
+            theme.AttachWebView(e.WebView.CoreWebView2);
+            capture.Attach(e.WebView); // each frame shown once it is really there (ADR 0008)
+        };
 
         // Only web links leave the app: BlazorWebView opens every other URL with the system's default handler – a file
         // dropped on the window would be opened or run (FerretSharp review 3.31.0, A39).
