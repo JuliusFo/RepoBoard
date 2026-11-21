@@ -42,6 +42,13 @@ public sealed class WatchMapTests
     [InlineData("repo/.git/rebase-merge/done", "repo")]
     [InlineData("repo/.git/refs/heads/main", "repo inner beside")]
     [InlineData("repo/.git/packed-refs", "repo inner beside")]
+    [InlineData("repo/.git/config", "repo inner beside")] // an upstream set in a worktree (review WP-03)
+    [InlineData("repo/.git/info/exclude", "repo inner beside")]
+    [InlineData("repo/.git/MERGE_HEAD", "repo")]
+    [InlineData("repo/.git/sequencer/todo", "repo")]
+    [InlineData("repo/.git/modules/lib/foo/HEAD", "repo")] // a submodule's commit changes its parent's status
+    [InlineData("repo/.git/modules/lib/foo/refs/heads/main", "repo")]
+    [InlineData("repo/.git/worktrees/inner", "repo")] // a worktree's git folder removed: the repository reads its list
     [InlineData("repo/.git/worktrees/inner/HEAD", "inner")]
     [InlineData("repo/.git/worktrees/beside/index", "beside")]
     [InlineData("repo/.git/worktrees/new-one", "repo")] // a worktree being added: the repository reads its list
@@ -52,6 +59,16 @@ public sealed class WatchMapTests
     [InlineData("repo/.git/index.lock", "")]
     [InlineData("repo/.git/refs/heads/main.lock", "")]
     [InlineData("repo/.git/worktrees/inner/logs/HEAD", "")]
+    // what RepoBoard's own status writes with fsmonitor or Git LFS – read again, it would never stop (review WP-03)
+    [InlineData("repo/.git/fsmonitor--daemon/cookies/1234-1", "")]
+    [InlineData("repo/.git/lfs/tmp/123456", "")]
+    [InlineData("repo/.git/worktrees/inner/fsmonitor--daemon/cookies/1-2", "")]
+    [InlineData("repo/.git/modules/lib/foo/fsmonitor--daemon/cookies/1-2", "")]
+    [InlineData("repo/.git/modules/lib/foo/logs/refs/heads/main", "")]
+    [InlineData("repo/.git/ORIG_HEAD", "")]
+    [InlineData("repo/.git/COMMIT_EDITMSG", "")]
+    [InlineData("repo/.git/ms-persist.xml", "")]
+    [InlineData("repo/.git/gk/config", "")]
     [InlineData("repo/.git", "")]
     [InlineData("repo", "")]
     [InlineData("repo/src/bin/Debug/a.dll", "")]
@@ -78,6 +95,16 @@ public sealed class WatchMapTests
 
         // "inner", "nested" and the worktrees' git folders lie in "repo"
         Assert.Equal([Beside, Repo], map.Roots.Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void A_watcher_on_a_folder_sees_the_repositories_and_worktrees_in_it()
+    {
+        var (map, states) = Board();
+
+        // "beside" too: its git folder lies in the repository's
+        Assert.Equal(["beside", "inner", "nested", "repo"], map.Under(Repo).Select(s => states.Single(p => p.Value == s).Key).Order(StringComparer.Ordinal));
+        Assert.Equal(["beside"], map.Under(Beside).Select(s => states.Single(p => p.Value == s).Key));
     }
 
     [Fact]

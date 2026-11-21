@@ -16,9 +16,21 @@ internal sealed class WatchMap
     internal static readonly ImmutableHashSet<string> IgnoredFolders =
         ImmutableHashSet.Create(StringComparer.OrdinalIgnoreCase, "bin", "obj", "node_modules", ".vs", ".idea", "TestResults");
 
-    /// <summary>In a git folder: object files and reflogs change with every commit or fetch next to what matters.</summary>
-    private static readonly ImmutableHashSet<string> IgnoredInGitDir =
-        ImmutableHashSet.Create(StringComparer.Ordinal, "objects", "logs");
+    /// <summary>
+    /// In a git folder only these change a status – a positive list (review WP-03): RepoBoard's own <c>git status</c> writes
+    /// there with fsmonitor (<c>fsmonitor--daemon/cookies</c>) or Git LFS (<c>lfs/tmp</c>), and with a list of what to
+    /// ignore every such file would read the status again, forever. Objects and reflogs are left out by it too.
+    /// </summary>
+    private static readonly ImmutableHashSet<string> StateFiles = ImmutableHashSet.Create(StringComparer.Ordinal,
+        "HEAD", "index", "FETCH_HEAD", "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "packed-refs", "config");
+
+    /// <inheritdoc cref="StateFiles"/>
+    private static readonly ImmutableHashSet<string> StateFolders = ImmutableHashSet.Create(StringComparer.Ordinal,
+        "refs", "rebase-merge", "rebase-apply", "sequencer", "info");
+
+    /// <summary>What a repository shares with its worktrees: branches and upstreams (config), excludes (info).</summary>
+    private static readonly ImmutableHashSet<string> SharedState = ImmutableHashSet.Create(StringComparer.Ordinal,
+        "refs", "packed-refs", "config", "info");
 
     private static readonly StringComparison PathComparison =
         OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
@@ -114,18 +126,24 @@ internal sealed class WatchMap
         if (Deepest(changed, n => n.GitDir) is { } inGit)
         {
             var parts = Parts(changed, inGit.GitDir!);
-            if (parts.Length == 0 || IgnoredInGitDir.Contains(parts[0]) || parts[^1].EndsWith(".lock", StringComparison.Ordinal))
-            {
-                return [];
-            }
-
             if (inGit.State.IsWorktree)
             {
-                return [inGit.State];
+                // Its git folder itself going or coming: the repository reads its list of worktrees again.
+                return parts.Length == 0 ? [inGit.Main] : ChangesStatus(parts) ? [inGit.State] : [];
             }
 
-            // The refs are shared: a commit, fetch or new branch changes ahead and behind in every worktree too.
-            return parts[0] is "refs" or "packed-refs" ? [inGit.Main, .. inGit.Main.Worktrees] : [inGit.Main];
+            return parts switch
+            {
+                [] => [],
+                // Shared: a commit, fetch, new branch or upstream changes ahead and behind in every worktree too.
+                [var first, ..] when SharedState.Contains(first) && ChangesStatus(parts) => [inGit.Main, .. inGit.Main.Worktrees],
+                // A worktree added or removed, or one whose git folder is not known yet.
+                ["worktrees", _] => [inGit.Main],
+                ["worktrees", _, .. var rest] => ChangesStatus(rest) ? [inGit.Main] : [],
+                // A submodule's git folder (one on the board has its own node): its HEAD or refs change the parent's status.
+                ["modules", .. var rest] => SubmoduleChanged(rest) ? [inGit.Main] : [],
+                _ => ChangesStatus(parts) ? [inGit.Main] : [],
+            };
         }
 
         if (Deepest(changed, n => n.Path) is not { } inTree)
@@ -150,6 +168,19 @@ internal sealed class WatchMap
         _nodes.FirstOrDefault(n => ReferenceEquals(n.State, state)) is { } node
         && watched.Any(root => IsUnder(node.Path, root))
         && (node.GitDir is not { } gitDir || watched.Any(root => IsUnder(gitDir, root)));
+
+    /// <summary>Whether a path in a git folder is one of its <see cref="StateFiles"/> or in one of its <see cref="StateFolders"/>.</summary>
+    private static bool ChangesStatus(ReadOnlySpan<string> parts) =>
+        parts.Length > 0 && !parts[^1].EndsWith(".lock", StringComparison.Ordinal)
+        && (parts.Length == 1 ? StateFiles.Contains(parts[0]) || StateFolders.Contains(parts[0]) : StateFolders.Contains(parts[0]));
+
+    /// <summary>
+    /// Below <c>.git/modules</c>, whose names may hold slashes: the submodule's HEAD, index or refs – not its reflogs, objects
+    /// or what its own status writes.
+    /// </summary>
+    private static bool SubmoduleChanged(string[] rest) =>
+        rest.Length > 0 && !rest[^1].EndsWith(".lock", StringComparison.Ordinal) && !rest.Contains("logs")
+        && (rest[^1] is "HEAD" or "index" or "packed-refs" || rest.Contains("refs"));
 
     private Node? Deepest(string path, Func<Node, string?> folder)
     {
