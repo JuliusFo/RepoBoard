@@ -327,4 +327,40 @@ Log: {1}</value>
   <data name="Notify_Off" xml:space="preserve">
     <value>Aus</value>
   </data>
+  <data name="Diff_Show_Hint" xml:space="preserve">
+    <value>Änderungen in dieser Datei anzeigen</value>
+  </data>
+  <data name="Diff_Close_Hint" xml:space="preserve">
+    <value>Diff schließen (Esc)</value>
+  </data>
+  <data name="Diff_Staged" xml:space="preserve">
+    <value>Gestaged</value>
+  </data>
+  <data name="Diff_Unstaged" xml:space="preserve">
+    <value>Nicht gestaged</value>
+  </data>
+  <data name="Diff_Renamed" xml:space="preserve">
+    <value>Umbenannt von {0}</value>
+  </data>
+  <data name="Diff_Binary" xml:space="preserve">
+    <value>Binärdatei – kein Text-Diff.</value>
+  </data>
+  <data name="Diff_TooLarge" xml:space="preserve">
+    <value>Die neue Datei ist größer als {0} MB – ihr Diff wird nicht angezeigt.</value>
+  </data>
+  <data name="Diff_Truncated" xml:space="preserve">
+    <value>Nur die ersten {0:N0} Zeilen werden angezeigt.</value>
+  </data>
+  <data name="Diff_NoTextChanges" xml:space="preserve">
+    <value>Keine Textänderungen – z. B. nur der Dateimodus.</value>
+  </data>
+  <data name="Diff_Conflict" xml:space="preserve">
+    <value>Diese Datei hat Konflikte. Öffne sie im Editor, um sie zu lösen.</value>
+  </data>
+  <data name="Diff_NoNewline" xml:space="preserve">
+    <value>Kein Zeilenumbruch am Dateiende</value>
+  </data>
+  <data name="Diff_Cr" xml:space="preserve">
+    <value>Windows-Zeilenende (CR LF)</value>
+  </data>
 </root>

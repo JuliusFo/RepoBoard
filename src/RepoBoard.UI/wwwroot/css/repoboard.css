@@ -25,6 +25,9 @@
   --warn-weak: color-mix(in srgb, var(--warn) 14%, transparent);
   --green-weak: color-mix(in srgb, var(--green) 14%, transparent);
   --purple-weak: color-mix(in srgb, var(--purple) 14%, transparent);
+  /* Changed words inside an added or removed line of a diff. */
+  --green-mark: color-mix(in srgb, var(--green) 34%, transparent);
+  --danger-mark: color-mix(in srgb, var(--danger) 30%, transparent);
   --mono: "Cascadia Mono", "Cascadia Code", Consolas, monospace;
   --sans: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
   --cols: 26px minmax(180px, 1.5fr) minmax(150px, 1.2fr) 110px minmax(120px, .9fr) 90px 72px 72px 300px;
@@ -246,14 +249,50 @@ code { font-family: var(--mono); font-size: 12px; }
 
 .files { overflow: auto; flex: 1; min-height: 40px; }
 .files-head { font-size: 11px; color: var(--muted); margin: 6px 0 2px; font-weight: 600; }
-.file { display: flex; align-items: center; gap: 6px; padding: 2px 4px; border-radius: 4px; cursor: pointer; }
+.file { display: flex; align-items: center; gap: 6px; padding: 2px 4px; border-radius: 4px; }
 .file:hover { background: var(--hover); }
-.file .path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; font-family: var(--mono); font-size: 12px; }
+.file.selected { background: var(--accent-weak); }
+.file label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.file .path {
+  flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; font-family: var(--mono); font-size: 12px;
+}
 .letter { width: 16px; text-align: center; font-family: var(--mono); font-weight: 700; font-size: 11px; color: var(--warn); }
 .letter.l-A, .letter.l-\? { color: var(--green); }
 .letter.l-D { color: var(--danger); }
 .letter.l-R { color: var(--accent); }
 .letter.l-U { color: var(--danger); }
+
+/* the diff of a selected file, in place of branches and history (WP-05) */
+.details.diff-open { grid-template-columns: minmax(260px, 1fr) 2.4fr; }
+.diff-pane { max-height: 560px; outline: 0; }
+.diff-pane header { gap: 8px; }
+.diff-pane h3.diff-title {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-transform: none; letter-spacing: 0; font: 600 12px var(--mono); color: var(--text);
+}
+.diff-side { flex: none; font-size: 11px; color: var(--warn); background: var(--warn-weak); border-radius: 4px; padding: 0 6px; }
+.diff-side.staged { color: var(--green); background: var(--green-weak); }
+.diff-pane .diff-note { font-size: 11px; }
+.diff-error { color: var(--danger); white-space: pre-wrap; font-family: var(--mono); font-size: 12px; }
+/* One grid column as wide as the longest line: every line's background reaches across when scrolled sideways. */
+.diff {
+  display: grid; align-content: start; overflow: auto; flex: 1; min-height: 60px;
+  border: 1px solid var(--border); border-radius: 6px; font: 12px/1.45 var(--mono);
+}
+.diff-hunk { padding: 2px 8px; white-space: pre; color: var(--muted); background: var(--accent-weak); }
+.diff-hunk span { color: var(--text); }
+.diff-line { display: flex; white-space: pre; }
+.diff-line .no { flex: none; width: 44px; padding-right: 6px; text-align: right; color: var(--faint); user-select: none; }
+.diff-line .sign { flex: none; width: 16px; text-align: center; user-select: none; }
+.diff-line .text { padding-right: 12px; }
+.diff-line.add { background: var(--green-weak); }
+.diff-line.add .sign { color: var(--green); }
+.diff-line.add mark { background: var(--green-mark); color: inherit; border-radius: 2px; }
+.diff-line.del { background: var(--danger-weak); }
+.diff-line.del .sign { color: var(--danger); }
+.diff-line.del mark { background: var(--danger-mark); color: inherit; border-radius: 2px; }
+.diff-line .eol { color: var(--faint); margin-left: 2px; user-select: none; }
 
 .commit { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
 .commit textarea {
