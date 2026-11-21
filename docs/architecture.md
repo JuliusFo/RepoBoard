@@ -33,7 +33,7 @@ UpdateState ──► IAppUpdater (App: VelopackUpdater ──► GitHub-Release
 
 ### 1.3 Dateiwächter (WP-03, ADR 0011)
 - `RepoWatchService` hält einen rekursiven `FileSystemWatcher` je Wurzel (`WatchMap.Roots`: Ordner und Git-Ordner aller Repos und Worktrees, die kein anderer enthält) und gleicht sie bei jeder Änderung des Boards ab, wenn sich Repos, Worktrees, Git-Ordner oder fehlende Ordner geändert haben (`WatchMap.Matches`).
-- `WatchMap.Route` ordnet einen geänderten Pfad zu: Refs → Repo und alle Worktrees, `.git/worktrees/<name>` → dieser Worktree, übriger Git-Ordner → Repo, Arbeitsdateien → tiefster Repo- bzw. Worktree-Ordner; `objects`, `logs`, `*.lock`, `bin`, `obj`, `node_modules`, `.vs`, `.idea`, `TestResults` lösen nichts aus.
+- `WatchMap.Route` ordnet einen geänderten Pfad zu: Refs → Repo und alle Worktrees, `.git/worktrees/<name>` → dieser Worktree, `config`/`info` → Repo und alle Worktrees, übriger Git-Ordner → Repo, aber nur eine Positivliste (HEAD, index, Marker laufender Operationen …; was der eigene Status mit fsmonitor oder LFS schreibt, zählt nicht), Arbeitsdateien → tiefster Repo- bzw. Worktree-Ordner; `*.lock`, `bin`, `obj`, `node_modules`, `.vs`, `.idea`, `TestResults` lösen nichts aus. Netzlaufwerke und Laufwerkswurzeln bekommen keinen Wächter.
 - `ChangeDebouncer`: ein Status je Serie (750 ms Ruhe, spätestens 3 s), über `RefreshAsync`; entfällt, wenn ein Lesen nach der letzten Änderung begann (`RepoState.StatusReadAt`). `RepoState.Watched` sagt dem Takt, wer beobachtet ist.
 
 ### 1.4 Auto-Sync (ADR 0003)

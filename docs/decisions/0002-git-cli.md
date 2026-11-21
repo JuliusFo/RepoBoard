@@ -15,6 +15,6 @@ Ein Git-Client kann git selbst implementieren (libgit2/LibGit2Sharp) oder die in
 
 ## Konsequenzen
 
-- Ein Prozess je Aufruf: Bei vielen Repos kostet der Status-Durchlauf (alle 20 s) Prozessstarts; bis acht parallel. Wird das spürbar, zuerst den Takt oder einen Dateiwächter auf `.git` prüfen (Backlog).
+- Ein Prozess je Aufruf: Bei vielen Repos kostet der Status-Durchlauf (alle 20 s) Prozessstarts; bis acht parallel. Seit WP-03 liest der Takt beobachtete Repos nur alle 2 min, Dateiwächter lösen den Status bei Änderungen aus (ADR 0011).
 - Ohne installiertes git geht nichts – die Meldung sagt das (`SyncText.GitMissing`).
 - Die Konfiguration eines Repos (`core.fsmonitor`, Hooks) läuft bei jedem Aufruf mit: Ein Repo zu scannen heißt, ihm zu vertrauen (Backlog: Bestätigung beim Scannen).
