@@ -10,6 +10,7 @@ using RepoBoard.Core.Git;
 using RepoBoard.Core.Repos;
 using RepoBoard.Core.Resources;
 using RepoBoard.Core.Sync;
+using RepoBoard.Core.Watch;
 using RepoBoard.UI.Resources;
 using RepoBoard.UI.State;
 using Serilog;
@@ -96,6 +97,7 @@ public partial class App : Application
         builder.Services.AddSingleton<IAppUpdater>(new VelopackUpdater(_args));
         builder.Services.AddSingleton<AppExit>();
         builder.Services.AddSingleton<UpdateState>();
+        builder.Services.AddHostedService<RepoWatchService>();
         builder.Services.AddHostedService<AutoSyncService>();
         builder.Services.AddSingleton<MainWindow>();
         _host = builder.Build();

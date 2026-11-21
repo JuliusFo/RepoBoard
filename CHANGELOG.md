@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Instant refresh (WP-03): RepoBoard watches each repository’s folder and git folder and reads its status about a second after something changed – a commit, branch switch, fetch, staged or saved file in the IDE or terminal, or a new worktree. Build output (`bin`, `obj`, `node_modules`, `.vs`, `.idea`, `TestResults`) is left out; during a long series of changes the status is read at most every three seconds.
+
+### Changed
+- The status tick reads watched repositories and worktrees only every two minutes as a fallback instead of every 20 seconds, so many worktrees no longer mean a git process each every 20 seconds; repositories that cannot be watched (a network drive, a folder that is gone) are still read every 20 seconds.
+
 ## [0.2.0] - 2026-11-21
 
 ### Added

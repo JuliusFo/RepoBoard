@@ -61,7 +61,7 @@ Gleicher Stack wie FerretSharp (Entscheidung des Nutzers, 2026-11-20; ADR 0001).
 ```
 src/RepoBoard.Core/   net10.0 – reine Logik, KEIN WPF, KEINE Windows-only-APIs, baut unter Linux
   Git/ (GitRunner, GitClient, RepoStatus) Repos/ (Konfiguration, Scanner) Board/ (BoardService, RepoState, ActivityLog)
-  Sync/ (AutoSyncService, PullCheck) IO/ (aus FerretSharp) Resources/
+  Sync/ (AutoSyncService, PullCheck) Watch/ (RepoWatchService, WatchMap) IO/ (aus FerretSharp) Resources/
 src/RepoBoard.UI/     net10.0 Razor Class Library, plattformneutral: Shell.razor, Components/ (Ordner = Namespace),
                       State/ (Namespace `UI.State`, testbare Logik, Host-Schnittstellen), Resources/, wwwroot/
 src/RepoBoard.App/    net10.0-windows10.0.19041.0 – schlanker WPF-Host (Program.Main, Generic Host, Serilog, Host-Dienste)
@@ -75,7 +75,7 @@ Regeln:
 
 ## 5. Kernbegriffe (Details: `docs/architecture.md`)
 
-Repo (`RepoEntry` in der Konfiguration, `RepoState` zur Laufzeit), Status (`RepoStatus` aus `git status --porcelain=v2`), Board (`BoardService`: Liste, Operationen, ein Tor je Repo, höchstens vier Netzwerkoperationen gleichzeitig), Auto-Sync (`AutoSyncService` alle 20 s: Status aller Repos, dann fällige Fetches/Fast-Forwards), Aktivität (`ActivityLog`, was im Hintergrund geschah).
+Repo (`RepoEntry` in der Konfiguration, `RepoState` zur Laufzeit), Status (`RepoStatus` aus `git status --porcelain=v2`), Board (`BoardService`: Liste, Operationen, ein Tor je Repo, höchstens vier Netzwerkoperationen gleichzeitig), Dateiwächter (`RepoWatchService`: Status gleich nach einer Änderung im Repo, ADR 0011), Auto-Sync (`AutoSyncService` alle 20 s: Status der Repos ohne Wächter – beobachtete alle 2 min –, dann fällige Fetches/Fast-Forwards), Aktivität (`ActivityLog`, was im Hintergrund geschah).
 
 ## 6. Arbeitsweise
 

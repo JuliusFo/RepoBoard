@@ -10,6 +10,10 @@ sign-in, SSH, hooks and LFS work exactly as in your terminal.
 
 - **Overview:** every repository with its branch (feature branches stand out, a detached HEAD is marked), commits ahead
   and behind, staged, changed, new and conflicted files, the time of the last fetch and an unfinished merge or rebase.
+- **Always current:** a commit, branch switch, fetch or saved file in your IDE or terminal shows within about a second –
+  RepoBoard watches the repository folders (build output like `bin`, `obj` and `node_modules` aside) and reads the
+  status only when something changed, with a fallback read every two minutes. A new worktree of a Claude Code session
+  shows up the same way.
 - **Filter and search:** chips with counts – changes, behind, ahead, auto-sync, problems – and a search over name, path and
   branch.
 - **Git actions per repository:** fetch, pull (fast-forward only), push (the first push sets the upstream), fetch all.
