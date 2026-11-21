@@ -20,6 +20,9 @@ sign-in, SSH, hooks and LFS work exactly as in your terminal.
 - **Commit:** open a row to stage or unstage files, commit the staged files or everything, commit and push.
 - **Diff:** click a changed file to see its staged or unstaged changes right next to the list – git’s own diff, with line
   numbers and the changed words highlighted; line endings and binary files show as git sees them.
+- **Stage hunks and lines:** “Stage hunk” at each hunk of the diff (“Unstage hunk” on the staged side); click lines at
+  the left edge (Shift+click for a range) to stage or unstage only them – also part of a new file. Only the index
+  changes, never your files.
 - **Worktrees:** a repository’s linked worktrees (`git worktree`) as rows below it, behind a count you click to show
   them – with branch, ahead/behind and changes, and the same actions; worktrees made by Claude Code sessions are marked.
   Remove one, or clean up those that look done (branch merged, upstream deleted, folder gone): RepoBoard asks first,

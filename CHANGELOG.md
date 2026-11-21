@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Stage hunks and lines (WP-25): each hunk of the diff view has a button “Stage hunk” (“Unstage hunk” on the staged side). A click on a changed line at the left edge selects it, Shift+click selects a range; the button then stages or unstages only the selected lines. Works for new files (the index gets a new file with just those lines) and deleted ones. Only the index is changed, never the file on disk; if the file changed since the diff was read, git refuses the patch and nothing is staged.
+
+### Internal
+- Partial staging through `git apply --cached` (ADR 0012): `HunkPatch` builds the patch from the shown hunk and the selected lines, `GitRunner` can now pass input on stdin.
+
 ## [0.3.0] - 2026-11-21
 
 ### Added

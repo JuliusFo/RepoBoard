@@ -8,13 +8,6 @@ Der Nutzer wollte die Ideenliste als Pakete abgelegt haben (2026-11-20). Zuschni
 
 ### Gruppe A – nötig für den Alltag
 
-#### WP-25 Hunks und Zeilen stagen
-Branch `wp/25-hunk-staging`. Braucht WP-05 (erledigt: Diff aus `git diff`, ADR 0008). Als eigenes Paket nach WP-05 entschieden vom Nutzer (2026-11-21).
-- Am Hunk-Kopf der Diff-Ansicht „Hunk stagen“ (ungestaged) bzw. „Hunk unstagen“ (gestaged): den Hunk als Patch mit Dateikopf an `git apply --cached` (bzw. `--cached --reverse`) über stdin geben; danach Status und Diff neu.
-- Danach: einzelne Zeilen auswählen und nur sie stagen (Patch aus den gewählten Zeilen bauen, nicht gewählte `-` werden Kontext, nicht gewählte `+` fallen weg).
-- Invariante: schreibt nur in den Index, nie in den Worktree (kein `git apply` ohne `--cached`). Tests gegen `GitSandbox` je Fall (erster/letzter Hunk, neue Datei, fehlender Zeilenumbruch am Ende, CRLF).
-- Offen: Neue Dateien teilweise stagen (`git add -N` legt einen Eintrag im Index an)? Zeilenauswahl per Klick/Ziehen oder Häkchen je Zeile?
-
 #### WP-06 Änderungen verwerfen und Stash
 Branch `wp/06-discard-stash`.
 - Änderungen einer Datei bzw. aller verwerfen (`restore --worktree`, neue Dateien in den Papierkorb statt `clean`).
