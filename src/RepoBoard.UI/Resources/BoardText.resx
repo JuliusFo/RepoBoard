@@ -133,6 +133,13 @@
   <data name="NoUpstream" xml:space="preserve">
     <value>no upstream</value>
   </data>
+  <data name="UpstreamGone" xml:space="preserve">
+    <value>upstream deleted</value>
+  </data>
+  <data name="UpstreamGone_Hint" xml:space="preserve">
+    <value>{0} no longer exists on the remote – usually after its pull request was merged</value>
+    <comment>{0} = the upstream branch (origin/feature)</comment>
+  </data>
   <data name="NoUpstream_Hint" xml:space="preserve">
     <value>Never pushed – a push sets the upstream</value>
   </data>
@@ -396,5 +403,89 @@ Log: {1}</value>
   </data>
   <data name="Diff_Cr" xml:space="preserve">
     <value>Windows line ending (CR LF)</value>
+  </data>
+  <data name="Worktrees_Hint" xml:space="preserve">
+    <value>Worktrees: {0} – show or hide</value>
+    <comment>Tooltip of the count badge in a repository's row. {0} = number of linked worktrees</comment>
+  </data>
+  <data name="Worktree_Claude" xml:space="preserve">
+    <value>Claude</value>
+    <comment>Badge of a worktree a Claude Code session made (in .claude\worktrees)</comment>
+  </data>
+  <data name="Worktree_Claude_Hint" xml:space="preserve">
+    <value>Made by a Claude Code session – a session may still be working in it.</value>
+  </data>
+  <data name="Worktree_Locked" xml:space="preserve">
+    <value>locked</value>
+    <comment>Badge of a worktree locked with git worktree lock</comment>
+  </data>
+  <data name="Worktree_Locked_Hint" xml:space="preserve">
+    <value>Locked with git worktree lock – it is not removed.</value>
+  </data>
+  <data name="Worktree_Locked_Reason" xml:space="preserve">
+    <value>Locked with git worktree lock: “{0}” – it is not removed.</value>
+    <comment>{0} = the reason given to git worktree lock</comment>
+  </data>
+  <data name="Worktree_Remove_Hint" xml:space="preserve">
+    <value>Remove worktree … (deletes its folder; the branch stays)</value>
+  </data>
+  <data name="Worktrees_CleanUp" xml:space="preserve">
+    <value>Clean up …</value>
+    <comment>Button below a repository's worktrees that opens the clean-up dialog</comment>
+  </data>
+  <data name="Worktrees_CleanUp_Hint" xml:space="preserve">
+    <value>Find the worktrees that look done (merged, upstream deleted, folder gone) and remove them</value>
+  </data>
+  <data name="Worktrees_CleanUpTitle" xml:space="preserve">
+    <value>Clean up the worktrees of {0}</value>
+    <comment>{0} = repository name</comment>
+  </data>
+  <data name="Worktrees_RemoveTitle" xml:space="preserve">
+    <value>Remove worktree {0}</value>
+    <comment>{0} = worktree folder name</comment>
+  </data>
+  <data name="Worktrees_RemoveExplain" xml:space="preserve">
+    <value>Removing deletes the worktree’s folder with git worktree remove. Branches and commits stay; git refuses a worktree with changed or new files.</value>
+  </data>
+  <data name="Worktrees_NoDefaultBranch" xml:space="preserve">
+    <value>origin/HEAD is not set, so merged branches can’t be recognized. “git remote set-head origin --auto” sets it.</value>
+  </data>
+  <data name="Worktrees_NothingDone" xml:space="preserve">
+    <value>No worktree looks done.</value>
+  </data>
+  <data name="Worktrees_Reason_Merged" xml:space="preserve">
+    <value>Branch {0} is merged into {1}.</value>
+    <comment>{0} = branch, {1} = the remote's default branch (origin/main)</comment>
+  </data>
+  <data name="Worktrees_Reason_UpstreamGone" xml:space="preserve">
+    <value>The upstream of {0} was deleted.</value>
+    <comment>{0} = branch</comment>
+  </data>
+  <data name="Worktrees_Reason_DetachedMerged" xml:space="preserve">
+    <value>Detached on a commit {0} contains.</value>
+    <comment>{0} = the remote's default branch (origin/main)</comment>
+  </data>
+  <data name="Worktrees_Reason_FolderMissing" xml:space="preserve">
+    <value>The folder is gone – only git’s data about it is removed.</value>
+  </data>
+  <data name="Worktrees_Ignored" xml:space="preserve">
+    <value>Deleted with it (ignored by git):</value>
+  </data>
+  <data name="Worktrees_ClaudeWarning" xml:space="preserve">
+    <value>A Claude worktree is ticked: if a session still works in it, it loses its folder.</value>
+  </data>
+  <data name="Worktrees_RemoveOne" xml:space="preserve">
+    <value>Remove {0} worktree</value>
+    <comment>{0} = 1</comment>
+  </data>
+  <data name="Worktrees_RemoveOther" xml:space="preserve">
+    <value>Remove {0} worktrees</value>
+    <comment>{0} = number of worktrees (0 or more than 1)</comment>
+  </data>
+  <data name="Dialog_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Dialog_Close" xml:space="preserve">
+    <value>Close</value>
   </data>
 </root>

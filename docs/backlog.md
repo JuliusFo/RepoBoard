@@ -17,6 +17,17 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - Ein Klick von 70 blieb auch mit ADR 0009 bis zum nächsten unsichtbar, ohne Spur im Log (`fix-webview-copy-fence.md`). Tritt es beim Nutzer auf: mit `Measure-PictureDelay.ps1 -Click` und den Debug-Zeilen von `WebViewCapture` eingrenzen.
 - Ein Push ohne Remote `origin` (anderer Name) setzt keinen Upstream – Remote wählen lassen.
 
+## Worktrees (Fortsetzung von WP-04)
+
+- Worktree anlegen (Branch wählen oder neu, Ordner vorschlagen, z. B. neben dem Repo).
+- Beim Entfernen auch den Branch löschen, wenn er gemergt ist – gehört zu WP-08 (Branches aufräumen).
+- Auto-Pull je Worktree (Fast-Forward seines Branches nach dem Auto-Fetch des Repos); bräuchte Konfiguration Version 2 – vom Nutzer erst einmal nicht gewollt (2026-11-21).
+- Status je Worktree alle 20 s: bei Repos mit sehr vielen Worktrees messen (Prozessstarts); Abhilfe mit WP-03 oder Status nur für aufgeklappte Gruppen.
+- Ein verknüpfter Worktree, der schon vor WP-04 selbst auf dem Board stand, erscheint doppelt (oben und unter seinem Repo); ihn entfernen oder automatisch übernehmen?
+- Worktrees aller Repos auf einmal aufräumen (wie „gone“-Branches überall in WP-08).
+- Push auf einem Branch mit gelöschtem Upstream (`HasUpstream`, also ohne `-u`) legt den gelöschten Remote-Branch wieder an – seit „Upstream gelöscht“ sichtbar (vorher schon da, Review WP-04).
+- Lokale Commits eines Branches mit gelöschtem Upstream zählen nicht als „Voraus“ (Chip, Tray; vorher schon da, Review WP-04).
+
 ## Diff (Fortsetzung von WP-05)
 
 - Side-by-Side als zweite Ansicht neben inline (der Nutzer wollte erst nur inline, 2026-11-21); Auswahl merken.

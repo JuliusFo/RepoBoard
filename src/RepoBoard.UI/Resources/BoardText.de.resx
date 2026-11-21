@@ -129,6 +129,12 @@
   <data name="NoUpstream" xml:space="preserve">
     <value>kein Upstream</value>
   </data>
+  <data name="UpstreamGone" xml:space="preserve">
+    <value>Upstream gelöscht</value>
+  </data>
+  <data name="UpstreamGone_Hint" xml:space="preserve">
+    <value>{0} gibt es auf dem Remote nicht mehr – meist nach dem Merge des Pull Requests</value>
+  </data>
   <data name="NoUpstream_Hint" xml:space="preserve">
     <value>Noch nie gepusht – Push setzt den Upstream</value>
   </data>
@@ -365,5 +371,77 @@ Log: {1}</value>
   </data>
   <data name="Diff_Cr" xml:space="preserve">
     <value>Windows-Zeilenende (CR LF)</value>
+  </data>
+  <data name="Worktrees_Hint" xml:space="preserve">
+    <value>Worktrees: {0} – zeigen oder ausblenden</value>
+  </data>
+  <data name="Worktree_Claude" xml:space="preserve">
+    <value>Claude</value>
+  </data>
+  <data name="Worktree_Claude_Hint" xml:space="preserve">
+    <value>Von einer Claude-Code-Session angelegt – dort könnte noch eine Session arbeiten.</value>
+  </data>
+  <data name="Worktree_Locked" xml:space="preserve">
+    <value>gesperrt</value>
+  </data>
+  <data name="Worktree_Locked_Hint" xml:space="preserve">
+    <value>Mit git worktree lock gesperrt – wird nicht entfernt.</value>
+  </data>
+  <data name="Worktree_Locked_Reason" xml:space="preserve">
+    <value>Mit git worktree lock gesperrt: „{0}“ – wird nicht entfernt.</value>
+  </data>
+  <data name="Worktree_Remove_Hint" xml:space="preserve">
+    <value>Worktree entfernen … (löscht seinen Ordner; der Branch bleibt)</value>
+  </data>
+  <data name="Worktrees_CleanUp" xml:space="preserve">
+    <value>Aufräumen …</value>
+  </data>
+  <data name="Worktrees_CleanUp_Hint" xml:space="preserve">
+    <value>Worktrees finden, die erledigt aussehen (gemergt, Upstream gelöscht, Ordner fehlt), und entfernen</value>
+  </data>
+  <data name="Worktrees_CleanUpTitle" xml:space="preserve">
+    <value>Worktrees von {0} aufräumen</value>
+  </data>
+  <data name="Worktrees_RemoveTitle" xml:space="preserve">
+    <value>Worktree {0} entfernen</value>
+  </data>
+  <data name="Worktrees_RemoveExplain" xml:space="preserve">
+    <value>Entfernen löscht den Ordner des Worktrees mit git worktree remove. Branches und Commits bleiben; einen Worktree mit geänderten oder neuen Dateien lehnt git ab.</value>
+  </data>
+  <data name="Worktrees_NoDefaultBranch" xml:space="preserve">
+    <value>origin/HEAD ist nicht gesetzt, daher sind gemergte Branches nicht erkennbar. „git remote set-head origin --auto“ setzt es.</value>
+  </data>
+  <data name="Worktrees_NothingDone" xml:space="preserve">
+    <value>Kein Worktree sieht erledigt aus.</value>
+  </data>
+  <data name="Worktrees_Reason_Merged" xml:space="preserve">
+    <value>Branch {0} ist in {1} gemergt.</value>
+  </data>
+  <data name="Worktrees_Reason_UpstreamGone" xml:space="preserve">
+    <value>Der Upstream von {0} wurde gelöscht.</value>
+  </data>
+  <data name="Worktrees_Reason_DetachedMerged" xml:space="preserve">
+    <value>Detached auf einem Commit, den {0} enthält.</value>
+  </data>
+  <data name="Worktrees_Reason_FolderMissing" xml:space="preserve">
+    <value>Der Ordner fehlt – entfernt werden nur die Daten von git dazu.</value>
+  </data>
+  <data name="Worktrees_Ignored" xml:space="preserve">
+    <value>Wird mitgelöscht (von git ignoriert):</value>
+  </data>
+  <data name="Worktrees_ClaudeWarning" xml:space="preserve">
+    <value>Ein Claude-Worktree ist angehakt: Arbeitet dort noch eine Session, verliert sie ihren Ordner.</value>
+  </data>
+  <data name="Worktrees_RemoveOne" xml:space="preserve">
+    <value>{0} Worktree entfernen</value>
+  </data>
+  <data name="Worktrees_RemoveOther" xml:space="preserve">
+    <value>{0} Worktrees entfernen</value>
+  </data>
+  <data name="Dialog_Cancel" xml:space="preserve">
+    <value>Abbrechen</value>
+  </data>
+  <data name="Dialog_Close" xml:space="preserve">
+    <value>Schließen</value>
   </data>
 </root>

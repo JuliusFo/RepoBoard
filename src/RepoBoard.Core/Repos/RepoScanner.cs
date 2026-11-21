@@ -3,6 +3,8 @@ namespace RepoBoard.Core.Repos;
 /// <summary>
 /// Finds repositories below a folder (e.g. C:\Dev-Repos) without descending into one it found. Each one found is a folder
 /// the user's git runs in from then on (status, hooks and settings of the repository): scan only folders the user chose.
+/// A linked worktree is found like a repository; <c>BoardService.AddAsync</c> puts its repository on the board instead
+/// (WP-04) – also when that repository lies outside the scanned folder (review WP-04).
 /// </summary>
 public static class RepoScanner
 {

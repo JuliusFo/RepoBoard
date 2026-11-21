@@ -27,7 +27,8 @@ public sealed record RepoStatus(
     string? Upstream,
     int Ahead,
     int Behind,
-    IReadOnlyList<FileChange> Changes)
+    IReadOnlyList<FileChange> Changes,
+    bool UpstreamGone = false)
 {
     public bool IsDetached => Branch is null;
     public bool IsInitial => Head is null;
@@ -46,6 +47,7 @@ public sealed record RepoStatus(
     {
         string? branch = null, head = null, upstream = null;
         int ahead = 0, behind = 0;
+        var compared = false;
         var changes = new List<FileChange>();
         var fields = output.Split('\0');
         for (var i = 0; i < fields.Length; i++)
@@ -59,7 +61,7 @@ public sealed record RepoStatus(
             switch (field[0])
             {
                 case '#':
-                    ParseHeader(field, ref branch, ref head, ref upstream, ref ahead, ref behind);
+                    compared |= ParseHeader(field, ref branch, ref head, ref upstream, ref ahead, ref behind);
                     break;
                 case '1':
                 {
@@ -92,15 +94,18 @@ public sealed record RepoStatus(
             }
         }
 
-        return new RepoStatus(branch, head, upstream, ahead, behind, changes);
+        // An upstream git names but cannot compare with is gone on the remote (deleted after its pull request): "up to date"
+        // would be wrong (E2E WP-04).
+        return new RepoStatus(branch, head, upstream, ahead, behind, changes, upstream is not null && !compared);
     }
 
-    private static void ParseHeader(string line, ref string? branch, ref string? head, ref string? upstream, ref int ahead, ref int behind)
+    /// <summary>One header line; true for <c>branch.ab</c>, which git writes only when the upstream exists.</summary>
+    private static bool ParseHeader(string line, ref string? branch, ref string? head, ref string? upstream, ref int ahead, ref int behind)
     {
         var parts = line.Split(' ');
         if (parts.Length < 3)
         {
-            return;
+            return false;
         }
 
         switch (parts[1])
@@ -117,8 +122,10 @@ public sealed record RepoStatus(
             case "branch.ab" when parts.Length >= 4:
                 ahead = int.Parse(parts[2].TrimStart('+'), CultureInfo.InvariantCulture);
                 behind = int.Parse(parts[3].TrimStart('-'), CultureInfo.InvariantCulture);
-                break;
+                return true;
         }
+
+        return false;
     }
 }
 

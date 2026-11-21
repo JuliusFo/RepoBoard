@@ -14,13 +14,6 @@ Branch `wp/03-file-watch`.
 - Grenzen: Anzahl Watcher bei vielen Repos, `node_modules`/`bin`/`obj` im Worktree, Puffer-Überlauf → einmal neu lesen.
 - Offen: Worktree-Änderungen auch beobachten (teurer) oder nur `.git`?
 
-#### WP-04 Worktrees
-Branch `wp/04-worktrees`.
-- Worktrees eines Repos (`git worktree list --porcelain`) als Unterzeilen mit Branch, Status, Pfad; dieselben Aktionen wie für ein Repo.
-- Aufräumen: verwaiste (`prune`) und solche, deren Branch gemergt ist, mit Rückfrage und Liste.
-- Invariante: `git worktree remove` nur ohne Änderungen (ohne `--force`); ein Worktree mit ungesicherter Arbeit wird nur gezeigt, nie entfernt.
-- Kontext: die vielen `.claude/worktrees` des Nutzers. Offen: Claude-Worktrees besonders kennzeichnen? Worktrees zusammenklappbar?
-
 #### WP-25 Hunks und Zeilen stagen
 Branch `wp/25-hunk-staging`. Braucht WP-05 (erledigt: Diff aus `git diff`, ADR 0008). Als eigenes Paket nach WP-05 entschieden vom Nutzer (2026-11-21).
 - Am Hunk-Kopf der Diff-Ansicht „Hunk stagen“ (ungestaged) bzw. „Hunk unstagen“ (gestaged): den Hunk als Patch mit Dateikopf an `git apply --cached` (bzw. `--cached --reverse`) über stdin geben; danach Status und Diff neu.

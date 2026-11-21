@@ -20,12 +20,14 @@ Invarianten: `CLAUDE.md` §2; Begründungen: ADR 0002 (CLI), ADR 0003 (Auto-Sync
 - Diffs (ADR 0008) aus `git diff --no-color --no-ext-diff`, geparst von `FileDiff.Parse` nach den Zählern im Hunk-Kopf (nicht nach Leerzeilen). `diff --no-index` endet mit 1 bei Unterschied **und** bei Fehler, stderr kann eine bloße Warnung (CRLF) sein und git übersetzt seine Meldungen: Erfolg ist Exit 1 mit Diff auf stdout, nie ein Präfix wie `error:` (E2E und Review WP-05).
 - `GIT_OPTIONAL_LOCKS=0` setzt `GitRunner` für alles: `status` legt sonst `index.lock` an und kollidiert mit IDE oder Terminal im selben Repo.
 - In Literalen von Tests `\u001f` statt `\x1f` schreiben: C# liest `\x` mit bis zu vier Hex-Ziffern, `"\x1f2 hours"` ist U+01F2 (im Spike passiert).
+- `git worktree list` nennt bei einem Submodul oder `--separate-git-dir` den Git-Ordner als Hauptworktree: verknüpft ist ein Worktree nur, wenn sein Git-Ordner `commondir` enthält und der Hauptworktree ein `.git` hat (Review WP-04).
 
 ## Board
 - Jede Operation läuft durch das Tor ihres Repos (`RepoState.Gate`); `RefreshAsync` und `AutoSyncAsync` überspringen ein belegtes Repo statt zu warten, Klicks warten. Netzwerk zusätzlich über `_network` (höchstens vier).
 - `RepoState`-Properties werden nur als Ganzes ersetzt (die UI liest sie von einem anderen Thread); keine Listen darin verändern.
 - Zustand des Boards, den mehr als ein Thread ändert, liest und ändert unter einer Sperre: `UpdateSettingsAsync` kommt auch vom Thread-Pool (Update-Prüfung), sonst geht eine Änderung des Nutzers verloren (Review WP-10).
 - Ein Fehler steht in `RepoState.Error` bis zum nächsten Erfolg. Derselbe Fehler bei jedem Auto-Sync kommt nur einmal ins Aktivitätsprotokoll; ein übersprungener Auto-Pull nur, wenn sich der Grund ändert.
+- Vor allem, was Dateien oder Refs entfernt: was die Rückfrage geprüft hat, unmittelbar vor dem git-Aufruf noch einmal prüfen (Status, laufende Operation mit frisch gelesenem Git-Ordner, Commits eines detached HEAD ohne Ref, Liste dessen, was mitgelöscht wird) – zwischen Frage und Klick arbeitet eine Session weiter (Review WP-04).
 - Texte für den Nutzer aus `SyncText`, nie zusammengeklebt (`TextFormat`, Plural über `CommitsOne`/`CommitsOther`).
 
 ## Tests

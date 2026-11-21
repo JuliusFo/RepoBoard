@@ -1,0 +1,156 @@
+@* The question before worktrees are removed (WP-04, ADR 0010): for one worktree (its row's remove button) or for those of a
+   repository that look done ("Clean up …"). Each with why it is suggested, why it stays, and the ignored files git deletes
+   with it; only those that may go can be ticked. Mounted by the shell. *@
+@inherits BoardComponent
+
+<div class="modal-backdrop" @onclick="OnClose"></div>
+<div class="dialog worktree-dialog" role="dialog" aria-modal="true" aria-label="@Title">
+    <header>
+        <span>@Title</span>
+        <button class="btn icon-only ghost" title="@BoardText.Dialog_Close" @onclick="OnClose">@Icons.Close</button>
+    </header>
+    <div class="dialog-body">
+        @if (_candidates is null)
+        {
+            <p class="muted"><span class="spinner inline"></span> @BoardText.Loading</p>
+        }
+        else
+        {
+            <p class="muted">@BoardText.Worktrees_RemoveExplain</p>
+            @if (Worktree is null && _defaultBranch is null)
+            {
+                <div class="update-note failed">@BoardText.Worktrees_NoDefaultBranch</div>
+            }
+            @if (_candidates.Count == 0)
+            {
+                <p>@BoardText.Worktrees_NothingDone</p>
+            }
+            <div class="wt-list">
+                @foreach (var candidate in _candidates)
+                {
+                    var worktree = candidate.Worktree;
+                    <label class="wt-item @(candidate.CanRemove ? "" : "blocked")" @key="worktree">
+                        <input type="checkbox" checked="@_selected.Contains(worktree)" disabled="@(!candidate.CanRemove)" @onchange="() => Select(worktree)" />
+                        <span class="wt-text">
+                            <span class="wt-name">
+                                <strong>@worktree.Name</strong>
+                                <span class="muted">@BranchText(worktree)</span>
+                                @if (worktree.IsClaudeWorktree)
+                                {
+                                    <span class="badge claude" title="@BoardText.Worktree_Claude_Hint">@BoardText.Worktree_Claude</span>
+                                }
+                            </span>
+                            <small class="muted">@worktree.Path</small>
+                            @if (ReasonText(candidate) is { } reason)
+                            {
+                                <span>@reason</span>
+                            }
+                            @if (candidate.Block is { } block)
+                            {
+                                <span class="wt-block">@Icons.Warning @BoardService.BlockText(block)</span>
+                            }
+                            @if (candidate.Ignored.Count > 0)
+                            {
+                                <span class="wt-ignored">
+                                    @BoardText.Worktrees_Ignored
+                                    @* All of them: what is not shown would be deleted unseen (review WP-04); a long list scrolls. *@
+                                    @foreach (var path in candidate.Ignored)
+                                    {
+                                        <code>@path</code>
+                                    }
+                                </span>
+                            }
+                        </span>
+                    </label>
+                }
+            </div>
+            @if (_selected.Any(w => w.IsClaudeWorktree))
+            {
+                <div class="update-note">@BoardText.Worktrees_ClaudeWarning</div>
+            }
+        }
+    </div>
+    <footer>
+        <span class="spacer"></span>
+        <button class="btn ghost" @onclick="OnClose">@BoardText.Dialog_Cancel</button>
+        <button class="btn danger" disabled="@(_selected.Count == 0 || _removing)" @onclick="Remove">
+            @Icons.Trash @TextFormat.Plural(_selected.Count, BoardText.Worktrees_RemoveOne, BoardText.Worktrees_RemoveOther)
+        </button>
+    </footer>
+</div>
+
+@code {
+    /// <summary>The repository on the board.</summary>
+    [Parameter, EditorRequired] public RepoState Repo { get; set; } = null!;
+
+    /// <summary>The one worktree to remove; null to clean up the repository's worktrees.</summary>
+    [Parameter] public RepoState? Worktree { get; set; }
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private IReadOnlyList<WorktreeCandidate>? _candidates;
+    private string? _defaultBranch;
+    private readonly HashSet<RepoState> _selected = [];
+    private bool _removing;
+
+    private string Title => Worktree is { } one
+        ? TextFormat.Format(BoardText.Worktrees_RemoveTitle, one.Name)
+        : TextFormat.Format(BoardText.Worktrees_CleanUpTitle, Repo.Name);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GuardAsync(LoadAsync);
+        _candidates ??= []; // failed: the activity log says why
+    }
+
+    private async Task LoadAsync()
+    {
+        if (Worktree is { } one)
+        {
+            _candidates = [await Board.InspectWorktreeAsync(one, default)];
+        }
+        else
+        {
+            var cleanup = await Board.FindCleanupAsync(Repo, default);
+            _defaultBranch = cleanup.DefaultBranch;
+            _candidates = cleanup.Candidates;
+        }
+
+        // What stays cannot be ticked; of what may go, only what WorktreeCandidate.Ticked says.
+        _selected.UnionWith(_candidates.Where(c => c.Ticked).Select(c => c.Worktree));
+    }
+
+    private void Select(RepoState worktree)
+    {
+        if (!_selected.Remove(worktree))
+        {
+            _selected.Add(worktree);
+        }
+    }
+
+    private Task Remove() => GuardAsync(async () =>
+    {
+        _removing = true;
+        // In the board's order, not the order of the clicks; the board checks each again (ADR 0010).
+        // With the ignored files shown: the board removes none that has others now (ADR 0010).
+        var worktrees = _candidates!.Where(c => _selected.Contains(c.Worktree)).ToList();
+        await OnClose.InvokeAsync();
+        await Board.RemoveWorktreesAsync(worktrees, default);
+    });
+
+    private static string BranchText(RepoState worktree) =>
+        (worktree.Status?.Branch ?? worktree.Worktree?.Branch) is { } branch
+            ? branch
+            : TextFormat.Format(BoardText.Detached, Short(worktree.Status?.Head ?? worktree.Worktree?.Head));
+
+    private string? ReasonText(WorktreeCandidate candidate) => candidate.Reason switch
+    {
+        WorktreeReason.Merged => TextFormat.Format(BoardText.Worktrees_Reason_Merged, BranchText(candidate.Worktree), _defaultBranch),
+        WorktreeReason.UpstreamGone => TextFormat.Format(BoardText.Worktrees_Reason_UpstreamGone, BranchText(candidate.Worktree)),
+        WorktreeReason.DetachedMerged => TextFormat.Format(BoardText.Worktrees_Reason_DetachedMerged, _defaultBranch),
+        WorktreeReason.FolderMissing => BoardText.Worktrees_Reason_FolderMissing,
+        _ => null,
+    };
+
+    private static string? Short(string? head) => head?[..Math.Min(7, head.Length)];
+}

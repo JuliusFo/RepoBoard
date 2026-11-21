@@ -41,6 +41,11 @@ public sealed class GitOutputTests
 
         var detached = RepoStatus.Parse("# branch.oid abc\0# branch.head (detached)\0");
         Assert.True(detached.IsDetached);
+
+        // E2E WP-04: an upstream without "branch.ab" was deleted on the remote – not "up to date".
+        var gone = RepoStatus.Parse("# branch.oid abc\0# branch.head f\0# branch.upstream origin/f\0");
+        Assert.True(gone is { HasUpstream: true, UpstreamGone: true });
+        Assert.False(RepoStatus.Parse("# branch.oid abc\0# branch.head f\0# branch.upstream origin/f\0# branch.ab +0 -0\0").UpstreamGone);
     }
 
     [Fact]
