@@ -18,6 +18,10 @@
     {
         <p class="muted">@BoardText.Diff_Conflict</p>
     }
+    else if (Change.IsNestedRepository)
+    {
+        <p class="muted">@BoardText.Diff_NestedRepository</p>
+    }
     else if (_error is { } error)
     {
         <p class="diff-error">@error</p>
@@ -32,7 +36,7 @@
     }
     else if (_diff.IsTooLarge)
     {
-        <p class="muted">@TextFormat.Format(BoardText.Diff_TooLarge, FileDiff.MaxNewFileBytes / (1024 * 1024))</p>
+        <p class="muted">@TextFormat.Format(BoardText.Diff_TooLarge, FileDiff.MaxFileBytes / (1024 * 1024))</p>
     }
     else if (_diff.HasNoTextChanges)
     {
@@ -89,12 +93,27 @@
     // file or the other side reads it again; any other render of the page does not.
     private (RepoStatus? Status, string Path, bool Staged)? _readFor;
     private int _reads;
-    private bool _focus;
+
+    // What the markup last showed: the page renders on every change of any repository, the lines only when this changes
+    // (review WP-05 – up to 5,000 lines).
+    private (FileDiff? Diff, string? Error, FileChange Change, bool Staged)? _shown;
+
+    protected override bool ShouldRender()
+    {
+        var now = (_diff, _error, Change, Staged);
+        if (_shown == now)
+        {
+            return false;
+        }
+
+        _shown = now;
+        return true;
+    }
 
     protected override void OnParametersSet()
     {
         var key = (Repo.Status, Change.Path, Staged);
-        if (_readFor == key || Change.Conflict)
+        if (_readFor == key || Change.Conflict || Change.IsNestedRepository)
         {
             return;
         }
@@ -106,7 +125,6 @@
             // Another file: no stale diff while the new one loads. The same file keeps its diff until the new one is there.
             _diff = null;
             _error = null;
-            _focus = true;
         }
 
         var read = ++_reads;
@@ -123,15 +141,8 @@
         });
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (_focus)
-        {
-            // Esc closes the diff: the keys reach the pane only while it has the focus.
-            _focus = false;
-            await _pane.FocusAsync(preventScroll: true);
-        }
-    }
+    /// <summary>Esc closes the diff: the keys reach the pane only while it has the focus. Called after a click on a file.</summary>
+    public ValueTask FocusAsync() => _pane.FocusAsync(preventScroll: true);
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {

@@ -62,16 +62,55 @@ public sealed class GitDiffTests : IDisposable
         Assert.Equal(["+x"], Changed(await DiffAsync("lf.txt", staged: false)));
     }
 
-    [Fact]
-    public async Task A_new_file_above_the_limit_is_not_read()
+    /// <summary>Review WP-05: the limit holds for a changed tracked file too, not only for a new one.</summary>
+    [Theory]
+    [InlineData("big.log")] // new
+    [InlineData("a.txt")] // tracked, changed
+    public async Task A_file_above_the_limit_is_not_read(string name)
     {
-        var path = Path.Combine(_git.Mine, "big.log");
-        using (var file = File.Create(path))
+        using (var file = File.Create(Path.Combine(_git.Mine, name)))
         {
-            file.SetLength(FileDiff.MaxNewFileBytes + 1);
+            file.SetLength(FileDiff.MaxFileBytes + 1);
         }
 
-        Assert.True((await DiffAsync("big.log", staged: false)).IsTooLarge);
+        Assert.True((await DiffAsync(name, staged: false)).IsTooLarge);
+    }
+
+    /// <summary>Review WP-05: "[ab].txt" is a file name, not a pattern that also matches "a.txt" – in the diff and when staging.</summary>
+    [Fact]
+    public async Task Paths_are_file_names_not_patterns()
+    {
+        GitSandbox.Commit(_git.Mine, "[ab].txt", "brackets");
+        File.WriteAllText(Path.Combine(_git.Mine, "[ab].txt"), "brackets changed");
+        File.WriteAllText(Path.Combine(_git.Mine, "a.txt"), "a changed");
+
+        Assert.Equal(["-brackets", "+brackets changed"], Changed(await DiffAsync("[ab].txt", staged: false)));
+
+        await _client.StageAsync(_git.Mine, ["[ab].txt"], Ct);
+        Assert.False((await ChangeAsync("a.txt")).IsStaged);
+    }
+
+    /// <summary>Review WP-05: --no-index ends with 1 on an error too; without a diff on stdout it is the error.</summary>
+    [Fact]
+    public async Task A_new_file_gone_before_its_diff_is_an_error()
+    {
+        var gone = new FileChange("gone.txt", null, '.', '?', Untracked: true, Conflict: false);
+
+        var (diff, result) = await _client.DiffAsync(_git.Mine, gone, staged: false, Ct);
+
+        Assert.Null(diff);
+        Assert.False(result.Success);
+    }
+
+    [Fact]
+    public async Task A_repository_inside_the_worktree_is_one_entry_without_a_diff()
+    {
+        var nested = Path.Combine(_git.Mine, "sub");
+        Directory.CreateDirectory(nested);
+        GitSandbox.Git(nested, "init", "-b", "main");
+        File.WriteAllText(Path.Combine(nested, "x.txt"), "x");
+
+        Assert.True((await ChangeAsync("sub/")).IsNestedRepository);
     }
 
     [Fact]

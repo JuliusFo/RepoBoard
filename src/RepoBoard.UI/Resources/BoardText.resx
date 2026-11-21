@@ -374,8 +374,11 @@ Log: {1}</value>
   <data name="Diff_Binary" xml:space="preserve">
     <value>Binary file – there is no text diff.</value>
   </data>
+  <data name="Diff_NestedRepository" xml:space="preserve">
+    <value>This folder is a repository of its own – there is no diff for it here.</value>
+  </data>
   <data name="Diff_TooLarge" xml:space="preserve">
-    <value>This new file is larger than {0} MB – its diff is not shown.</value>
+    <value>This file is larger than {0} MB – its diff is not shown.</value>
     <comment>{0} = size limit in megabytes</comment>
   </data>
   <data name="Diff_Truncated" xml:space="preserve">

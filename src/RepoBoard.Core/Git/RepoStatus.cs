@@ -10,6 +10,12 @@ public sealed record FileChange(string Path, string? OriginalPath, char Index, c
     public bool IsStaged => !Untracked && !Conflict && Index != '.';
     public bool IsUnstaged => Untracked || Conflict || WorkTree != '.';
 
+    /// <summary>
+    /// An untracked folder that git lists as a whole (<c>sub/</c>) even with <c>--untracked-files=all</c>: a repository of
+    /// its own inside the worktree. It has no diff (review WP-05).
+    /// </summary>
+    public bool IsNestedRepository => Untracked && Path.EndsWith('/');
+
     /// <summary>One letter for the list: the staged state, or the worktree's.</summary>
     public char Letter(bool staged) => Conflict ? 'U' : Untracked ? '?' : staged ? Index : WorkTree;
 }

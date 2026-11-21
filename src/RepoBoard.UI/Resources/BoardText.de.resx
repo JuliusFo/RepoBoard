@@ -345,8 +345,11 @@ Log: {1}</value>
   <data name="Diff_Binary" xml:space="preserve">
     <value>Binärdatei – kein Text-Diff.</value>
   </data>
+  <data name="Diff_NestedRepository" xml:space="preserve">
+    <value>Dieser Ordner ist ein eigenes Repository – hier gibt es keinen Diff dafür.</value>
+  </data>
   <data name="Diff_TooLarge" xml:space="preserve">
-    <value>Die neue Datei ist größer als {0} MB – ihr Diff wird nicht angezeigt.</value>
+    <value>Die Datei ist größer als {0} MB – ihr Diff wird nicht angezeigt.</value>
   </data>
   <data name="Diff_Truncated" xml:space="preserve">
     <value>Nur die ersten {0:N0} Zeilen werden angezeigt.</value>

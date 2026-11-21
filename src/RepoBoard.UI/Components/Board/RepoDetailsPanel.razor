@@ -32,7 +32,7 @@
                     <div class="files-head">@TextFormat.Format(BoardText.Staged_Head, staged.Count)</div>
                     @foreach (var file in staged)
                     {
-                        <div class="file @(IsSelected(selected, file, true) ? "selected" : "")">
+                        <div class="file @(IsSelected(selected, file, true) ? "selected" : "")" @key="StagedKey(file)">
                             <label title="@Title(file)">
                                 <input type="checkbox" checked @onchange="() => GuardAsync(() => Board.UnstageAsync(Repo, [file.Path], default))" />
                                 <span class="letter l-@LetterClass(file.Letter(true))">@file.Letter(true)</span>
@@ -46,7 +46,7 @@
                     <div class="files-head">@TextFormat.Format(BoardText.Unstaged_Head, unstaged.Count)</div>
                     @foreach (var file in unstaged)
                     {
-                        <div class="file @(IsSelected(selected, file, false) ? "selected" : "")">
+                        <div class="file @(IsSelected(selected, file, false) ? "selected" : "")" @key="UnstagedKey(file)">
                             <label title="@Title(file)">
                                 <input type="checkbox" @onchange="() => GuardAsync(() => Board.StageAsync(Repo, [file.Path], default))" />
                                 <span class="letter l-@LetterClass(file.Letter(false))">@file.Letter(false)</span>
@@ -70,7 +70,7 @@
 
     @if (selected is { } diff)
     {
-        <DiffPanel Repo="Repo" Change="diff.Change" Staged="diff.Staged" OnClose="CloseDiff" />
+        <DiffPanel @ref="_diffPanel" Repo="Repo" Change="diff.Change" Staged="diff.Staged" OnClose="CloseDiff" />
     }
     else
     {
@@ -151,15 +151,44 @@
     /// <summary>The file whose diff is open (page state only); resolved against each new status.</summary>
     private DiffTarget? _diffTarget;
 
+    private DiffPanel? _diffPanel;
+
+    /// <summary>Only a click on a file moves the focus to its diff (for Esc) – never a diff that a new status brought.</summary>
+    private bool _focusDiff;
+
+    protected override void OnParametersSet() => _diffTarget = DiffSelection.Next(_diffTarget, Status);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusDiff)
+        {
+            _focusDiff = false;
+            if (_diffPanel is { } panel)
+            {
+                await panel.FocusAsync();
+            }
+        }
+    }
+
     private RepoStatus? Status => Repo.Status;
     private bool CanCommit => Status is { IsClean: false, Conflicts: 0 } && !string.IsNullOrWhiteSpace(_message) && Repo.Busy is null;
+
+    // A row per file and side (a partly staged file is in both lists, which share one parent): without a key Blazor reuses
+    // the row of a file that moved to the other list for the next file – with the checkbox the click left ticked (E2E
+    // review WP-05; a click on it would have staged that next file).
+    private static string StagedKey(FileChange file) => "s:" + file.Path;
+    private static string UnstagedKey(FileChange file) => "u:" + file.Path;
 
     private static bool IsSelected((FileChange Change, bool Staged)? selected, FileChange file, bool staged) =>
         selected is { } s && s.Staged == staged && s.Change.Path == file.Path;
 
     /// <summary>A click on a file opens its diff; on the open one, closes it.</summary>
-    private void Select(FileChange file, bool staged) =>
-        _diffTarget = _diffTarget == new DiffTarget(file.Path, staged) ? null : new DiffTarget(file.Path, staged);
+    private void Select(FileChange file, bool staged)
+    {
+        var target = new DiffTarget(file.Path, staged);
+        _diffTarget = _diffTarget == target ? null : target;
+        _focusDiff = _diffTarget is not null;
+    }
 
     private void CloseDiff() => _diffTarget = null;
 
