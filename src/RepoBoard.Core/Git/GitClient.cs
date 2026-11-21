@@ -93,6 +93,45 @@ public sealed class GitClient(GitRunner runner)
         Local(repo, ct, "commit", "-m", message);
 
     /// <summary>
+    /// The diff of one changed file (ADR 0008): staged against HEAD (a rename with its original path), unstaged against the
+    /// index, a new file against nothing (<c>--no-index</c>, which ends with 1 when the files differ). Never an external diff
+    /// tool; textconv and the user's diff settings apply as in the terminal. Conflicted files are the caller's to leave out.
+    /// </summary>
+    public async Task<(FileDiff? Diff, GitResult Result)> DiffAsync(string repo, FileChange change, bool staged, CancellationToken ct)
+    {
+        string[] options = ["diff", "--no-color", "--no-ext-diff"];
+        GitResult result;
+        if (change.Untracked)
+        {
+            var file = new FileInfo(Path.Combine(repo, change.Path));
+            if (file.Exists && file.Length > FileDiff.MaxNewFileBytes)
+            {
+                return (FileDiff.TooLarge, new GitResult(0, "", ""));
+            }
+
+            result = await Local(repo, ct, [.. options, "--no-index", "--", "/dev/null", change.Path]);
+            // 1 = the files differ. stderr may still hold a warning ("LF will be replaced by CRLF" with core.autocrlf, E2E
+            // WP-05); only "fatal:"/"error:" make it a failure.
+            if (result.ExitCode == 1 && !result.Error.Split('\n').Any(l => l.StartsWith("fatal:", StringComparison.Ordinal) || l.StartsWith("error:", StringComparison.Ordinal)))
+            {
+                result = result with { ExitCode = 0 };
+            }
+        }
+        else if (staged)
+        {
+            result = await Local(repo, ct, [.. options, "--cached", "-M", "--", .. Paths(change)]);
+        }
+        else
+        {
+            result = await Local(repo, ct, [.. options, "--", change.Path]);
+        }
+
+        return (result.Success ? FileDiff.Parse(result.Output) : null, result);
+
+        static string[] Paths(FileChange c) => c.OriginalPath is { } from ? [from, c.Path] : [c.Path];
+    }
+
+    /// <summary>
     /// True if git accepts <paramref name="name"/> as a branch name. A name starting with <c>-</c> is refused before git
     /// sees it: in <c>git switch</c> it would be an option.
     /// </summary>

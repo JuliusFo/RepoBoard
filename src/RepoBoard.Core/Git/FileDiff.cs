@@ -1,0 +1,169 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
+
+namespace RepoBoard.Core.Git;
+
+public enum DiffLineKind
+{
+    Context,
+    Added,
+    Removed,
+}
+
+/// <summary>The changed part of a line, against the line it replaces (word highlighting).</summary>
+public readonly record struct DiffSpan(int Start, int Length);
+
+/// <summary>One line of a hunk.</summary>
+/// <param name="Text">Without the leading <c>+</c>/<c>-</c>/space and without a trailing CR.</param>
+/// <param name="EndsWithCr">The line ended with CR in git's output: a Windows line ending git does not convert.</param>
+/// <param name="NoNewlineAtEnd">git's "\ No newline at end of file" follows this line.</param>
+/// <param name="Changed">The changed parts of a removed or added line paired with its counterpart; empty if the whole line changed.</param>
+public sealed record DiffLine(DiffLineKind Kind, int? OldNumber, int? NewNumber, string Text, bool EndsWithCr, bool NoNewlineAtEnd,
+    IReadOnlyList<DiffSpan> Changed);
+
+/// <param name="Section">What git writes after the second <c>@@</c>: the function or heading the hunk is in.</param>
+public sealed record DiffHunk(int OldStart, int OldCount, int NewStart, int NewCount, string Section, IReadOnlyList<DiffLine> Lines);
+
+/// <summary>
+/// The diff of one file as git sees it (ADR 0008): parsed from <c>git diff</c>, so line endings, <c>.gitattributes</c>,
+/// binary detection and diff drivers behave as in the terminal.
+/// </summary>
+/// <param name="IsTruncated">Only the first <c>maxLines</c> lines were kept.</param>
+/// <param name="IsTooLarge">Not read at all: a new file above <see cref="MaxNewFileBytes"/>.</param>
+public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBinary, bool IsTruncated, bool IsTooLarge = false)
+{
+    public const int MaxLines = 5000;
+
+    /// <summary>A new file is read by git as a whole; above this size the diff is not shown.</summary>
+    public const long MaxNewFileBytes = 5 * 1024 * 1024;
+
+    public static readonly FileDiff TooLarge = new([], false, false, IsTooLarge: true);
+
+    /// <summary>No text change to show: only the file mode changed, or nothing at all.</summary>
+    public bool HasNoTextChanges => !IsBinary && !IsTooLarge && Hunks.Count == 0;
+
+    [GeneratedRegex(@"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@ ?(.*)$", RegexOptions.CultureInvariant)]
+    private static partial Regex HunkHeader();
+
+    /// <summary>
+    /// Parses the output of <c>git diff</c> for one file. The lines of a hunk are counted by its header, so an empty context
+    /// line (<c>diff.suppressBlankEmpty</c>) is read as one; a removed block followed by an added block is paired line by
+    /// line for word highlighting (<see cref="DiffWords"/>).
+    /// </summary>
+    public static FileDiff Parse(string output, int maxLines = MaxLines)
+    {
+        var lines = output.Split('\n');
+        var hunks = new List<DiffHunk>();
+        var binary = false;
+        var kept = 0;
+        var truncated = false;
+        var i = 0;
+        while (i < lines.Length && !truncated)
+        {
+            var line = lines[i];
+            var header = HunkHeader().Match(line.TrimEnd('\r'));
+            if (!header.Success)
+            {
+                binary |= line.StartsWith("Binary files ", StringComparison.Ordinal) || line.StartsWith("GIT binary patch", StringComparison.Ordinal);
+                i++;
+                continue;
+            }
+
+            int Number(int group) => header.Groups[group].Success ? int.Parse(header.Groups[group].Value, CultureInfo.InvariantCulture) : 1;
+            var oldStart = Number(1);
+            var oldCount = Number(2);
+            var newStart = Number(3);
+            var newCount = Number(4);
+            var section = header.Groups[5].Value;
+            i++;
+
+            var hunkLines = new List<DiffLine>();
+            int oldNo = oldStart, newNo = newStart, oldLeft = oldCount, newLeft = newCount;
+            while (i < lines.Length && (oldLeft > 0 || newLeft > 0 || lines[i].StartsWith('\\')))
+            {
+                var raw = lines[i++];
+                if (raw.StartsWith('\\'))
+                {
+                    if (hunkLines.Count > 0)
+                    {
+                        hunkLines[^1] = hunkLines[^1] with { NoNewlineAtEnd = true };
+                    }
+
+                    continue;
+                }
+
+                if (kept == maxLines)
+                {
+                    truncated = true;
+                    break;
+                }
+
+                var kind = raw.Length == 0 ? DiffLineKind.Context : raw[0] switch
+                {
+                    '+' => DiffLineKind.Added,
+                    '-' => DiffLineKind.Removed,
+                    _ => DiffLineKind.Context,
+                };
+                var text = raw.Length == 0 ? "" : raw[1..];
+                var cr = text.EndsWith('\r');
+                if (cr)
+                {
+                    text = text[..^1];
+                }
+
+                hunkLines.Add(kind switch
+                {
+                    DiffLineKind.Added => new DiffLine(kind, null, newNo++, text, cr, false, []),
+                    DiffLineKind.Removed => new DiffLine(kind, oldNo++, null, text, cr, false, []),
+                    _ => new DiffLine(kind, oldNo++, newNo++, text, cr, false, []),
+                });
+                oldLeft -= kind == DiffLineKind.Added ? 0 : 1;
+                newLeft -= kind == DiffLineKind.Removed ? 0 : 1;
+                kept++;
+            }
+
+            if (hunkLines.Count > 0)
+            {
+                hunks.Add(new DiffHunk(oldStart, oldCount, newStart, newCount, section, PairChanges(hunkLines)));
+            }
+        }
+
+        return new FileDiff(hunks, binary, truncated);
+    }
+
+    /// <summary>Removed lines followed by added lines replace each other: the n-th removed one pairs with the n-th added one.</summary>
+    private static List<DiffLine> PairChanges(List<DiffLine> lines)
+    {
+        var i = 0;
+        while (i < lines.Count)
+        {
+            if (lines[i].Kind != DiffLineKind.Removed)
+            {
+                i++;
+                continue;
+            }
+
+            var removedStart = i;
+            while (i < lines.Count && lines[i].Kind == DiffLineKind.Removed)
+            {
+                i++;
+            }
+
+            var addedStart = i;
+            while (i < lines.Count && lines[i].Kind == DiffLineKind.Added)
+            {
+                i++;
+            }
+
+            var pairs = Math.Min(addedStart - removedStart, i - addedStart);
+            for (var p = 0; p < pairs; p++)
+            {
+                var (removed, added) = DiffWords.Compare(lines[removedStart + p].Text, lines[addedStart + p].Text);
+                lines[removedStart + p] = lines[removedStart + p] with { Changed = removed };
+                lines[addedStart + p] = lines[addedStart + p] with { Changed = added };
+            }
+        }
+
+        return lines;
+    }
+}
