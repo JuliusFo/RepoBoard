@@ -44,6 +44,26 @@ public sealed class DiffSelectionTests
         Assert.Equal(true, DiffSelection.Resolve(target, Status(Change("n.txt", 'A', '.')))?.Staged);
     }
 
+    /// <summary>
+    /// Review WP-05: the target moves to the side the diff followed to (a click on the marked file closes it, a later change
+    /// does not send it back) and ends when the file is gone – a later change of the file does not reopen the diff.
+    /// </summary>
+    [Fact]
+    public void The_target_moves_with_the_diff_and_ends_with_the_file()
+    {
+        var unstaged = new DiffTarget("a.txt", Staged: false);
+
+        var followed = DiffSelection.Next(unstaged, Status(Change("a.txt", 'M', '.')));
+        Assert.Equal(new DiffTarget("a.txt", Staged: true), followed);
+        Assert.Equal(true, DiffSelection.Resolve(followed, Status(Change("a.txt", 'M', 'M')))?.Staged);
+
+        var gone = DiffSelection.Next(followed, Status());
+        Assert.Null(gone);
+        Assert.Null(DiffSelection.Resolve(gone, Status(Change("a.txt", '.', 'M'))));
+
+        Assert.Equal(unstaged, DiffSelection.Next(unstaged, null));
+    }
+
     [Fact]
     public void Nothing_is_selected_without_a_target_or_a_status()
     {

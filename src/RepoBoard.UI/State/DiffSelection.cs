@@ -29,4 +29,19 @@ public static class DiffSelection
         var other = status.Changes.FirstOrDefault(c => c.Path == target.Path && (target.Staged ? c.IsUnstaged : c.IsStaged));
         return other is not null ? (other, !target.Staged) : null;
     }
+
+    /// <summary>
+    /// The target to keep after a new status (review WP-05): on the side the diff followed to, so a click on the marked
+    /// file closes it and a later change does not send it back; none once the file is in neither list, so it never opens
+    /// again by itself. Without a status (a failed read) the target stays.
+    /// </summary>
+    public static DiffTarget? Next(DiffTarget? target, RepoStatus? status)
+    {
+        if (target is null || status is null)
+        {
+            return target;
+        }
+
+        return Resolve(target, status) is { } resolved ? target with { Staged = resolved.Staged } : null;
+    }
 }
