@@ -3,6 +3,8 @@ namespace RepoBoard.Core.Repos;
 /// <summary>
 /// Finds repositories below a folder (e.g. C:\Dev-Repos) without descending into one it found. Each one found is a folder
 /// the user's git runs in from then on (status, hooks and settings of the repository): scan only folders the user chose.
+/// A linked worktree is found like a repository; <c>BoardService.AddAsync</c> puts its repository on the board instead
+/// (WP-04) – also when that repository lies outside the scanned folder (review WP-04).
 /// </summary>
 public static class RepoScanner
 {
@@ -19,14 +21,9 @@ public static class RepoScanner
 
         void Walk(DirectoryInfo dir, int depth)
         {
-            var dotGit = Path.Combine(dir.FullName, ".git");
-            if (Path.Exists(dotGit))
+            if (Path.Exists(Path.Combine(dir.FullName, ".git")))
             {
-                if (!IsLinkedWorktree(dotGit))
-                {
-                    found.Add(dir.FullName);
-                }
-
+                found.Add(dir.FullName);
                 return;
             }
 
@@ -55,36 +52,6 @@ public static class RepoScanner
 
                 Walk(child, depth + 1);
             }
-        }
-    }
-
-    /// <summary>
-    /// A linked worktree shows under its repository (WP-04), not on its own: its <c>.git</c> is a file pointing to a folder
-    /// in the repository's git folder that holds a <c>commondir</c> file. A submodule's <c>.git</c> file points to a folder
-    /// without one.
-    /// </summary>
-    internal static bool IsLinkedWorktree(string dotGit)
-    {
-        if (!File.Exists(dotGit))
-        {
-            return false;
-        }
-
-        try
-        {
-            using var reader = new StreamReader(dotGit);
-            var line = reader.ReadLine();
-            if (line is null || !line.StartsWith("gitdir:", StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            var gitDir = Path.GetFullPath(line["gitdir:".Length..].Trim(), Path.GetDirectoryName(dotGit)!);
-            return File.Exists(Path.Combine(gitDir, "commondir"));
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
-        {
-            return false;
         }
     }
 }
