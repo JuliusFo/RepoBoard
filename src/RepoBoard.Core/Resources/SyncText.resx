@@ -49,6 +49,10 @@
   <data name="Op_Unstage" xml:space="preserve">
     <value>Unstage</value>
   </data>
+  <data name="Op_Diff" xml:space="preserve">
+    <value>Diff</value>
+    <comment>Name of the operation that reads a file's changes (git diff), used in "{0} failed: …".</comment>
+  </data>
   <data name="Op_Commit" xml:space="preserve">
     <value>Commit</value>
   </data>

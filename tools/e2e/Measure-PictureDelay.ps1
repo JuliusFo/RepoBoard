@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
     Measures how long a hover or a click takes to show in the window of a test instance - what the user sees, not what
-    the page did (ADR 0008).
+    the page did (ADR 0009).
 
 .DESCRIPTION
     BlazorWebView shows the page as a captured picture; a frame WPF does not show stays unseen until the next change of
@@ -11,7 +11,7 @@
     PW_RENDERFULLCONTENT: what DWM has, about every 16.7 ms at 60 Hz) and watches a strip of the row.
 
     Per move or click: the time from entering the row (releasing the button) to the first changed picture; -1 if nothing
-    changed until the next move or click - the frame was lost. Before the fix of ADR 0008 (1440x900, 2026-11-21) half of
+    changed until the next move or click - the frame was lost. Before the fix of ADR 0009 (1440x900, 2026-11-21) half of
     the hovers and a quarter of the clicks gave -1.
 
     Needs at least five repositories in the test instance's config.json; leave the mouse alone while it runs. Clicks need

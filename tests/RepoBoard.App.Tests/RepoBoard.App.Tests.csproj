@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- The parts of the WPF host that can break unseen with a package update: CopyFence's Direct3D interfaces and the
-       private WebView2 members WebViewCapture uses (ADR 0008). Windows only, like the host; the Linux CI leaves it out. -->
+       private WebView2 members WebViewCapture uses (ADR 0009). Windows only, like the host; the Linux CI leaves it out. -->
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>

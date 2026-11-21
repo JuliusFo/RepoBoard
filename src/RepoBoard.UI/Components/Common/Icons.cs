@@ -14,7 +14,7 @@ internal static class Icons
     public static readonly MarkupString Search = Svg(
         """<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>""");
 
-    /// <summary>Lucide <c>x</c>: hides a message, removes an entry (a repository from the board).</summary>
+    /// <summary>Lucide <c>x</c>: hides a message or a panel (the diff), removes an entry (a repository from the board).</summary>
     public static readonly MarkupString Close = Svg(
         """<path d="M18 6 6 18"/><path d="m6 6 12 12"/>""");
 

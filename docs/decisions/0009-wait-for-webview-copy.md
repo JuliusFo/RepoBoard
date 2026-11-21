@@ -1,4 +1,4 @@
-# ADR 0008: Jedes WebView-Bild erst zeigen, wenn es da ist
+# ADR 0009: Jedes WebView-Bild erst zeigen, wenn es da ist
 
 - Status: akzeptiert (Entscheidung des Nutzers, 2026-11-21)
 - Datum: 2026-11-21

@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 namespace RepoBoard.App.Services;
 
 /// <summary>
-/// Waits until the GPU has done the copy of a WebView frame (ADR 0008, from FerretSharp ADR 0039). The composition control
+/// Waits until the GPU has done the copy of a WebView frame (ADR 0009, from FerretSharp ADR 0039). The composition control
 /// copies each frame with Direct3D 11 into a shared texture, which WPF's render thread presents through its own Direct3D 9
 /// device – without any synchronization between the two. A copy not yet done when WPF presents shows the previous picture,
 /// until the next frame: in FerretSharp typed characters appeared 0.2–2 s late, in a large window about every fifth one; in

@@ -45,7 +45,7 @@
     <PackageReference Include="Velopack" />
   </ItemGroup>
 
-  <!-- CopyFence and the WebView2 members WebViewCapture reaches by reflection (ADR 0008). -->
+  <!-- CopyFence and the WebView2 members WebViewCapture reaches by reflection (ADR 0009). -->
   <ItemGroup>
     <InternalsVisibleTo Include="RepoBoard.App.Tests" />
   </ItemGroup>

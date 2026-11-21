@@ -27,5 +27,6 @@ Zustand und testbare Logik: `ui-state.md`; CSS: `ui-css.md`; WPF-Host: `app-host
 - **Kein `@ondblclick`:** der Host reicht beim zweiten Klick das Mouse-down doppelt weiter, `dblclick` feuert nie. Doppelklick über `@onclick` mit `e.Detail >= 2`.
 - Kein `auxclick`-Event: `@onauxclick` wird still als HTML-Attribut ausgegeben. Mittelklick über `@onmouseup` mit `e.Button == 1`.
 - Native `<select>`: die Auswahl über `value` am `<select>` setzen, nicht `selected=` an der Option.
+- Listen, deren Einträge Eingabefelder haben (Checkbox) und wandern oder verschwinden, bekommen `@key` – sonst setzt Blazor das Element eines verschwundenen Eintrags für den nächsten ein, samt dem Häkchen, das der Klick gesetzt hat (E2E Review WP-05, Dateiliste). Schlüssel müssen unter dem gemeinsamen Elternteil eindeutig sein (`s:`/`u:` + Pfad).
 - **UI-Kultur nur synchron setzen** (`Program.Main`): `CurrentUICulture` gehört zum `ExecutionContext`, eine Änderung in einer async-Methode wird beim Verlassen zurückgenommen.
 - Mausinteraktionen mit echter Windows-Eingabe prüfen, nicht nur per CDP (`docs/e2e-testing.md`).

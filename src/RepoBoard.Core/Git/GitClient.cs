@@ -78,19 +78,68 @@ public sealed class GitClient(GitRunner runner)
             ? Network(repo, GitCallMode.Interactive, ct, "push", "-u", "origin", "HEAD")
             : Network(repo, GitCallMode.Interactive, ct, "push");
 
+    /// <summary>
+    /// Before a command that takes paths from the status: they are file names, not patterns – "[id].tsx" must not also match
+    /// "i.tsx" (review WP-05). Only on these commands, which start no hooks: git exports it to its children, and a hook
+    /// with a glob ("*.cs") would find nothing (second review pass WP-05).
+    /// </summary>
+    private const string LiteralPaths = "--literal-pathspecs";
+
     public Task<GitResult> StageAsync(string repo, IEnumerable<string> paths, CancellationToken ct) =>
-        Local(repo, ct, ["add", "-A", "--", .. paths]);
+        Local(repo, ct, [LiteralPaths, "add", "-A", "--", .. paths]);
 
     public Task<GitResult> StageAllAsync(string repo, CancellationToken ct) => Local(repo, ct, "add", "-A");
 
     /// <summary>Takes files out of the index; before the first commit there is no HEAD to restore from.</summary>
     public Task<GitResult> UnstageAsync(string repo, IEnumerable<string> paths, bool initial, CancellationToken ct) =>
         initial
-            ? Local(repo, ct, ["rm", "--cached", "-r", "-q", "--", .. paths])
-            : Local(repo, ct, ["restore", "--staged", "--", .. paths]);
+            ? Local(repo, ct, [LiteralPaths, "rm", "--cached", "-r", "-q", "--", .. paths])
+            : Local(repo, ct, [LiteralPaths, "restore", "--staged", "--", .. paths]);
 
     public Task<GitResult> CommitAsync(string repo, string message, CancellationToken ct) =>
         Local(repo, ct, "commit", "-m", message);
+
+    /// <summary>
+    /// The diff of one changed file (ADR 0008): staged against HEAD (a rename with its original path), unstaged against the
+    /// index, a new file against nothing (<c>--no-index</c>, which ends with 1 when the files differ). Never an external diff
+    /// tool; textconv and the user's diff settings apply as in the terminal. Conflicted files and nested repositories are the
+    /// caller's to leave out. A file above <see cref="FileDiff.MaxFileBytes"/> in the worktree is not read (git would read it
+    /// whole, with every new status while the diff is open; review WP-05).
+    /// </summary>
+    public async Task<(FileDiff? Diff, GitResult Result)> DiffAsync(string repo, FileChange change, bool staged, CancellationToken ct)
+    {
+        var file = new FileInfo(Path.Combine(repo, change.Path));
+        if (file.Exists && file.Length > FileDiff.MaxFileBytes)
+        {
+            return (FileDiff.TooLarge, new GitResult(0, "", ""));
+        }
+
+        string[] options = [LiteralPaths, "diff", "--no-color", "--no-ext-diff"];
+        GitResult result;
+        if (change.Untracked)
+        {
+            result = await Local(repo, ct, [.. options, "--no-index", "--", "/dev/null", change.Path]);
+            // 1 = the files differ – and also an error ("Could not access …"). stderr may hold a mere warning ("LF will be
+            // replaced by CRLF" with core.autocrlf, E2E WP-05), and git's messages may be translated: a diff on stdout is
+            // what makes it a success (review WP-05), never the wording.
+            if (result.ExitCode == 1 && result.Output.Length > 0)
+            {
+                result = result with { ExitCode = 0 };
+            }
+        }
+        else if (staged)
+        {
+            result = await Local(repo, ct, [.. options, "--cached", "-M", "--", .. Paths(change)]);
+        }
+        else
+        {
+            result = await Local(repo, ct, [.. options, "--", change.Path]);
+        }
+
+        return (result.Success ? FileDiff.Parse(result.Output) : null, result);
+
+        static string[] Paths(FileChange c) => c.OriginalPath is { } from ? [from, c.Path] : [c.Path];
+    }
 
     /// <summary>
     /// True if git accepts <paramref name="name"/> as a branch name. A name starting with <c>-</c> is refused before git

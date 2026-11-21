@@ -12,7 +12,7 @@ using Windows.Graphics.Capture;
 namespace RepoBoard.App.Services;
 
 /// <summary>
-/// Shows each frame of the WebView once it is really there (ADR 0008, the frame part of FerretSharp's <c>WebViewCapture</c>,
+/// Shows each frame of the WebView once it is really there (ADR 0009, the frame part of FerretSharp's <c>WebViewCapture</c>,
 /// ADR 0038/0039 there). BlazorWebView shows the page through the <see cref="WebView2CompositionControl"/>, which captures
 /// the browser's output (<c>GraphicsCaptureSession</c>, a frame pool of one buffer) and copies each frame into a
 /// <see cref="D3DImage"/>. The capture delivers a frame only when the page changes, so a frame WPF does not show stays

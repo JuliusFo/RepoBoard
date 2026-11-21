@@ -22,7 +22,7 @@ public partial class MainWindow : Window
         WebView.BlazorWebViewInitialized += (_, e) =>
         {
             theme.AttachWebView(e.WebView.CoreWebView2);
-            capture.Attach(e.WebView); // each frame shown once it is really there (ADR 0008)
+            capture.Attach(e.WebView); // each frame shown once it is really there (ADR 0009)
         };
 
         // Only web links leave the app: BlazorWebView opens every other URL with the system's default handler – a file

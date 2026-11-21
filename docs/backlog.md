@@ -13,9 +13,21 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - Schwärzen in git-Meldungen (`GitSecrets`, vor v0.1.0) erkennt Tokens ohne festes Präfix nur in einer URL: ein Azure-DevOps-PAT oder ein anderes Geheimnis, das ein Server frei in eine `remote:`-Zeile schreibt, bliebe sichtbar. Weitere Muster ergänzen, wenn eines auftaucht.
 - Beenden während eines Auto-Pulls bricht `git merge --ff-only` nach 3 s ab (`host.StopAsync`, `GitRunner` beendet den Prozessbaum): lokale Arbeit bleibt, aber ein halb aktualisierter Worktree oder `index.lock` kann liegen bleiben. Seit `--exit` (WP-02) gibt es dafür einen Auslöser von außen, seit WP-10 auch „Jetzt neu starten“ in der Kopfzeile (ein Klick ohne Rückfrage); laufende Operationen beim Beenden bis zum Zeitlimit zu Ende laufen lassen (Review WP-02, vorher schon da).
 - Status-Durchlauf alle 20 s über alle Repos: bei sehr vielen Repos messen (Prozessstarts); Abhilfe in WP-03.
-- WebView-Bild nach Ruhezustand/Dock/RDP: Seit ADR 0008 gibt es `WebViewCapture` mit `CopyFence` (Bild-Teil aus FerretSharp); der Neustart der Aufnahme nach Ruhezustand, Sitzungswechsel, zurückkehrendem Front Buffer und Wiederherstellen aus minimiert sowie die Software-Anzeige ohne Front Buffer (RDP) fehlen noch (FerretSharp ADR 0038 mit Nachträgen). Tritt ein stehendes Bild auf, von dort in `WebViewCapture` übernehmen.
-- Ein Klick von 70 blieb auch mit ADR 0008 bis zum nächsten unsichtbar, ohne Spur im Log (`fix-webview-copy-fence.md`). Tritt es beim Nutzer auf: mit `Measure-PictureDelay.ps1 -Click` und den Debug-Zeilen von `WebViewCapture` eingrenzen.
+- WebView-Bild nach Ruhezustand/Dock/RDP: Seit ADR 0009 gibt es `WebViewCapture` mit `CopyFence` (Bild-Teil aus FerretSharp); der Neustart der Aufnahme nach Ruhezustand, Sitzungswechsel, zurückkehrendem Front Buffer und Wiederherstellen aus minimiert sowie die Software-Anzeige ohne Front Buffer (RDP) fehlen noch (FerretSharp ADR 0038 mit Nachträgen). Tritt ein stehendes Bild auf, von dort in `WebViewCapture` übernehmen.
+- Ein Klick von 70 blieb auch mit ADR 0009 bis zum nächsten unsichtbar, ohne Spur im Log (`fix-webview-copy-fence.md`). Tritt es beim Nutzer auf: mit `Measure-PictureDelay.ps1 -Click` und den Debug-Zeilen von `WebViewCapture` eingrenzen.
 - Ein Push ohne Remote `origin` (anderer Name) setzt keinen Upstream – Remote wählen lassen.
+
+## Diff (Fortsetzung von WP-05)
+
+- Side-by-Side als zweite Ansicht neben inline (der Nutzer wollte erst nur inline, 2026-11-21); Auswahl merken.
+- Zeilennummern beim seitlichen Scrollen stehen lassen (`position: sticky` links); heute scrollen sie mit.
+- Syntax-Highlighting (ADR 0008: bewusst ohne Monaco) – z. B. ein kleiner Tokenizer je Sprache oder doch eine Bibliothek, dann per ADR.
+- Kodierungen außer UTF-8 (Windows-1252, UTF-16): `GitRunner` liest UTF-8, solche Dateien erscheinen mit Ersatzzeichen.
+- Diff im externen Werkzeug öffnen (`git difftool`, VS Code `--diff`).
+- Mit Tastatur durch die Dateiliste (↑/↓ wechselt den Diff).
+- Hunks und Zeilen stagen: WP-25 (Roadmap).
+- Größengrenze bei gelöschten Dateien (Review WP-05, Punkt 11): gemessen wird die Datei im Worktree – eine gelöschte große Datei hat keine, git liest ihren Diff bei offenem Diff alle 20 s ganz ein (geparst wird höchstens bis 5 000 Zeilen, nicht auf dem UI-Thread). Abhilfe: Größe aus Index bzw. HEAD (`git cat-file -s :<pfad>` / `HEAD:<pfad>`).
+- Scheitert ein Stagen per Häkchen, bleibt das vom Klick gesetzte Häkchen in der Liste „Nicht gestaged“ stehen (`checked` dort nicht gebunden; vorher schon da, Review WP-05).
 
 ## Infobereich und Benachrichtigungen (Fortsetzung von WP-02)
 
