@@ -55,6 +55,10 @@
             {
                 <span class="muted" title="@BoardText.NoUpstream_Hint">@BoardText.NoUpstream</span>
             }
+            else if (s.UpstreamGone)
+            {
+                <span class="muted" title="@TextFormat.Format(BoardText.UpstreamGone_Hint, s.Upstream)">@BoardText.UpstreamGone</span>
+            }
             else
             {
                 if (s.Ahead > 0)

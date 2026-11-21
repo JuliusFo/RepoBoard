@@ -129,6 +129,12 @@
   <data name="NoUpstream" xml:space="preserve">
     <value>kein Upstream</value>
   </data>
+  <data name="UpstreamGone" xml:space="preserve">
+    <value>Upstream gelöscht</value>
+  </data>
+  <data name="UpstreamGone_Hint" xml:space="preserve">
+    <value>{0} gibt es auf dem Remote nicht mehr – meist nach dem Merge des Pull Requests</value>
+  </data>
   <data name="NoUpstream_Hint" xml:space="preserve">
     <value>Noch nie gepusht – Push setzt den Upstream</value>
   </data>

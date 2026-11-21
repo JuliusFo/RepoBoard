@@ -133,6 +133,13 @@
   <data name="NoUpstream" xml:space="preserve">
     <value>no upstream</value>
   </data>
+  <data name="UpstreamGone" xml:space="preserve">
+    <value>upstream deleted</value>
+  </data>
+  <data name="UpstreamGone_Hint" xml:space="preserve">
+    <value>{0} no longer exists on the remote – usually after its pull request was merged</value>
+    <comment>{0} = the upstream branch (origin/feature)</comment>
+  </data>
   <data name="NoUpstream_Hint" xml:space="preserve">
     <value>Never pushed – a push sets the upstream</value>
   </data>
