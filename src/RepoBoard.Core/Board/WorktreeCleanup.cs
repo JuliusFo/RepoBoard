@@ -28,6 +28,9 @@ public enum WorktreeBlock
     /// <summary>A merge, rebase, cherry-pick or revert is unfinished in it.</summary>
     Operation,
 
+    /// <summary>Detached with commits no branch or tag contains: they would be lost with the worktree's reflog.</summary>
+    UnreferencedCommits,
+
     /// <summary>git could not read its status or its ignored files.</summary>
     Unknown,
 }
@@ -39,6 +42,13 @@ public enum WorktreeBlock
 public sealed record WorktreeCandidate(RepoState Worktree, WorktreeReason? Reason, WorktreeBlock? Block, IReadOnlyList<string> Ignored)
 {
     public bool CanRemove => Block is null;
+
+    /// <summary>
+    /// Ticked when the question opens: the worktree the user picked, and those whose remote side is gone (upstream deleted,
+    /// folder gone). "Merged" and "detached" cannot tell a done branch from a session's fresh one whose base moved on: listed,
+    /// not ticked (review WP-04, decision of the user).
+    /// </summary>
+    public bool Ticked => CanRemove && Reason is null or WorktreeReason.UpstreamGone or WorktreeReason.FolderMissing;
 }
 
 /// <summary>What clean-up found in one repository.</summary>

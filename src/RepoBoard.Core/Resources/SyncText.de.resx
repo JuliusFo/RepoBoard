@@ -168,8 +168,23 @@
   <data name="Op_RemoveWorktree" xml:space="preserve">
     <value>Worktree entfernen</value>
   </data>
-  <data name="Worktree_HasChanges" xml:space="preserve">
-    <value>Der Worktree hat geänderte oder neue Dateien – er bleibt.</value>
+  <data name="Worktree_Block_Changes" xml:space="preserve">
+    <value>Hat geänderte oder neue Dateien – bleibt.</value>
+  </data>
+  <data name="Worktree_Block_Locked" xml:space="preserve">
+    <value>Gesperrt – bleibt.</value>
+  </data>
+  <data name="Worktree_Block_Operation" xml:space="preserve">
+    <value>Ein Merge oder Rebase ist darin nicht abgeschlossen – bleibt.</value>
+  </data>
+  <data name="Worktree_Block_UnreferencedCommits" xml:space="preserve">
+    <value>Detached mit Commits, die kein Branch und kein Tag enthält – sie gingen verloren, daher bleibt er. Erst einen Branch dafür anlegen.</value>
+  </data>
+  <data name="Worktree_Block_Unknown" xml:space="preserve">
+    <value>git konnte den Zustand nicht lesen – bleibt.</value>
+  </data>
+  <data name="Worktree_IgnoredChanged" xml:space="preserve">
+    <value>Seit der Rückfrage sind ignorierte Dateien dazugekommen, die git mitlöschen würde – bleibt. Erneut fragen, um sie zu sehen.</value>
   </data>
   <data name="Worktree_Removed" xml:space="preserve">
     <value>Worktree {0} entfernt.</value>

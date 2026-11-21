@@ -45,21 +45,18 @@
                             {
                                 <span>@reason</span>
                             }
-                            @if (BlockText(candidate) is { } block)
+                            @if (candidate.Block is { } block)
                             {
-                                <span class="wt-block">@Icons.Warning @block</span>
+                                <span class="wt-block">@Icons.Warning @BoardService.BlockText(block)</span>
                             }
                             @if (candidate.Ignored.Count > 0)
                             {
                                 <span class="wt-ignored">
                                     @BoardText.Worktrees_Ignored
-                                    @foreach (var path in candidate.Ignored.Take(MaxIgnoredShown))
+                                    @* All of them: what is not shown would be deleted unseen (review WP-04); a long list scrolls. *@
+                                    @foreach (var path in candidate.Ignored)
                                     {
                                         <code>@path</code>
-                                    }
-                                    @if (candidate.Ignored.Count > MaxIgnoredShown)
-                                    {
-                                        <span>@TextFormat.Format(BoardText.Worktrees_IgnoredMore, candidate.Ignored.Count - MaxIgnoredShown)</span>
                                     }
                                 </span>
                             }
@@ -83,8 +80,6 @@
 </div>
 
 @code {
-    private const int MaxIgnoredShown = 8;
-
     /// <summary>The repository on the board.</summary>
     [Parameter, EditorRequired] public RepoState Repo { get; set; } = null!;
 
@@ -121,8 +116,8 @@
             _candidates = cleanup.Candidates;
         }
 
-        // What may go is ticked: that is what the user asked for. What stays cannot be ticked.
-        _selected.UnionWith(_candidates.Where(c => c.CanRemove).Select(c => c.Worktree));
+        // What stays cannot be ticked; of what may go, only what WorktreeCandidate.Ticked says.
+        _selected.UnionWith(_candidates.Where(c => c.Ticked).Select(c => c.Worktree));
     }
 
     private void Select(RepoState worktree)
@@ -137,7 +132,8 @@
     {
         _removing = true;
         // In the board's order, not the order of the clicks; the board checks each again (ADR 0010).
-        var worktrees = _candidates!.Select(c => c.Worktree).Where(_selected.Contains).ToList();
+        // With the ignored files shown: the board removes none that has others now (ADR 0010).
+        var worktrees = _candidates!.Where(c => _selected.Contains(c.Worktree)).ToList();
         await OnClose.InvokeAsync();
         await Board.RemoveWorktreesAsync(worktrees, default);
     });
@@ -153,15 +149,6 @@
         WorktreeReason.UpstreamGone => TextFormat.Format(BoardText.Worktrees_Reason_UpstreamGone, BranchText(candidate.Worktree)),
         WorktreeReason.DetachedMerged => TextFormat.Format(BoardText.Worktrees_Reason_DetachedMerged, _defaultBranch),
         WorktreeReason.FolderMissing => BoardText.Worktrees_Reason_FolderMissing,
-        _ => null,
-    };
-
-    private static string? BlockText(WorktreeCandidate candidate) => candidate.Block switch
-    {
-        WorktreeBlock.Changes => BoardText.Worktrees_Block_Changes,
-        WorktreeBlock.Locked => BoardText.Worktrees_Block_Locked,
-        WorktreeBlock.Operation => BoardText.Worktrees_Block_Operation,
-        WorktreeBlock.Unknown => BoardText.Worktrees_Block_Unknown,
         _ => null,
     };
 

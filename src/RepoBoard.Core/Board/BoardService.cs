@@ -73,10 +73,10 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             }
 
             // A linked worktree shows under its repository (WP-04): that one goes on the board.
-            if (await MainWorktreeAsync(root, ct) is { } main && !SamePath(main, root))
+            string? worktree = null;
+            if (await MainOfLinkedWorktreeAsync(root, ct) is { } main && !SamePath(main, root))
             {
-                Log(Path.GetFileName(root), TextFormat.Format(SyncText.Worktree_AddedMain, root, main), ActivityKind.Info);
-                root = main;
+                (worktree, root) = (root, main);
             }
 
             var repo = new RepoState(new RepoEntry(root));
@@ -89,6 +89,10 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             if (!exists)
             {
                 added.Add(repo);
+                if (worktree is not null)
+                {
+                    Log(Path.GetFileName(worktree), TextFormat.Format(SyncText.Worktree_AddedMain, worktree, root), ActivityKind.Info);
+                }
             }
         }
 
@@ -231,8 +235,8 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     }
 
     /// <summary>After a fetch or pull in a repository: its worktrees share the refs, their ahead and behind changed too.</summary>
-    private Task RefreshWorktreesAsync(RepoState repo, CancellationToken ct) =>
-        Task.WhenAll(repo.Worktrees.Select(w => RefreshAsync(w, ct)));
+    private Task RefreshWorktreesAsync(RepoState repo, CancellationToken ct, RepoState? except = null) =>
+        Task.WhenAll(repo.Worktrees.Where(w => w != except).Select(w => RefreshAsync(w, ct)));
 
     /// <summary>Reads the status again; skipped while an operation runs on the repository (it refreshes when done).</summary>
     public async Task RefreshAsync(RepoState repo, CancellationToken ct)
@@ -245,6 +249,11 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         try
         {
             await RefreshCoreAsync(repo, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // One repository's surprise must not stop the status – and auto-sync – of all the others (review WP-04).
+            repo.Error = TextFormat.Format(SyncText.OperationFailed, SyncText.Op_Status, ex.Message);
         }
         finally
         {
@@ -516,6 +525,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     {
         var target = await git.DefaultBranchAsync(repo.Path, ct);
         var targetCommit = target is null ? null : await git.CommitOfAsync(repo.Path, target, ct);
+        var targetName = target?[(target.IndexOf('/', StringComparison.Ordinal) + 1)..]; // origin/main -> main
         var branches = (await git.BranchesAsync(repo.Path, null, ct)).Where(b => !b.IsRemote).ToDictionary(b => b.Name, StringComparer.Ordinal);
         var candidates = new List<WorktreeCandidate>();
         foreach (var worktree in repo.Worktrees)
@@ -534,8 +544,10 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
                 reason = WorktreeReason.UpstreamGone;
             }
             // A branch never pushed whose commit the default branch contains has nothing of its own yet – a session that
-            // started before the default branch moved on – rather than being merged.
-            else if (targetCommit is not null && head is not null && head != targetCommit && (branch is null || info?.Upstream is not null)
+            // started before the default branch moved on – rather than being merged. The default branch's own worktree
+            // ("main" behind origin/main) is never done (review WP-04).
+            else if (targetCommit is not null && head is not null && head != targetCommit
+                && (branch is null || (info?.Upstream is { } upstream && upstream != target && branch != targetName))
                 && await git.IsAncestorAsync(repo.Path, head, targetCommit, ct) == true)
             {
                 reason = branch is null ? WorktreeReason.DetachedMerged : WorktreeReason.Merged;
@@ -555,29 +567,14 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
 
     private async Task<WorktreeCandidate> InspectAsync(RepoState worktree, WorktreeReason? reason, RepoStatus? status, CancellationToken ct)
     {
-        if (worktree.Worktree?.IsLocked == true)
+        if (await BlockAsync(worktree, status, ct) is { } block)
         {
-            return new(worktree, reason, WorktreeBlock.Locked, []);
+            return new(worktree, reason, block, []);
         }
 
         if (!Directory.Exists(worktree.Path))
         {
             return new(worktree, reason, null, []);
-        }
-
-        if (status is null)
-        {
-            return new(worktree, reason, WorktreeBlock.Unknown, []);
-        }
-
-        if (!status.IsClean)
-        {
-            return new(worktree, reason, WorktreeBlock.Changes, []);
-        }
-
-        if (worktree.GitDir is { } dir && GitClient.OperationIn(dir) is not null)
-        {
-            return new(worktree, reason, WorktreeBlock.Operation, []);
         }
 
         // Without the list of what git would delete unasked, no removal (ADR 0010).
@@ -587,40 +584,91 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     }
 
     /// <summary>
-    /// Removes linked worktrees one after the other – folder and git's data, never the branch, never with <c>--force</c>
-    /// (ADR 0010). Each is checked again first: one with changes stays, whatever the question showed.
+    /// Why <paramref name="worktree"/> must stay right now, or null. Asked when the question opens and again just before git
+    /// removes it (review WP-04: a rebase started in between, a detached HEAD's own commits).
     /// </summary>
-    public async Task RemoveWorktreesAsync(IReadOnlyList<RepoState> worktrees, CancellationToken ct)
+    private async Task<WorktreeBlock?> BlockAsync(RepoState worktree, RepoStatus? status, CancellationToken ct)
     {
-        foreach (var worktree in worktrees)
+        if (worktree.Worktree?.IsLocked == true)
         {
-            await RemoveWorktreeAsync(worktree, ct);
+            return WorktreeBlock.Locked;
+        }
+
+        string? detachedHead;
+        if (Directory.Exists(worktree.Path))
+        {
+            if (status is null || await git.GitDirAsync(worktree.Path, ct) is not { } gitDir)
+            {
+                return WorktreeBlock.Unknown;
+            }
+
+            if (!status.IsClean)
+            {
+                return WorktreeBlock.Changes;
+            }
+
+            if (GitClient.OperationIn(gitDir) is not null)
+            {
+                return WorktreeBlock.Operation;
+            }
+
+            detachedHead = status.IsDetached ? status.Head : null;
+        }
+        else
+        {
+            detachedHead = worktree.Worktree is { Branch: null, Head: { } head } ? head : null;
+        }
+
+        // A detached HEAD may hold commits no branch has; its reflog goes with the worktree, and with it the last trace.
+        return detachedHead is not null && await git.CountUnreferencedAsync(worktree.MainRepo!.Path, detachedHead, ct) is not 0
+            ? WorktreeBlock.UnreferencedCommits
+            : null;
+    }
+
+    /// <summary>What stops a removal, as a sentence – also the reason the question shows.</summary>
+    public static string BlockText(WorktreeBlock block) => block switch
+    {
+        WorktreeBlock.Changes => SyncText.Worktree_Block_Changes,
+        WorktreeBlock.Locked => SyncText.Worktree_Block_Locked,
+        WorktreeBlock.Operation => SyncText.Worktree_Block_Operation,
+        WorktreeBlock.UnreferencedCommits => SyncText.Worktree_Block_UnreferencedCommits,
+        _ => SyncText.Worktree_Block_Unknown,
+    };
+
+    /// <summary>
+    /// Removes linked worktrees one after the other – folder and git's data, never the branch, never with <c>--force</c>
+    /// (ADR 0010). Each is checked again first: whatever the question showed, one that must stay now stays, and so does one
+    /// with an ignored file the user has not seen.
+    /// </summary>
+    public async Task RemoveWorktreesAsync(IReadOnlyList<WorktreeCandidate> confirmed, CancellationToken ct)
+    {
+        foreach (var candidate in confirmed)
+        {
+            await RemoveWorktreeAsync(candidate, ct);
         }
     }
 
     /// <inheritdoc cref="RemoveWorktreesAsync"/>
-    public async Task<bool> RemoveWorktreeAsync(RepoState worktree, CancellationToken ct)
+    public async Task<bool> RemoveWorktreeAsync(WorktreeCandidate confirmed, CancellationToken ct)
     {
+        var worktree = confirmed.Worktree;
         if (worktree.MainRepo is not { } main)
         {
-            throw new ArgumentException("Only a linked worktree can be removed.", nameof(worktree));
+            throw new ArgumentException("Only a linked worktree can be removed.", nameof(confirmed));
         }
 
         var branch = worktree.Status?.Branch ?? worktree.Worktree?.Branch;
         var removed = await RunAsync(worktree, SyncText.Op_RemoveWorktree, network: false, async c =>
         {
-            if (Directory.Exists(worktree.Path))
+            if (await BlockAsync(worktree, await StatusOfAsync(worktree, c), c) is { } block)
             {
-                var (status, result) = await git.StatusAsync(worktree.Path, c);
-                if (status is null)
-                {
-                    return result;
-                }
+                return GitResult.Failed(BlockText(block));
+            }
 
-                if (!status.IsClean)
-                {
-                    return GitResult.Failed(SyncText.Worktree_HasChanges);
-                }
+            if (Directory.Exists(worktree.Path)
+                && (await git.IgnoredAsync(worktree.Path, c) is not { } ignored || ignored.Except(confirmed.Ignored, StringComparer.Ordinal).Any()))
+            {
+                return GitResult.Failed(SyncText.Worktree_IgnoredChanged);
             }
 
             return await git.RemoveWorktreeAsync(main.Path, worktree.Path, c);
@@ -630,7 +678,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
 
         if (removed)
         {
-            main.Worktrees = main.Worktrees.Remove(worktree);
+            main.RemoveWorktree(worktree);
             Notify();
             await RefreshAsync(main, ct);
         }
@@ -638,9 +686,16 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         return removed;
     }
 
-    /// <summary>The main worktree of the repository <paramref name="root"/> belongs to; null for a bare one or if git fails.</summary>
-    private async Task<string?> MainWorktreeAsync(string root, CancellationToken ct) =>
-        await git.WorktreesAsync(root, ct) is [{ IsBare: false } main, ..] ? main.Path : null;
+    /// <summary>
+    /// The main worktree when <paramref name="root"/> is a linked worktree; null otherwise. Only a linked worktree's git
+    /// folder holds <c>commondir</c>: for a submodule or a separate git folder, git lists the git folder itself as the main
+    /// worktree (review WP-04).
+    /// </summary>
+    private async Task<string?> MainOfLinkedWorktreeAsync(string root, CancellationToken ct) =>
+        await git.GitDirAsync(root, ct) is { } gitDir && File.Exists(Path.Combine(gitDir, "commondir"))
+        && await git.WorktreesAsync(root, ct) is [{ IsBare: false } main, ..]
+            ? main.Path
+            : null;
 
     /// <summary>
     /// The linked worktrees of a repository on the board, keeping the state of those it knew. Only for the main worktree: a
@@ -648,6 +703,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     /// </summary>
     private async Task ReadWorktreesAsync(RepoState repo, CancellationToken ct)
     {
+        var known = repo.Worktrees;
         if (await git.WorktreesAsync(repo.Path, ct) is not { } list)
         {
             return; // keep the last list
@@ -655,17 +711,16 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
 
         if (list is not [{ IsBare: false } main, ..] || !SamePath(main.Path, repo.Path))
         {
-            repo.Worktrees = [];
+            repo.ReplaceWorktrees(known, []);
             return;
         }
 
-        var known = repo.Worktrees;
-        repo.Worktrees = [.. list.Skip(1).Where(w => !w.IsBare).Select(info =>
+        repo.ReplaceWorktrees(known, [.. list.Skip(1).Where(w => !w.IsBare).Select(info =>
         {
             var worktree = known.FirstOrDefault(w => SamePath(w.Path, info.Path)) ?? new RepoState(new RepoEntry(info.Path), repo);
             worktree.Worktree = info;
             return worktree;
-        })];
+        })]);
     }
 
     private static bool SamePath(string a, string b) =>
@@ -689,9 +744,15 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             Notify();
         }
 
+        // The refs are shared: after a fetch, pull or push in a repository or one of its worktrees, all of them changed.
         if (network)
         {
-            await RefreshWorktreesAsync(repo, ct);
+            if (repo.MainRepo is { } main)
+            {
+                await RefreshAsync(main, ct);
+            }
+
+            await RefreshWorktreesAsync(repo.MainRepo ?? repo, ct, except: repo);
         }
 
         return succeeded;

@@ -426,23 +426,8 @@ Log: {1}</value>
   <data name="Worktrees_Reason_FolderMissing" xml:space="preserve">
     <value>Der Ordner fehlt – entfernt werden nur die Daten von git dazu.</value>
   </data>
-  <data name="Worktrees_Block_Changes" xml:space="preserve">
-    <value>Hat geänderte oder neue Dateien – bleibt.</value>
-  </data>
-  <data name="Worktrees_Block_Locked" xml:space="preserve">
-    <value>Gesperrt – bleibt.</value>
-  </data>
-  <data name="Worktrees_Block_Operation" xml:space="preserve">
-    <value>Ein Merge oder Rebase ist darin nicht abgeschlossen – bleibt.</value>
-  </data>
-  <data name="Worktrees_Block_Unknown" xml:space="preserve">
-    <value>git konnte den Zustand nicht lesen – bleibt.</value>
-  </data>
   <data name="Worktrees_Ignored" xml:space="preserve">
     <value>Wird mitgelöscht (von git ignoriert):</value>
-  </data>
-  <data name="Worktrees_IgnoredMore" xml:space="preserve">
-    <value>… und {0} weitere</value>
   </data>
   <data name="Worktrees_ClaudeWarning" xml:space="preserve">
     <value>Ein Claude-Worktree ist angehakt: Arbeitet dort noch eine Session, verliert sie ihren Ordner.</value>

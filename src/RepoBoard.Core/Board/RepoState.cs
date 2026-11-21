@@ -27,7 +27,22 @@ public sealed class RepoState(RepoEntry entry, RepoState? mainRepo = null)
     public WorktreeInfo? Worktree { get; internal set; }
 
     /// <summary>For a repository on the board: its linked worktrees, in git's order; never the main worktree itself.</summary>
-    public ImmutableList<RepoState> Worktrees { get; internal set; } = [];
+    public ImmutableList<RepoState> Worktrees
+    {
+        get => Volatile.Read(ref _worktrees);
+        internal set => Volatile.Write(ref _worktrees, value);
+    }
+
+    private ImmutableList<RepoState> _worktrees = [];
+
+    /// <summary>
+    /// The list read from git replaces <paramref name="expected"/> only if nothing changed it meanwhile: a removal while git
+    /// listed would otherwise come back for a tick (review WP-04).
+    /// </summary>
+    internal void ReplaceWorktrees(ImmutableList<RepoState> expected, ImmutableList<RepoState> next) =>
+        Interlocked.CompareExchange(ref _worktrees, next, expected);
+
+    internal void RemoveWorktree(RepoState worktree) => ImmutableInterlocked.Update(ref _worktrees, list => list.Remove(worktree));
 
     /// <summary>A worktree a Claude Code session made (<c>&lt;repo&gt;\.claude\worktrees\…</c>): it may still be in use.</summary>
     public bool IsClaudeWorktree => MainRepo is { } main

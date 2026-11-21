@@ -255,6 +255,21 @@ public sealed class GitClient(GitRunner runner)
     }
 
     /// <summary>
+    /// How many commits of <paramref name="commit"/> no branch, remote branch or tag contains – the work of a detached HEAD
+    /// that only its reflog keeps (review WP-04). Null if git cannot tell.
+    /// </summary>
+    public async Task<int?> CountUnreferencedAsync(string repo, string commit, CancellationToken ct)
+    {
+        if (commit.StartsWith('-'))
+        {
+            return null;
+        }
+
+        var result = await Local(repo, ct, "rev-list", "--count", commit, "--not", "--branches", "--remotes", "--tags");
+        return result.Success && int.TryParse(result.Output.Trim(), out var n) ? n : null;
+    }
+
+    /// <summary>
     /// The ignored files and folders of a worktree (a folder as a whole, <c>bin/</c>): <c>git worktree remove</c> deletes
     /// them without asking, so the question before it names them (ADR 0010). Null if git fails.
     /// </summary>

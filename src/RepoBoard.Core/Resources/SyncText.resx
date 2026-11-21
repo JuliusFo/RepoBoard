@@ -195,8 +195,23 @@
     <value>Remove worktree</value>
     <comment>Name of the operation that removes a linked worktree (git worktree remove), used in "{0} failed: …".</comment>
   </data>
-  <data name="Worktree_HasChanges" xml:space="preserve">
-    <value>The worktree has changed or new files – it stays.</value>
+  <data name="Worktree_Block_Changes" xml:space="preserve">
+    <value>Has changed or new files – it stays.</value>
+  </data>
+  <data name="Worktree_Block_Locked" xml:space="preserve">
+    <value>Locked – it stays.</value>
+  </data>
+  <data name="Worktree_Block_Operation" xml:space="preserve">
+    <value>A merge or rebase is unfinished in it – it stays.</value>
+  </data>
+  <data name="Worktree_Block_UnreferencedCommits" xml:space="preserve">
+    <value>Detached with commits no branch or tag contains – they would be lost, so it stays. Create a branch for them first.</value>
+  </data>
+  <data name="Worktree_Block_Unknown" xml:space="preserve">
+    <value>git could not read its state – it stays.</value>
+  </data>
+  <data name="Worktree_IgnoredChanged" xml:space="preserve">
+    <value>Ignored files came up since the question that git would delete with it – it stays. Ask again to see them.</value>
   </data>
   <data name="Worktree_Removed" xml:space="preserve">
     <value>Worktree {0} removed.</value>

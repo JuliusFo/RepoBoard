@@ -468,24 +468,8 @@ Log: {1}</value>
   <data name="Worktrees_Reason_FolderMissing" xml:space="preserve">
     <value>The folder is gone – only git’s data about it is removed.</value>
   </data>
-  <data name="Worktrees_Block_Changes" xml:space="preserve">
-    <value>Has changed or new files – it stays.</value>
-  </data>
-  <data name="Worktrees_Block_Locked" xml:space="preserve">
-    <value>Locked – it stays.</value>
-  </data>
-  <data name="Worktrees_Block_Operation" xml:space="preserve">
-    <value>A merge or rebase is unfinished in it – it stays.</value>
-  </data>
-  <data name="Worktrees_Block_Unknown" xml:space="preserve">
-    <value>git could not read its state – it stays.</value>
-  </data>
   <data name="Worktrees_Ignored" xml:space="preserve">
     <value>Deleted with it (ignored by git):</value>
-  </data>
-  <data name="Worktrees_IgnoredMore" xml:space="preserve">
-    <value>… and {0} more</value>
-    <comment>{0} = number of further ignored files and folders</comment>
   </data>
   <data name="Worktrees_ClaudeWarning" xml:space="preserve">
     <value>A Claude worktree is ticked: if a session still works in it, it loses its folder.</value>

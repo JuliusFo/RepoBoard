@@ -31,7 +31,11 @@ public sealed record WorktreeInfo(string Path, string? Head, string? Branch, boo
             if (key == "worktree")
             {
                 Flush();
-                current = new WorktreeInfo(System.IO.Path.GetFullPath(value), null, null, false, null, null);
+                // A broken entry (empty gitdir file after an aborted "worktree add") lists no path: left out – GetFullPath
+                // would throw and stop the status of every repository (review WP-04).
+                current = System.IO.Path.IsPathFullyQualified(value)
+                    ? new WorktreeInfo(System.IO.Path.GetFullPath(value), null, null, false, null, null)
+                    : null;
             }
             else if (current is not null)
             {

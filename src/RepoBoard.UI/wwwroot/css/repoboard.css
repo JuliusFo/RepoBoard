@@ -193,7 +193,7 @@ code { font-family: var(--mono); font-size: 12px; }
 .wt-name { display: flex; align-items: center; gap: 8px; }
 .wt-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
 .wt-block { display: inline-flex; align-items: center; gap: 5px; color: var(--warn); }
-.wt-ignored { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
+.wt-ignored { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; max-height: 120px; overflow-y: auto; }
 .wt-ignored code { padding: 0 5px; border-radius: 4px; background: var(--hover); color: var(--text); }
 
 .chev { color: var(--faint); display: flex; }
