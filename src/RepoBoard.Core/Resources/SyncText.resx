@@ -191,4 +191,23 @@
     <value>… and {0} more</value>
     <comment>Last line of a notification. {0} = number of further messages</comment>
   </data>
+  <data name="Op_RemoveWorktree" xml:space="preserve">
+    <value>Remove worktree</value>
+    <comment>Name of the operation that removes a linked worktree (git worktree remove), used in "{0} failed: …".</comment>
+  </data>
+  <data name="Worktree_HasChanges" xml:space="preserve">
+    <value>The worktree has changed or new files – it stays.</value>
+  </data>
+  <data name="Worktree_Removed" xml:space="preserve">
+    <value>Worktree {0} removed.</value>
+    <comment>{0} = folder path of the worktree (detached, no branch)</comment>
+  </data>
+  <data name="Worktree_RemovedBranchStays" xml:space="preserve">
+    <value>Worktree {0} removed; branch {1} stays.</value>
+    <comment>{0} = folder path of the worktree, {1} = its branch</comment>
+  </data>
+  <data name="Worktree_AddedMain" xml:space="preserve">
+    <value>{0} is a worktree – its repository {1} goes on the board, the worktree shows below it.</value>
+    <comment>{0} = folder the user chose, {1} = folder of the main worktree</comment>
+  </data>
 </root>

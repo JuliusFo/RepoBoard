@@ -165,4 +165,19 @@
   <data name="Notify_More" xml:space="preserve">
     <value>… und {0} weitere</value>
   </data>
+  <data name="Op_RemoveWorktree" xml:space="preserve">
+    <value>Worktree entfernen</value>
+  </data>
+  <data name="Worktree_HasChanges" xml:space="preserve">
+    <value>Der Worktree hat geänderte oder neue Dateien – er bleibt.</value>
+  </data>
+  <data name="Worktree_Removed" xml:space="preserve">
+    <value>Worktree {0} entfernt.</value>
+  </data>
+  <data name="Worktree_RemovedBranchStays" xml:space="preserve">
+    <value>Worktree {0} entfernt; Branch {1} bleibt.</value>
+  </data>
+  <data name="Worktree_AddedMain" xml:space="preserve">
+    <value>{0} ist ein Worktree – sein Repository {1} kommt aufs Board, der Worktree steht darunter.</value>
+  </data>
 </root>

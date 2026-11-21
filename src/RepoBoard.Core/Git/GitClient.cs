@@ -213,4 +213,64 @@ public sealed class GitClient(GitRunner runner)
             .Where(p => p.Length >= 5)
             .Select(p => new CommitInfo(p[0], p[1], p[2], p[3], p[4])),
     ];
+
+    // ---------- worktrees (WP-04, ADR 0010) ----------
+
+    /// <summary>The worktrees of the repository, the main one first; null if git fails.</summary>
+    public async Task<IReadOnlyList<WorktreeInfo>?> WorktreesAsync(string repo, CancellationToken ct)
+    {
+        var result = await Local(repo, ct, "worktree", "list", "--porcelain", "-z");
+        return result.Success ? WorktreeInfo.ParseList(result.Output) : null;
+    }
+
+    /// <summary>The remote's default branch as <c>origin/main</c>, from <c>origin/HEAD</c> (set by a clone); null without one.</summary>
+    public async Task<string?> DefaultBranchAsync(string repo, CancellationToken ct)
+    {
+        var result = await Local(repo, ct, "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD");
+        return result.Success && result.Output.Trim() is { Length: > 0 } name ? name : null;
+    }
+
+    /// <summary>The commit a ref or commit id from git names; null if there is none.</summary>
+    public async Task<string?> CommitOfAsync(string repo, string rev, CancellationToken ct)
+    {
+        if (rev.StartsWith('-'))
+        {
+            return null;
+        }
+
+        var result = await Local(repo, ct, "rev-parse", "--verify", "--quiet", rev + "^{commit}");
+        return result.Success ? result.Output.Trim() : null;
+    }
+
+    /// <summary>True if <paramref name="commit"/> is contained in <paramref name="target"/>; null if git cannot tell.</summary>
+    public async Task<bool?> IsAncestorAsync(string repo, string commit, string target, CancellationToken ct)
+    {
+        if (commit.StartsWith('-') || target.StartsWith('-'))
+        {
+            return null;
+        }
+
+        var result = await Local(repo, ct, "merge-base", "--is-ancestor", commit, target);
+        return result.ExitCode switch { 0 => true, 1 => false, _ => null };
+    }
+
+    /// <summary>
+    /// The ignored files and folders of a worktree (a folder as a whole, <c>bin/</c>): <c>git worktree remove</c> deletes
+    /// them without asking, so the question before it names them (ADR 0010). Null if git fails.
+    /// </summary>
+    public async Task<IReadOnlyList<string>?> IgnoredAsync(string worktree, CancellationToken ct)
+    {
+        var result = await Local(worktree, ct, "status", "--porcelain=v2", "-z", "--ignored=traditional", "--untracked-files=normal");
+        return result.Success
+            ? [.. result.Output.Split('\0').Where(f => f.StartsWith("! ", StringComparison.Ordinal)).Select(f => f[2..])]
+            : null;
+    }
+
+    /// <summary>
+    /// Removes a linked worktree's folder and git's data about it; its branch stays. Never <c>--force</c> (ADR 0010): git
+    /// refuses a worktree with changed or new files and a locked one. Run in the main worktree – a process inside the
+    /// folder would keep it from being deleted on Windows.
+    /// </summary>
+    public Task<GitResult> RemoveWorktreeAsync(string mainWorktree, string worktree, CancellationToken ct) =>
+        Local(mainWorktree, ct, "worktree", "remove", "--", worktree);
 }
