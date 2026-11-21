@@ -17,6 +17,7 @@ Zustand und testbare Logik: `ui-state.md`; CSS: `ui-css.md`; WPF-Host: `app-host
 - `BoardService.Changed` feuert von beliebigen Threads und in Schüben: nur die Shell abonniert, rendert einmal je Schub (`OnBoardChanged`); Kinder rendern mit ihr. Wer selbst abonniert, meldet sich im `Dispose` ab.
 - „Kinder rendern mit ihr“ gilt nur für Kinder **mit Parametern**: ein Kind ohne Parameter, das `Board` selbst liest, bleibt beim Rendern der Shell stehen. Was es vom Board zeigt, als Parameter übergeben (Review WP-02, `SettingsMenu`).
 - Komponenten rufen git nie selbst: alles über `BoardService`.
+- Lange Listen (Diff bis 5 000 Zeilen): die Zeile als eigene Komponente mit `ShouldRender`, sonst rendert jede kleine Änderung (eine gewählte Zeile) alle Zeilen samt neuer Event-Handler neu (~110 ms je Klick, Review WP-25, `DiffLineView`).
 
 ## Bausteine
 - Icons nur aus `Icons.cs` (`@Icons.X`), nie als eigenes SVG im Markup. Ein Icon steht für genau eine Bedeutung (Summary in `Icons.cs`); neue aus Lucide 1.55 unverändert kopieren, möglichst aus FerretSharps `Icons.cs`.

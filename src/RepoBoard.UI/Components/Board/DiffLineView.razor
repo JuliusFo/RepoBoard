@@ -1,5 +1,6 @@
 @* One line of the diff (WP-05) with its pickable edge (WP-25). A component of its own so a pick renders the line it
    changes, not up to 5,000 lines (review WP-25: ~110 ms per click before). *@
+@inherits BoardComponent
 
 <div class="diff-line @KindClass(Line.Kind) @(Picked ? "picked" : "")">
     <span class="gutter @(_pickable ? "pick" : "")" title="@(_pickable ? BoardText.Diff_PickLine_Hint : null)"

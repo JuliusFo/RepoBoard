@@ -20,7 +20,7 @@ Branch `wp/25-hunk-staging`, 2026-11-21, noch kein Release.
 
 ## Gebaut
 - **Core:** `HunkPatch` (`Build`, `Quote`, `HunkPatchKind`), `GitClient.ApplyToIndexAsync`, `GitRunner.RunAsync` mit `input` (stdin, UTF-8 ohne BOM, erst lesen, dann schreiben), `FileDiff.NewFileMode`/`DeletedFileMode`, `BoardService.StageHunkAsync` (durch das Tor, Fehler als `RepoState.Error`), Texte `Op_StageHunk`/`Op_StageLines`/`Op_UnstageHunk`/`Op_UnstageLines`, `Hunk_Incomplete`/`Hunk_NotUtf8`/`Hunk_SplitsLastLine`.
-- **UI:** `DiffPanel` (Knopf je Hunk, klickbarer Rand je geänderter Zeile, `ShouldRender` mit Auswahl und laufendem Stagen), `UI/State/LineSelection`, Texte `Diff_StageHunk`/`Diff_UnstageHunk`/`Diff_StageLines`/`Diff_UnstageLines` und Hinweise in `BoardText`, CSS `.diff-hunk .hunk-stage`, `.diff-line .gutter`, `.picked`.
+- **UI:** `DiffPanel` (Knopf je Hunk, `ShouldRender` mit Auswahl und laufendem Stagen), seit dem Review `DiffLineView` (Zeile mit klickbarem Rand, eigenes `ShouldRender`), `UI/State/LineSelection`, Texte `Diff_StageHunk`/`Diff_UnstageHunk`/`Diff_StageLines`/`Diff_UnstageLines` und Hinweise in `BoardText`, CSS `.diff-hunk .hunk-stage`, `.diff-line .gutter`, `.picked`.
 - **Doku:** ADR 0012, README, CHANGELOG, Architektur (UI-Konzept), Regel `git.md`, Backlog (Ziehen, Tastatur, mehrere Hunks).
 
 ## Geprüft
@@ -31,3 +31,19 @@ Branch `wp/25-hunk-staging`, 2026-11-21, noch kein Release.
   - CDP: Klick plus Shift+Klick wählt den Bereich (3 Zeilen, keine Textmarkierung), Klick hebt eine Zeile auf, „Zeilen stagen (2)“ stagt genau `-line 15`/`+line 15b added`; „Hunk unstagen“ auf dem einzigen Hunk nimmt die Datei ganz heraus, der Diff folgt auf „Nicht gestaged“; Teil der neuen Datei „neu ä.txt“ (`AM`, Index nur `n2`); CRLF-Zeile mit `\r\n` im Index; `tail` ohne Umbruch → „more“ gewählt ergibt `tail\nmore`; „Hunk stagen“ ohne Auswahl stagt den dritten Hunk.
   - Bild dunkel; Log ohne `[ERR]`/`[WRN]`.
 - Nicht geprüft: helles Theme im Bild, sehr große Diffs mit Auswahl.
+
+## Nachtrag: Code-Review (2026-11-21)
+Getrennter Reviewer-Agent über `7e39aaa..e097af3`. Entscheidung des Nutzers: „Alle beheben“ (zu 1: Teil-Stagen bei Diff-Treiber gesperrt, ganze Datei geht; zu 5: erst messen).
+
+1. S – Der Patch entstand aus dem angezeigten Diff mit textconv: eine neue Datei kam als Text des Diff-Treibers in den Index (git-crypt: Geheimnis im Klartext) → behoben: `StageHunkAsync` liest im Tor mit `--no-textconv` neu, weicht das ab, wird Teil-Stagen abgelehnt (`Hunk_DiffDriver`). Test `Parts_of_a_file_shown_through_textconv_are_not_staged`.
+2. M – „Hunk unstagen“ auf einer gestagten Umbenennung machte daraus gestagte Löschung plus ungetrackte Datei → behoben: dort immer der Patch-Weg (`wholeFile: false`). Vorher schon da, mitbehoben: das Häkchen unstagt eine Umbenennung jetzt mit beiden Pfaden. Test `A_staged_rename_keeps_its_rename_or_goes_back_as_a_whole`.
+3. M – Mit `diff.context=0` lehnte git eine Teilauswahl mit Kontext nur an einem Ende ab → behoben: `--unidiff-zero`, sobald am Anfang oder Ende Kontext fehlt. Test `Part_of_a_hunk_without_context_is_staged`.
+4. K (Verdacht) – Schreiben auf stdin ohne Zeitlimit → nicht reproduziert: ein Test mit `git daemon` (liest stdin nicht) und 4 MB Eingabe endete auch ohne Fix nach 2,8 s im Zeitlimit; `git apply` liest ohnehin zuerst. Nichts geändert.
+5. K (Verdacht) – Neu-Rendern bei jedem Klick → gemessen (E2E, 5 000 Zeilen): ~110 ms je Klick; behoben mit `DiffLineView` (eigenes `ShouldRender`): ~60 ms, Öffnen 720 → 550 ms.
+6. K – „ganze Datei“ stagte auch eine ungesehene Änderung → behoben: der im Tor neu gelesene Diff muss der gezeigte sein (`Hunk_Changed`). Test `A_diff_that_is_no_longer_current_stages_nothing_through_the_board`.
+7. K – Patch ohne Kontext ungeschützt gegen veralteten Diff → mit 6 behoben, ADR eingeschränkt.
+8. K – Letzte Zeile bekam in einer CRLF-Datei nur LF → behoben. Test `A_last_line_without_newline_gets_a_windows_one_in_a_crlf_file`.
+9. K (Verdacht) – Symlink, Submodul, Typwechsel in Teilen → behoben ohne Nachstellen im Repo (Symlinks unter Windows): `FileDiff.IsSpecialFile`, `Hunk_SpecialFile`. Test `Links_submodules_and_type_changes_are_not_staged_in_parts` (geparste Ausgabe).
+10. K – Zeilen ließen sich während des Stagens wählen und gingen danach verloren → behoben: keine Auswahl, solange gestaged wird. Ohne Test (Komponente).
+- Jeder neue Test scheiterte, als der jeweilige Fix probehalber ausgebaut war.
+- E2E nach den Fixes: Auswahl, Bereich und Aufheben per CDP; echter Klick nach dem Umbau zu `DiffLineView` nicht möglich (Windows holte das Fenster nicht nach vorn) – offen.
