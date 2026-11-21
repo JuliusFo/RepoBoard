@@ -95,24 +95,27 @@ public sealed class GitClient(GitRunner runner)
     /// <summary>
     /// The diff of one changed file (ADR 0008): staged against HEAD (a rename with its original path), unstaged against the
     /// index, a new file against nothing (<c>--no-index</c>, which ends with 1 when the files differ). Never an external diff
-    /// tool; textconv and the user's diff settings apply as in the terminal. Conflicted files are the caller's to leave out.
+    /// tool; textconv and the user's diff settings apply as in the terminal. Conflicted files and nested repositories are the
+    /// caller's to leave out. A file above <see cref="FileDiff.MaxFileBytes"/> in the worktree is not read (git would read it
+    /// whole, with every new status while the diff is open; review WP-05).
     /// </summary>
     public async Task<(FileDiff? Diff, GitResult Result)> DiffAsync(string repo, FileChange change, bool staged, CancellationToken ct)
     {
+        var file = new FileInfo(Path.Combine(repo, change.Path));
+        if (file.Exists && file.Length > FileDiff.MaxFileBytes)
+        {
+            return (FileDiff.TooLarge, new GitResult(0, "", ""));
+        }
+
         string[] options = ["diff", "--no-color", "--no-ext-diff"];
         GitResult result;
         if (change.Untracked)
         {
-            var file = new FileInfo(Path.Combine(repo, change.Path));
-            if (file.Exists && file.Length > FileDiff.MaxNewFileBytes)
-            {
-                return (FileDiff.TooLarge, new GitResult(0, "", ""));
-            }
-
             result = await Local(repo, ct, [.. options, "--no-index", "--", "/dev/null", change.Path]);
-            // 1 = the files differ. stderr may still hold a warning ("LF will be replaced by CRLF" with core.autocrlf, E2E
-            // WP-05); only "fatal:"/"error:" make it a failure.
-            if (result.ExitCode == 1 && !result.Error.Split('\n').Any(l => l.StartsWith("fatal:", StringComparison.Ordinal) || l.StartsWith("error:", StringComparison.Ordinal)))
+            // 1 = the files differ – and also an error ("Could not access …"). stderr may hold a mere warning ("LF will be
+            // replaced by CRLF" with core.autocrlf, E2E WP-05), and git's messages may be translated: a diff on stdout is
+            // what makes it a success (review WP-05), never the wording.
+            if (result.ExitCode == 1 && result.Output.Length > 0)
             {
                 result = result with { ExitCode = 0 };
             }

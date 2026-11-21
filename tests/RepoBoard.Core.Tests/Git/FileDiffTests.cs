@@ -96,6 +96,23 @@ public sealed class FileDiffTests
         Assert.Equal(["1", "2", "3"], diff.Hunks.Single().Lines.Select(l => l.Text));
     }
 
+    /// <summary>Review WP-05: a file of many long changed lines stops comparing words once its budget is spent.</summary>
+    [Fact]
+    public void Word_highlighting_stops_at_the_budget_of_the_file()
+    {
+        // 250 words and 249 spaces: 499 tokens, 249,001 token pairs per line pair – eight of them fit in the budget.
+        static string Line(string last) => string.Join(' ', Enumerable.Range(0, 249).Select(n => $"w{n}")) + " " + last;
+        var pairs = 9;
+        var lines = new List<string> { $"@@ -1,{pairs} +1,{pairs} @@" };
+        lines.AddRange(Enumerable.Repeat("-" + Line("old"), pairs));
+        lines.AddRange(Enumerable.Repeat("+" + Line("new"), pairs));
+
+        var added = FileDiff.Parse(Patch([.. lines])).Hunks.Single().Lines.Where(l => l.Kind == DiffLineKind.Added).ToList();
+
+        Assert.All(added.Take(8), l => Assert.NotEmpty(l.Changed));
+        Assert.Empty(added[8].Changed);
+    }
+
     [Theory]
     [InlineData("return a + b;", "return a - b;", "+", "-")]
     [InlineData("foo(bar)", "foo(bar, baz)", "", ", baz")]

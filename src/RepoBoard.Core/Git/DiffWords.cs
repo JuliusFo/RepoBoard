@@ -12,12 +12,23 @@ public static class DiffWords
     /// <returns>The changed spans of each side; empty for a side if the whole line or nothing in it changed.</returns>
     public static (IReadOnlyList<DiffSpan> Old, IReadOnlyList<DiffSpan> New) Compare(string oldText, string newText)
     {
+        var unlimited = long.MaxValue;
+        return Compare(oldText, newText, ref unlimited);
+    }
+
+    /// <inheritdoc cref="Compare(string, string)"/>
+    /// <param name="budget">Token pairs left for the file: the comparison is skipped if it needs more, else they are taken from it.</param>
+    public static (IReadOnlyList<DiffSpan> Old, IReadOnlyList<DiffSpan> New) Compare(string oldText, string newText, ref long budget)
+    {
         var a = Tokens(oldText);
         var b = Tokens(newText);
-        if (a.Count == 0 || b.Count == 0 || (long)a.Count * b.Count > MaxCells)
+        var cells = (long)a.Count * b.Count;
+        if (a.Count == 0 || b.Count == 0 || cells > MaxCells || cells > budget)
         {
             return ([], []);
         }
+
+        budget -= cells;
 
         // lengths[i, j]: common subsequence length of a[i..] and b[j..].
         var lengths = new int[a.Count + 1, b.Count + 1];

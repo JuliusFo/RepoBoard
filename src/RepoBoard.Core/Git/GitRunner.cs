@@ -76,6 +76,9 @@ public class GitRunner(string executable = "git")
         // IDE or a terminal working in the same repository.
         start.Environment["GIT_TERMINAL_PROMPT"] = "0";
         start.Environment["GIT_OPTIONAL_LOCKS"] = "0";
+        // Paths from the status are file names, not patterns: "[id].tsx" must not also match "i.tsx" in a diff, a stage or
+        // an unstage (review WP-05).
+        start.Environment["GIT_LITERAL_PATHSPECS"] = "1";
         if (mode == GitCallMode.Background)
         {
             start.Environment["GCM_INTERACTIVE"] = "never";

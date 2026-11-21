@@ -29,13 +29,19 @@ public sealed record DiffHunk(int OldStart, int OldCount, int NewStart, int NewC
 /// binary detection and diff drivers behave as in the terminal.
 /// </summary>
 /// <param name="IsTruncated">Only the first <c>maxLines</c> lines were kept.</param>
-/// <param name="IsTooLarge">Not read at all: a new file above <see cref="MaxNewFileBytes"/>.</param>
+/// <param name="IsTooLarge">Not read at all: the file is above <see cref="MaxFileBytes"/>.</param>
 public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBinary, bool IsTruncated, bool IsTooLarge = false)
 {
     public const int MaxLines = 5000;
 
-    /// <summary>A new file is read by git as a whole; above this size the diff is not shown.</summary>
-    public const long MaxNewFileBytes = 5 * 1024 * 1024;
+    /// <summary>git reads a file as a whole for its diff; above this size (in the worktree) the diff is not read.</summary>
+    public const long MaxFileBytes = 5 * 1024 * 1024;
+
+    /// <summary>
+    /// Token pairs the word highlighting of one file may compare in all (<see cref="DiffWords"/>); beyond them the rest of
+    /// the file keeps whole-line colours, so a reformatted file of long lines does not cost seconds (review WP-05).
+    /// </summary>
+    public const long MaxWordCells = 2_000_000;
 
     public static readonly FileDiff TooLarge = new([], false, false, IsTooLarge: true);
 
@@ -52,20 +58,18 @@ public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBina
     /// </summary>
     public static FileDiff Parse(string output, int maxLines = MaxLines)
     {
-        var lines = output.Split('\n');
+        var lines = new Lines(output);
         var hunks = new List<DiffHunk>();
+        var wordCells = MaxWordCells;
         var binary = false;
         var kept = 0;
         var truncated = false;
-        var i = 0;
-        while (i < lines.Length && !truncated)
+        while (!truncated && lines.Next() is { } line)
         {
-            var line = lines[i];
             var header = HunkHeader().Match(line.TrimEnd('\r'));
             if (!header.Success)
             {
                 binary |= line.StartsWith("Binary files ", StringComparison.Ordinal) || line.StartsWith("GIT binary patch", StringComparison.Ordinal);
-                i++;
                 continue;
             }
 
@@ -75,13 +79,12 @@ public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBina
             var newStart = Number(3);
             var newCount = Number(4);
             var section = header.Groups[5].Value;
-            i++;
 
             var hunkLines = new List<DiffLine>();
             int oldNo = oldStart, newNo = newStart, oldLeft = oldCount, newLeft = newCount;
-            while (i < lines.Length && (oldLeft > 0 || newLeft > 0 || lines[i].StartsWith('\\')))
+            while (lines.Peek() is { } raw && (oldLeft > 0 || newLeft > 0 || raw.StartsWith('\\')))
             {
-                var raw = lines[i++];
+                lines.Next();
                 if (raw.StartsWith('\\'))
                 {
                     if (hunkLines.Count > 0)
@@ -124,7 +127,7 @@ public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBina
 
             if (hunkLines.Count > 0)
             {
-                hunks.Add(new DiffHunk(oldStart, oldCount, newStart, newCount, section, PairChanges(hunkLines)));
+                hunks.Add(new DiffHunk(oldStart, oldCount, newStart, newCount, section, PairChanges(hunkLines, ref wordCells)));
             }
         }
 
@@ -132,7 +135,7 @@ public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBina
     }
 
     /// <summary>Removed lines followed by added lines replace each other: the n-th removed one pairs with the n-th added one.</summary>
-    private static List<DiffLine> PairChanges(List<DiffLine> lines)
+    private static List<DiffLine> PairChanges(List<DiffLine> lines, ref long wordCells)
     {
         var i = 0;
         while (i < lines.Count)
@@ -158,12 +161,47 @@ public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBina
             var pairs = Math.Min(addedStart - removedStart, i - addedStart);
             for (var p = 0; p < pairs; p++)
             {
-                var (removed, added) = DiffWords.Compare(lines[removedStart + p].Text, lines[addedStart + p].Text);
+                var (removed, added) = DiffWords.Compare(lines[removedStart + p].Text, lines[addedStart + p].Text, ref wordCells);
                 lines[removedStart + p] = lines[removedStart + p] with { Changed = removed };
                 lines[addedStart + p] = lines[addedStart + p] with { Changed = added };
             }
         }
 
         return lines;
+    }
+
+    /// <summary>
+    /// git's output one line at a time instead of splitting all of it first: parsing stops at <c>maxLines</c>, and a large
+    /// diff does not cost a second copy of itself (review WP-05).
+    /// </summary>
+    private sealed class Lines(string text)
+    {
+        private int _at;
+
+        public string? Peek() => _at > text.Length ? null : Read(out _);
+
+        public string? Next()
+        {
+            if (_at > text.Length)
+            {
+                return null;
+            }
+
+            var line = Read(out var next);
+            _at = next;
+            return line;
+        }
+
+        private string Read(out int next)
+        {
+            var end = text.IndexOf('\n', _at);
+            if (end < 0)
+            {
+                end = text.Length;
+            }
+
+            next = end + 1;
+            return text[_at..end];
+        }
     }
 }
