@@ -14,6 +14,8 @@ sign-in, SSH, hooks and LFS work exactly as in your terminal.
   branch.
 - **Git actions per repository:** fetch, pull (fast-forward only), push (the first push sets the upstream), fetch all.
 - **Commit:** open a row to stage or unstage files, commit the staged files or everything, commit and push.
+- **Diff:** click a changed file to see its staged or unstaged changes right next to the list – git’s own diff, with line
+  numbers and the changed words highlighted; line endings and binary files show as git sees them.
 - **Branches:** switch to a local or remote branch, create a new one; the last 15 commits with their refs.
 - **Auto-fetch and auto-pull** per repository, at an interval of 1 to 60 minutes. Auto-pull only fast-forwards a branch
   that has only fallen behind – never a merge, never over your local commits, never during a merge or rebase – and says
