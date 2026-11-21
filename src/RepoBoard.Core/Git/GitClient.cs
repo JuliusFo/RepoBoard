@@ -78,16 +78,23 @@ public sealed class GitClient(GitRunner runner)
             ? Network(repo, GitCallMode.Interactive, ct, "push", "-u", "origin", "HEAD")
             : Network(repo, GitCallMode.Interactive, ct, "push");
 
+    /// <summary>
+    /// Before a command that takes paths from the status: they are file names, not patterns – "[id].tsx" must not also match
+    /// "i.tsx" (review WP-05). Only on these commands, which start no hooks: git exports it to its children, and a hook
+    /// with a glob ("*.cs") would find nothing (second review pass WP-05).
+    /// </summary>
+    private const string LiteralPaths = "--literal-pathspecs";
+
     public Task<GitResult> StageAsync(string repo, IEnumerable<string> paths, CancellationToken ct) =>
-        Local(repo, ct, ["add", "-A", "--", .. paths]);
+        Local(repo, ct, [LiteralPaths, "add", "-A", "--", .. paths]);
 
     public Task<GitResult> StageAllAsync(string repo, CancellationToken ct) => Local(repo, ct, "add", "-A");
 
     /// <summary>Takes files out of the index; before the first commit there is no HEAD to restore from.</summary>
     public Task<GitResult> UnstageAsync(string repo, IEnumerable<string> paths, bool initial, CancellationToken ct) =>
         initial
-            ? Local(repo, ct, ["rm", "--cached", "-r", "-q", "--", .. paths])
-            : Local(repo, ct, ["restore", "--staged", "--", .. paths]);
+            ? Local(repo, ct, [LiteralPaths, "rm", "--cached", "-r", "-q", "--", .. paths])
+            : Local(repo, ct, [LiteralPaths, "restore", "--staged", "--", .. paths]);
 
     public Task<GitResult> CommitAsync(string repo, string message, CancellationToken ct) =>
         Local(repo, ct, "commit", "-m", message);
@@ -107,7 +114,7 @@ public sealed class GitClient(GitRunner runner)
             return (FileDiff.TooLarge, new GitResult(0, "", ""));
         }
 
-        string[] options = ["diff", "--no-color", "--no-ext-diff"];
+        string[] options = [LiteralPaths, "diff", "--no-color", "--no-ext-diff"];
         GitResult result;
         if (change.Untracked)
         {

@@ -1,3 +1,4 @@
+using NSubstitute;
 using RepoBoard.Core.Board;
 using RepoBoard.Core.Git;
 using RepoBoard.Core.Repos;
@@ -90,16 +91,45 @@ public sealed class GitDiffTests : IDisposable
         Assert.False((await ChangeAsync("a.txt")).IsStaged);
     }
 
-    /// <summary>Review WP-05: --no-index ends with 1 on an error too; without a diff on stdout it is the error.</summary>
-    [Fact]
-    public async Task A_new_file_gone_before_its_diff_is_an_error()
+    /// <summary>
+    /// Review WP-05: --no-index ends with 1 on an error too. Without a diff on stdout it is the error – whatever language
+    /// git speaks (the sandbox's git answers in English, so the translated message comes from a substitute).
+    /// </summary>
+    [Theory]
+    [InlineData("error: Could not access 'gone.txt'")]
+    [InlineData("Fehler: Konnte nicht auf 'gone.txt' zugreifen")]
+    public async Task A_new_file_gone_before_its_diff_is_an_error(string message)
     {
+        var runner = Substitute.ForPartsOf<GitRunner>("git");
+        runner.RunAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<GitCallMode>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
+            .Returns(new GitResult(1, "", message));
         var gone = new FileChange("gone.txt", null, '.', '?', Untracked: true, Conflict: false);
 
-        var (diff, result) = await _client.DiffAsync(_git.Mine, gone, staged: false, Ct);
+        var (diff, result) = await new GitClient(runner).DiffAsync(_git.Mine, gone, staged: false, Ct);
 
         Assert.Null(diff);
         Assert.False(result.Success);
+    }
+
+    /// <summary>
+    /// Second review pass WP-05: literal paths only on RepoBoard's own path commands – a hook started by a commit from
+    /// RepoBoard still matches globs as in the terminal (ADR 0002).
+    /// </summary>
+    [Fact]
+    public async Task A_hook_still_matches_globs()
+    {
+        var hook = Path.Combine(_git.Mine, ".git", "hooks", "pre-commit");
+        File.WriteAllText(hook, "#!/bin/sh\ngit ls-files -- '*.txt' > .git/hook-out.txt\n");
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(hook, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+
+        File.WriteAllText(Path.Combine(_git.Mine, "b.txt"), "b");
+        await _client.StageAsync(_git.Mine, ["b.txt"], Ct);
+        Assert.True((await _client.CommitAsync(_git.Mine, "b", Ct)).Success);
+
+        Assert.Contains("a.txt", File.ReadAllText(Path.Combine(_git.Mine, ".git", "hook-out.txt")), StringComparison.Ordinal);
     }
 
     [Fact]
