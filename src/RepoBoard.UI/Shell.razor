@@ -183,20 +183,31 @@
     });
 
     /// <summary>A repository's worktrees start closed (decision of the user) and stay as set while the app runs.</summary>
-    private Task ToggleWorktrees(RepoState repo) => GuardAsync(async () =>
+    private void ToggleWorktrees(RepoState repo)
     {
-        if (_worktreesOpen.Add(repo))
+        if (!_worktreesOpen.Remove(repo))
         {
-            return;
+            _worktreesOpen.Add(repo);
         }
+    }
 
-        // Closing the group closes its opened rows too: hidden, they would read branches and history with every status.
-        _worktreesOpen.Remove(repo);
-        foreach (var worktree in repo.Worktrees.Where(_expanded.Remove))
+    /// <summary>
+    /// An opened worktree row that is no longer shown – its group closed, the filter or search changed, the worktree removed –
+    /// is closed too: hidden, it would read branches and history with every status (review WP-04).
+    /// </summary>
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        var shown = BoardFilter.ShownWorktrees(Board.Repos, _worktreesOpen.Contains, _filter, _search).ToHashSet();
+        var hidden = _expanded.Where(r => r.IsWorktree && !shown.Contains(r)).ToList();
+        return hidden.Count == 0 ? Task.CompletedTask : GuardAsync(async () =>
         {
-            await Board.SetWantsDetailsAsync(worktree, false, default);
-        }
-    });
+            foreach (var worktree in hidden)
+            {
+                _expanded.Remove(worktree);
+                await Board.SetWantsDetailsAsync(worktree, false, default);
+            }
+        });
+    }
 
     private Task FetchAll() => GuardAsync(() => Board.FetchAllAsync(default));
 

@@ -55,6 +55,10 @@ public static class BoardFilter
     public static IEnumerable<RepoState> VisibleWorktrees(RepoState repo, bool groupOpen, BoardFilterKind kind, string search) =>
         repo.Worktrees.Where(w => groupOpen || (IsNarrowed(kind, search) && Shows(w, kind, search)));
 
+    /// <summary>Every worktree row the table shows, under every repository it shows.</summary>
+    public static IEnumerable<RepoState> ShownWorktrees(IEnumerable<RepoState> repos, Func<RepoState, bool> groupOpen, BoardFilterKind kind, string search) =>
+        Visible(repos, kind, search).SelectMany(r => VisibleWorktrees(r, groupOpen(r), kind, search));
+
     /// <summary>The number on a chip: repositories for "all", every row that answers yes – worktrees too – for the others.</summary>
     public static int Count(IEnumerable<RepoState> repos, BoardFilterKind kind) =>
         kind == BoardFilterKind.All
