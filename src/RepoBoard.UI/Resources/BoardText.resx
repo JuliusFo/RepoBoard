@@ -353,4 +353,48 @@ Log: {1}</value>
     <value>Off</value>
     <comment>Notifications switched off</comment>
   </data>
+  <data name="Diff_Show_Hint" xml:space="preserve">
+    <value>Show the changes in this file</value>
+  </data>
+  <data name="Diff_Close_Hint" xml:space="preserve">
+    <value>Close the diff (Esc)</value>
+  </data>
+  <data name="Diff_Staged" xml:space="preserve">
+    <value>Staged</value>
+    <comment>Label of a diff: the changes already in the index</comment>
+  </data>
+  <data name="Diff_Unstaged" xml:space="preserve">
+    <value>Not staged</value>
+    <comment>Label of a diff: the changes not yet in the index</comment>
+  </data>
+  <data name="Diff_Renamed" xml:space="preserve">
+    <value>Renamed from {0}</value>
+    <comment>{0} = the file's previous path</comment>
+  </data>
+  <data name="Diff_Binary" xml:space="preserve">
+    <value>Binary file – there is no text diff.</value>
+  </data>
+  <data name="Diff_NestedRepository" xml:space="preserve">
+    <value>This folder is a repository of its own – there is no diff for it here.</value>
+  </data>
+  <data name="Diff_TooLarge" xml:space="preserve">
+    <value>This file is larger than {0} MB – its diff is not shown.</value>
+    <comment>{0} = size limit in megabytes</comment>
+  </data>
+  <data name="Diff_Truncated" xml:space="preserve">
+    <value>Only the first {0:N0} lines are shown.</value>
+    <comment>{0} = number of lines</comment>
+  </data>
+  <data name="Diff_NoTextChanges" xml:space="preserve">
+    <value>No text changes – for example, only the file mode changed.</value>
+  </data>
+  <data name="Diff_Conflict" xml:space="preserve">
+    <value>This file has conflicts. Open it in your editor to resolve them.</value>
+  </data>
+  <data name="Diff_NoNewline" xml:space="preserve">
+    <value>No newline at end of file</value>
+  </data>
+  <data name="Diff_Cr" xml:space="preserve">
+    <value>Windows line ending (CR LF)</value>
+  </data>
 </root>

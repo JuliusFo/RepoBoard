@@ -1,0 +1,189 @@
+@* The diff of one changed file in the opened row (WP-05, ADR 0008): git's own diff, inline, read again with each new status. *@
+@inherits BoardComponent
+
+<section class="pane diff-pane" tabindex="-1" @ref="_pane" @onkeydown="OnKeyDown">
+    <header>
+        <h3 class="diff-title" title="@Change.Path">
+            <span class="path">@Change.Path</span>
+        </h3>
+        <span class="diff-side @(Staged ? "staged" : "")">@(Staged ? BoardText.Diff_Staged : BoardText.Diff_Unstaged)</span>
+        <button class="btn small ghost icon-only" title="@BoardText.Diff_Close_Hint" @onclick="OnClose">@Icons.Close</button>
+    </header>
+    @if (Change.OriginalPath is { } from)
+    {
+        <p class="muted diff-note">@TextFormat.Format(BoardText.Diff_Renamed, from)</p>
+    }
+
+    @if (Change.Conflict)
+    {
+        <p class="muted">@BoardText.Diff_Conflict</p>
+    }
+    else if (Change.IsNestedRepository)
+    {
+        <p class="muted">@BoardText.Diff_NestedRepository</p>
+    }
+    else if (_error is { } error)
+    {
+        <p class="diff-error">@error</p>
+    }
+    else if (_diff is null)
+    {
+        <p class="muted">@BoardText.Loading</p>
+    }
+    else if (_diff.IsBinary)
+    {
+        <p class="muted">@BoardText.Diff_Binary</p>
+    }
+    else if (_diff.IsTooLarge)
+    {
+        <p class="muted">@TextFormat.Format(BoardText.Diff_TooLarge, FileDiff.MaxFileBytes / (1024 * 1024))</p>
+    }
+    else if (_diff.HasNoTextChanges)
+    {
+        <p class="muted">@BoardText.Diff_NoTextChanges</p>
+    }
+    else
+    {
+        <div class="diff">
+            @foreach (var hunk in _diff.Hunks)
+            {
+                <div class="diff-hunk">@($"@@ -{hunk.OldStart},{hunk.OldCount} +{hunk.NewStart},{hunk.NewCount} @@") <span>@hunk.Section</span></div>
+                @foreach (var line in hunk.Lines)
+                {
+                    <div class="diff-line @KindClass(line.Kind)">
+                        <span class="no">@line.OldNumber</span><span class="no">@line.NewNumber</span><span class="sign">@Sign(line.Kind)</span><span class="text">@foreach (var (text, changed) in Segments(line))
+                            {
+                                @if (changed)
+                                {
+                                    <mark>@text</mark>
+                                }
+                                else
+                                {
+                                    @text
+                                }
+                            }@if (line.EndsWithCr)
+                            {
+                                <span class="eol" title="@BoardText.Diff_Cr">␍</span>
+                            }@if (line.NoNewlineAtEnd)
+                            {
+                                <span class="eol" title="@BoardText.Diff_NoNewline">⊘</span>
+                            }</span>
+                    </div>
+                }
+            }
+        </div>
+        @if (_diff.IsTruncated)
+        {
+            <p class="muted diff-note">@TextFormat.Format(BoardText.Diff_Truncated, FileDiff.MaxLines)</p>
+        }
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public RepoState Repo { get; set; } = null!;
+    [Parameter, EditorRequired] public FileChange Change { get; set; } = null!;
+    [Parameter] public bool Staged { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private ElementReference _pane;
+    private FileDiff? _diff;
+    private string? _error;
+
+    // What the shown diff was read for: a new status (every refresh, also when only the file's content changed), another
+    // file or the other side reads it again; any other render of the page does not.
+    private (RepoStatus? Status, string Path, bool Staged)? _readFor;
+    private int _reads;
+
+    // What the markup last showed: the page renders on every change of any repository, the lines only when this changes
+    // (review WP-05 – up to 5,000 lines).
+    private (FileDiff? Diff, string? Error, FileChange Change, bool Staged)? _shown;
+
+    protected override bool ShouldRender()
+    {
+        var now = (_diff, _error, Change, Staged);
+        if (_shown == now)
+        {
+            return false;
+        }
+
+        _shown = now;
+        return true;
+    }
+
+    protected override void OnParametersSet()
+    {
+        var key = (Repo.Status, Change.Path, Staged);
+        if (_readFor == key || Change.Conflict || Change.IsNestedRepository)
+        {
+            return;
+        }
+
+        var otherFile = _readFor is not { } before || before.Path != key.Path || before.Staged != key.Staged;
+        _readFor = key;
+        if (otherFile)
+        {
+            // Another file: no stale diff while the new one loads. The same file keeps its diff until the new one is there.
+            _diff = null;
+            _error = null;
+        }
+
+        var read = ++_reads;
+        var change = Change;
+        var staged = Staged;
+        Fire(async () =>
+        {
+            var (diff, error) = await Board.DiffAsync(Repo, change, staged, default);
+            if (read == _reads)
+            {
+                (_diff, _error) = (diff, error);
+                StateHasChanged();
+            }
+        });
+    }
+
+    /// <summary>Esc closes the diff: the keys reach the pane only while it has the focus. Called after a click on a file.</summary>
+    public ValueTask FocusAsync() => _pane.FocusAsync(preventScroll: true);
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+
+    private static string KindClass(DiffLineKind kind) => kind switch
+    {
+        DiffLineKind.Added => "add",
+        DiffLineKind.Removed => "del",
+        _ => "",
+    };
+
+    private static string Sign(DiffLineKind kind) => kind switch
+    {
+        DiffLineKind.Added => "+",
+        DiffLineKind.Removed => "−",
+        _ => " ",
+    };
+
+    /// <summary>The line's text cut at its changed spans (word highlighting).</summary>
+    private static IEnumerable<(string Text, bool Changed)> Segments(DiffLine line)
+    {
+        var at = 0;
+        foreach (var span in line.Changed)
+        {
+            if (span.Start > at)
+            {
+                yield return (line.Text[at..span.Start], false);
+            }
+
+            yield return (line.Text.Substring(span.Start, span.Length), true);
+            at = span.Start + span.Length;
+        }
+
+        if (at < line.Text.Length)
+        {
+            yield return (line.Text[at..], false);
+        }
+    }
+}

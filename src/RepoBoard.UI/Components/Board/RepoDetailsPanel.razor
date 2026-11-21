@@ -1,7 +1,10 @@
-@* The opened row: changes and commit, branches, recent history. *@
+@* The opened row: changes and commit, branches, recent history; a selected file's diff in place of the last two. *@
 @inherits BoardComponent
 
-<div class="details">
+@{
+    var selected = DiffSelection.Resolve(_diffTarget, Status);
+}
+<div class="details @(selected is not null ? "diff-open" : "")">
     <section class="pane">
         <header>
             <h3>@BoardText.Changes</h3>
@@ -29,11 +32,13 @@
                     <div class="files-head">@TextFormat.Format(BoardText.Staged_Head, staged.Count)</div>
                     @foreach (var file in staged)
                     {
-                        <label class="file" title="@Title(file)">
-                            <input type="checkbox" checked @onchange="() => GuardAsync(() => Board.UnstageAsync(Repo, [file.Path], default))" />
-                            <span class="letter l-@LetterClass(file.Letter(true))">@file.Letter(true)</span>
-                            <span class="path">@file.Path</span>
-                        </label>
+                        <div class="file @(IsSelected(selected, file, true) ? "selected" : "")" @key="StagedKey(file)">
+                            <label title="@Title(file)">
+                                <input type="checkbox" checked @onchange="() => GuardAsync(() => Board.UnstageAsync(Repo, [file.Path], default))" />
+                                <span class="letter l-@LetterClass(file.Letter(true))">@file.Letter(true)</span>
+                            </label>
+                            <button class="path" title="@BoardText.Diff_Show_Hint" @onclick="() => Select(file, true)"><span>@file.Path</span></button>
+                        </div>
                     }
                 }
                 @if (unstaged.Count > 0)
@@ -41,11 +46,13 @@
                     <div class="files-head">@TextFormat.Format(BoardText.Unstaged_Head, unstaged.Count)</div>
                     @foreach (var file in unstaged)
                     {
-                        <label class="file" title="@Title(file)">
-                            <input type="checkbox" @onchange="() => GuardAsync(() => Board.StageAsync(Repo, [file.Path], default))" />
-                            <span class="letter l-@LetterClass(file.Letter(false))">@file.Letter(false)</span>
-                            <span class="path">@file.Path</span>
-                        </label>
+                        <div class="file @(IsSelected(selected, file, false) ? "selected" : "")" @key="UnstagedKey(file)">
+                            <label title="@Title(file)">
+                                <input type="checkbox" @onchange="() => GuardAsync(() => Board.StageAsync(Repo, [file.Path], default))" />
+                                <span class="letter l-@LetterClass(file.Letter(false))">@file.Letter(false)</span>
+                            </label>
+                            <button class="path" title="@BoardText.Diff_Show_Hint" @onclick="() => Select(file, false)"><span>@file.Path</span></button>
+                        </div>
                     }
                 }
             </div>
@@ -61,71 +68,78 @@
         </div>
     </section>
 
-    <section class="pane">
-        <header>
-            <h3>@BoardText.Branches</h3>
-        </header>
-        <form class="new-branch" @onsubmit="CreateBranch">
-            <input placeholder="@BoardText.NewBranch_Placeholder" @bind="_newBranch" @bind:event="oninput" />
-            <button class="btn small" type="submit" disabled="@string.IsNullOrWhiteSpace(_newBranch)">@Icons.Plus @BoardText.NewBranch_Create</button>
-        </form>
-        @if (Repo.Details is { } details)
-        {
-            <div class="branch-list">
-                @foreach (var branch in details.Branches)
-                {
-                    <div class="branch-item @(branch.IsCurrent ? "current" : "") @(branch.IsRemote ? "remote" : "")">
-                        <span class="b-name" title="@branch.Name">@(branch.IsCurrent ? Icons.Check : Icons.Branch) @branch.Name</span>
-                        <span class="b-track">@branch.Track</span>
-                        <span class="b-when">@branch.LastCommit</span>
-                        @if (!branch.IsCurrent)
-                        {
-                            <button class="btn small ghost" title="@BoardText.Switch_Hint" @onclick="() => GuardAsync(() => Board.SwitchAsync(Repo, branch, default))">@BoardText.Switch</button>
-                        }
-                    </div>
-                }
-            </div>
-        }
-        else
-        {
-            <p class="muted">@BoardText.Loading</p>
-        }
-    </section>
-
-    <section class="pane">
-        <header>
-            <h3>@BoardText.RecentCommits</h3>
-        </header>
-        @if (Repo.Details is null)
-        {
-            <p class="muted">@BoardText.Loading</p>
-        }
-        else if (Repo.Details.Log.Count == 0)
-        {
-            <p class="muted">@BoardText.NoCommits</p>
-        }
-        else
-        {
-            <div class="log">
-                @foreach (var commit in Repo.Details.Log)
-                {
-                    <div class="commit-item">
-                        <div class="c-line">
-                            <code>@commit.Hash</code>
-                            <span class="c-subject" title="@commit.Subject">@commit.Subject</span>
-                        </div>
-                        <div class="c-meta">
-                            @commit.Author · @commit.When
-                            @foreach (var r in Refs(commit))
+    @if (selected is { } diff)
+    {
+        <DiffPanel @ref="_diffPanel" Repo="Repo" Change="diff.Change" Staged="diff.Staged" OnClose="CloseDiff" />
+    }
+    else
+    {
+        <section class="pane">
+            <header>
+                <h3>@BoardText.Branches</h3>
+            </header>
+            <form class="new-branch" @onsubmit="CreateBranch">
+                <input placeholder="@BoardText.NewBranch_Placeholder" @bind="_newBranch" @bind:event="oninput" />
+                <button class="btn small" type="submit" disabled="@string.IsNullOrWhiteSpace(_newBranch)">@Icons.Plus @BoardText.NewBranch_Create</button>
+            </form>
+            @if (Repo.Details is { } details)
+            {
+                <div class="branch-list">
+                    @foreach (var branch in details.Branches)
+                    {
+                        <div class="branch-item @(branch.IsCurrent ? "current" : "") @(branch.IsRemote ? "remote" : "")">
+                            <span class="b-name" title="@branch.Name">@(branch.IsCurrent ? Icons.Check : Icons.Branch) @branch.Name</span>
+                            <span class="b-track">@branch.Track</span>
+                            <span class="b-when">@branch.LastCommit</span>
+                            @if (!branch.IsCurrent)
                             {
-                                <span class="ref">@r</span>
+                                <button class="btn small ghost" title="@BoardText.Switch_Hint" @onclick="() => GuardAsync(() => Board.SwitchAsync(Repo, branch, default))">@BoardText.Switch</button>
                             }
                         </div>
-                    </div>
-                }
-            </div>
-        }
-    </section>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="muted">@BoardText.Loading</p>
+            }
+        </section>
+
+        <section class="pane">
+            <header>
+                <h3>@BoardText.RecentCommits</h3>
+            </header>
+            @if (Repo.Details is null)
+            {
+                <p class="muted">@BoardText.Loading</p>
+            }
+            else if (Repo.Details.Log.Count == 0)
+            {
+                <p class="muted">@BoardText.NoCommits</p>
+            }
+            else
+            {
+                <div class="log">
+                    @foreach (var commit in Repo.Details.Log)
+                    {
+                        <div class="commit-item">
+                            <div class="c-line">
+                                <code>@commit.Hash</code>
+                                <span class="c-subject" title="@commit.Subject">@commit.Subject</span>
+                            </div>
+                            <div class="c-meta">
+                                @commit.Author · @commit.When
+                                @foreach (var r in Refs(commit))
+                                {
+                                    <span class="ref">@r</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </section>
+    }
 </div>
 
 @code {
@@ -134,8 +148,49 @@
     private string _message = "";
     private string _newBranch = "";
 
+    /// <summary>The file whose diff is open (page state only); resolved against each new status.</summary>
+    private DiffTarget? _diffTarget;
+
+    private DiffPanel? _diffPanel;
+
+    /// <summary>Only a click on a file moves the focus to its diff (for Esc) – never a diff that a new status brought.</summary>
+    private bool _focusDiff;
+
+    protected override void OnParametersSet() => _diffTarget = DiffSelection.Next(_diffTarget, Status);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusDiff)
+        {
+            _focusDiff = false;
+            if (_diffPanel is { } panel)
+            {
+                await panel.FocusAsync();
+            }
+        }
+    }
+
     private RepoStatus? Status => Repo.Status;
     private bool CanCommit => Status is { IsClean: false, Conflicts: 0 } && !string.IsNullOrWhiteSpace(_message) && Repo.Busy is null;
+
+    // A row per file and side (a partly staged file is in both lists, which share one parent): without a key Blazor reuses
+    // the row of a file that moved to the other list for the next file – with the checkbox the click left ticked (E2E
+    // review WP-05; a click on it would have staged that next file).
+    private static string StagedKey(FileChange file) => "s:" + file.Path;
+    private static string UnstagedKey(FileChange file) => "u:" + file.Path;
+
+    private static bool IsSelected((FileChange Change, bool Staged)? selected, FileChange file, bool staged) =>
+        selected is { } s && s.Staged == staged && s.Change.Path == file.Path;
+
+    /// <summary>A click on a file opens its diff; on the open one, closes it.</summary>
+    private void Select(FileChange file, bool staged)
+    {
+        var target = new DiffTarget(file.Path, staged);
+        _diffTarget = _diffTarget == target ? null : target;
+        _focusDiff = _diffTarget is not null;
+    }
+
+    private void CloseDiff() => _diffTarget = null;
 
     private static string Title(FileChange file) =>
         file.OriginalPath is { } from ? $"{from} → {file.Path}" : file.Path;

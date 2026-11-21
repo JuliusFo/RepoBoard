@@ -45,6 +45,9 @@
   <data name="Op_Unstage" xml:space="preserve">
     <value>Unstagen</value>
   </data>
+  <data name="Op_Diff" xml:space="preserve">
+    <value>Diff</value>
+  </data>
   <data name="Op_Commit" xml:space="preserve">
     <value>Commit</value>
   </data>

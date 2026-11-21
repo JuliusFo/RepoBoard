@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Diff view (WP-05): a click on a changed file in an opened row shows its staged or unstaged changes next to the list, in place of branches and history – git’s own diff, inline, with old and new line numbers, the changed words highlighted, Windows line endings and a missing newline at the end marked, binary files named. The diff follows the file when you stage or unstage it and is read again with each new status; Esc, the X or a second click closes it.
+
 ## [0.1.0] - 2026-11-21
 
 ### Security

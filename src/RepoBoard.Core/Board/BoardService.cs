@@ -267,6 +267,24 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         }
     }
 
+    /// <summary>
+    /// The diff of one changed file for the opened row. Only reads: it does not wait for the repository's gate and leaves
+    /// <see cref="RepoState.Error"/> alone – a failure is shown in place of the diff. Runs on the thread pool: the UI calls it
+    /// from the renderer's context, where reading and parsing a large diff would stall the window (review WP-05).
+    /// </summary>
+    public async Task<(FileDiff? Diff, string? Error)> DiffAsync(RepoState repo, FileChange change, bool staged, CancellationToken ct)
+    {
+        try
+        {
+            var (diff, result) = await Task.Run(() => git.DiffAsync(repo.Path, change, staged, ct), ct);
+            return diff is not null ? (diff, null) : (null, TextFormat.Format(SyncText.OperationFailed, SyncText.Op_Diff, result.Message));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return (null, TextFormat.Format(SyncText.OperationFailed, SyncText.Op_Diff, ex.Message));
+        }
+    }
+
     // ---------- operations (clicks) ----------
 
     /// <summary>"Fetch all" – the button on the page and the tray's menu.</summary>

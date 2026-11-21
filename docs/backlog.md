@@ -14,7 +14,20 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - Beenden während eines Auto-Pulls bricht `git merge --ff-only` nach 3 s ab (`host.StopAsync`, `GitRunner` beendet den Prozessbaum): lokale Arbeit bleibt, aber ein halb aktualisierter Worktree oder `index.lock` kann liegen bleiben. Seit `--exit` (WP-02) gibt es dafür einen Auslöser von außen, seit WP-10 auch „Jetzt neu starten“ in der Kopfzeile (ein Klick ohne Rückfrage); laufende Operationen beim Beenden bis zum Zeitlimit zu Ende laufen lassen (Review WP-02, vorher schon da).
 - Status-Durchlauf alle 20 s über alle Repos: bei sehr vielen Repos messen (Prozessstarts); Abhilfe in WP-03.
 - WebView-Bild nach Ruhezustand/Dock/RDP: FerretSharp hat `WebViewCapture`/`CopyFence` (ADR 0038/0039 dort); hier nur das WebView2-Pin. Tritt es auf, von dort übernehmen.
+- Klicks und Hover wirken leicht verzögert (Nutzer, WP-05 E2E, 2026-11-21, Testinstanz 1440×900): vermutlich FerretSharps „fix/typing-delay“ (ADR 0039 dort) – das `WebView2CompositionControl` kopiert jedes Bild auf der GPU, WPF präsentiert manchmal vor dem Ende der Kopie und zeigt die Änderung erst mit dem nächsten Bild. Abhilfe dort: `CopyFence` (nach jeder Kopie auf die GPU warten) in `WebViewCapture`. Vorschlag (nicht bestätigt): als `fix/…` übernehmen und mit echter Eingabe messen.
 - Ein Push ohne Remote `origin` (anderer Name) setzt keinen Upstream – Remote wählen lassen.
+
+## Diff (Fortsetzung von WP-05)
+
+- Side-by-Side als zweite Ansicht neben inline (der Nutzer wollte erst nur inline, 2026-11-21); Auswahl merken.
+- Zeilennummern beim seitlichen Scrollen stehen lassen (`position: sticky` links); heute scrollen sie mit.
+- Syntax-Highlighting (ADR 0008: bewusst ohne Monaco) – z. B. ein kleiner Tokenizer je Sprache oder doch eine Bibliothek, dann per ADR.
+- Kodierungen außer UTF-8 (Windows-1252, UTF-16): `GitRunner` liest UTF-8, solche Dateien erscheinen mit Ersatzzeichen.
+- Diff im externen Werkzeug öffnen (`git difftool`, VS Code `--diff`).
+- Mit Tastatur durch die Dateiliste (↑/↓ wechselt den Diff).
+- Hunks und Zeilen stagen: WP-25 (Roadmap).
+- Größengrenze bei gelöschten Dateien (Review WP-05, Punkt 11): gemessen wird die Datei im Worktree – eine gelöschte große Datei hat keine, git liest ihren Diff bei offenem Diff alle 20 s ganz ein (geparst wird höchstens bis 5 000 Zeilen, nicht auf dem UI-Thread). Abhilfe: Größe aus Index bzw. HEAD (`git cat-file -s :<pfad>` / `HEAD:<pfad>`).
+- Scheitert ein Stagen per Häkchen, bleibt das vom Klick gesetzte Häkchen in der Liste „Nicht gestaged“ stehen (`checked` dort nicht gebunden; vorher schon da, Review WP-05).
 
 ## Infobereich und Benachrichtigungen (Fortsetzung von WP-02)
 
