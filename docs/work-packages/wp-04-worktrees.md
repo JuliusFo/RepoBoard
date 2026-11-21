@@ -31,7 +31,7 @@ Branch `wp/04-worktrees`, 2026-11-21, noch ohne Release.
 - **Doku:** ADR 0010, README, CHANGELOG, Architektur (Board, UI-Konzept), Roadmap (WP-04 raus), Backlog (Worktrees).
 
 ## Geprüft
-- `dotnet build -warnaserror`, `dotnet test`: Core 172, UI 93 grün, nach dem Review 178 und 93; `WorktreeTests` gegen echte Repos (Liste, Claude-Erkennung, Hinzufügen eines Worktrees, Scanner mit Submodul, Entfernen sauber/mit Änderungen je Art/gesperrt, ignorierte Dateien, Aufräumen mit allen Gründen und Nicht-Fällen, Fetch frischt Worktrees auf).
+- `dotnet build -warnaserror`, `dotnet test`: Core 172, UI 93 grün, nach dem Review 177 und 93; `WorktreeTests` gegen echte Repos (Liste, Claude-Erkennung, Hinzufügen eines Worktrees, Scanner mit Submodul, Entfernen sauber/mit Änderungen je Art/gesperrt, ignorierte Dateien, Aufräumen mit allen Gründen und Nicht-Fällen, Fetch frischt Worktrees auf).
 - E2E (2026-11-21, Testinstanz mit `--data-dir` im Scratchpad, Repo `project` mit Bare-Remote und sieben Worktrees: detached, mit Änderungen, gesperrt, gemergt mit `bin/` und `.env`, Ordner verschoben, Claude frisch, Claude mit gelöschtem Upstream). Eingeschleuste Eingaben kamen durch (`Test-InjectedInput.ps1`), Klicks mit `Invoke-RealClick.ps1`:
   - Klick aufs Zähler-Badge klappt die Gruppe auf, ohne die Zeile zu öffnen; Chips zählen richtig (Änderungen 1, Voraus 4, Probleme 1 = fehlender Ordner).
   - „Aufräumen …“: vorgeschlagen detached, gemergt (mit `.env` und `bin/` als „wird mitgelöscht“), Ordner fehlt, Claude gone; Claude-Hinweis. Detached abgehakt (Knopf „3 Worktrees entfernen“), entfernt: drei weg, detached bleibt, alle Branches bleiben, der verschobene Ordner unberührt.
