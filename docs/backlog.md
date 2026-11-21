@@ -26,6 +26,8 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - Diff im externen Werkzeug öffnen (`git difftool`, VS Code `--diff`).
 - Mit Tastatur durch die Dateiliste (↑/↓ wechselt den Diff).
 - Hunks und Zeilen stagen: WP-25 (Roadmap).
+- Größengrenze bei gelöschten Dateien (Review WP-05, Punkt 11): gemessen wird die Datei im Worktree – eine gelöschte große Datei hat keine, git liest ihren Diff bei offenem Diff alle 20 s ganz ein (geparst wird höchstens bis 5 000 Zeilen, nicht auf dem UI-Thread). Abhilfe: Größe aus Index bzw. HEAD (`git cat-file -s :<pfad>` / `HEAD:<pfad>`).
+- Scheitert ein Stagen per Häkchen, bleibt das vom Klick gesetzte Häkchen in der Liste „Nicht gestaged“ stehen (`checked` dort nicht gebunden; vorher schon da, Review WP-05).
 
 ## Infobereich und Benachrichtigungen (Fortsetzung von WP-02)
 
