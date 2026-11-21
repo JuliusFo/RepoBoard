@@ -43,7 +43,12 @@ Getrennter Reviewer-Agent über `7e39aaa..e097af3`. Entscheidung des Nutzers: �
 6. K – „ganze Datei“ stagte auch eine ungesehene Änderung → behoben: der im Tor neu gelesene Diff muss der gezeigte sein (`Hunk_Changed`). Test `A_diff_that_is_no_longer_current_stages_nothing_through_the_board`.
 7. K – Patch ohne Kontext ungeschützt gegen veralteten Diff → mit 6 behoben, ADR eingeschränkt.
 8. K – Letzte Zeile bekam in einer CRLF-Datei nur LF → behoben. Test `A_last_line_without_newline_gets_a_windows_one_in_a_crlf_file`.
-9. K (Verdacht) – Symlink, Submodul, Typwechsel in Teilen → behoben ohne Nachstellen im Repo (Symlinks unter Windows): `FileDiff.IsSpecialFile`, `Hunk_SpecialFile`. Test `Links_submodules_and_type_changes_are_not_staged_in_parts` (geparste Ausgabe).
+9. K (Verdacht) – Symlink, Submodul, Typwechsel in Teilen → behoben ohne Nachstellen im Repo (Symlinks unter Windows): `FileDiff.IsSpecialFile`, `Hunk_SpecialFile`. Test `Links_and_submodules_are_not_staged_in_parts` (geparste Ausgabe); Typwechsel seit 13 als zwei Dateien.
 10. K – Zeilen ließen sich während des Stagens wählen und gingen danach verloren → behoben: keine Auswahl, solange gestaged wird. Ohne Test (Komponente).
 - Jeder neue Test scheiterte, als der jeweilige Fix probehalber ausgebaut war.
 - E2E nach den Fixes: Auswahl, Bereich und Aufheben per CDP; echter Klick nach dem Umbau zu `DiffLineView` nicht möglich (Windows holte das Fenster nicht nach vorn) – offen.
+
+Zweiter Durchgang (Fix-Commits `e097af3..b10bf6c`; Nutzer: „Alle beheben“):
+11. M – Das Neu-Lesen im Tor parste den Diff zweimal auf dem UI-Thread (Regression aus 1) → behoben: `StageHunkAsync` arbeitet über `Task.Run` (`StageHunkCoreAsync`), wie `DiffAsync`. Ohne Test (UI-Thread).
+12. K (Verdacht) – Gleich nach dem Stagen war der Knopf am nächsten Hunk aktiv, obwohl der neue Diff noch lud → „Die Datei hat sich geändert“ → im E2E nachgestellt (ohne Fix: Fehlerzeile, mit Fix: beide Hunks gestaged), behoben: Knöpfe aus, bis der Diff zum neuen Status gelesen ist (`_current`).
+13. K – Eine von `diff -M` nicht gepaarte Umbenennung bekam die Meldung zu Links und Submodulen → eigener Fall `IsTwoFiles` mit Meldung `Hunk_TwoFiles`; `IsSpecialFile` nur noch bei `120000`/`160000`. Test `A_deleted_and_an_added_file_in_one_diff_are_not_staged_in_parts`.
