@@ -248,19 +248,23 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     /// <summary>How often the tick reads a repository a file watcher sees (decision of the user, 2026-11-21).</summary>
     public static readonly TimeSpan WatchedRefresh = TimeSpan.FromMinutes(2);
 
+    /// <summary>A repository with an error (a status that failed, too) is read on every tick, as without a watcher.</summary>
     private bool IsStale(RepoState repo) =>
-        !repo.Watched || repo.StatusReadAt is not { } read || time.GetUtcNow() - read >= WatchedRefresh;
+        !repo.Watched || repo.Error is not null || repo.StatusReadAt is not { } read || time.GetElapsedTime(read) >= WatchedRefresh;
 
     /// <summary>After a fetch or pull in a repository: its worktrees share the refs, their ahead and behind changed too.</summary>
     private Task RefreshWorktreesAsync(RepoState repo, CancellationToken ct, RepoState? except = null) =>
         Task.WhenAll(repo.Worktrees.Where(w => w != except).Select(w => RefreshAsync(w, ct)));
 
-    /// <summary>Reads the status again; skipped while an operation runs on the repository (it refreshes when done).</summary>
-    public async Task RefreshAsync(RepoState repo, CancellationToken ct)
+    /// <summary>
+    /// Reads the status again; skipped while an operation runs on the repository (it refreshes when done). False when
+    /// skipped – the file watcher tries again (review WP-03).
+    /// </summary>
+    public async Task<bool> RefreshAsync(RepoState repo, CancellationToken ct)
     {
         if (!await repo.Gate.WaitAsync(0, ct))
         {
-            return;
+            return false;
         }
 
         try
@@ -277,13 +281,17 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             repo.Gate.Release();
             Notify();
         }
+
+        return true;
     }
 
     private async Task RefreshCoreAsync(RepoState repo, CancellationToken ct)
     {
-        repo.StatusReadAt = time.GetUtcNow();
+        // Set only once the status is read: a failed read does not hide the change a watcher saw (review WP-03).
+        var started = time.GetTimestamp();
         if (!Directory.Exists(repo.Path))
         {
+            repo.StatusReadAt = started;
             repo.Missing = true;
             repo.Status = null;
             repo.Worktrees = [];
@@ -300,6 +308,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         }
 
         repo.Status = status;
+        repo.StatusReadAt = started;
         if (repo.GitDir is { } dir)
         {
             repo.LastFetch = GitClient.LastFetchIn(dir);
@@ -734,12 +743,18 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             return;
         }
 
-        repo.ReplaceWorktrees(known, [.. list.Skip(1).Where(w => !w.IsBare).Select(info =>
+        ImmutableList<RepoState> next = [.. list.Skip(1).Where(w => !w.IsBare).Select(info =>
         {
             var worktree = known.FirstOrDefault(w => SamePath(w.Path, info.Path)) ?? new RepoState(new RepoEntry(info.Path), repo);
             worktree.Worktree = info;
             return worktree;
-        })]);
+        })];
+
+        // The same worktrees keep the same list: the file watchers rebuild their map only when it changed (review WP-03).
+        if (!next.SequenceEqual(known))
+        {
+            repo.ReplaceWorktrees(known, next);
+        }
     }
 
     private static bool SamePath(string a, string b) =>

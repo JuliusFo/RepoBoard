@@ -80,10 +80,17 @@ public sealed class RepoState(RepoEntry entry, RepoState? mainRepo = null)
     public DateTimeOffset? LastAutoSync { get; internal set; }
 
     /// <summary>
-    /// When the board last began to read the status (WP-03): a change seen before that moment is in it, a file watcher's
-    /// event need not read it again.
+    /// When the board last began a status read that succeeded (WP-03), as a <see cref="TimeProvider.GetTimestamp"/>: a
+    /// change seen before that moment is in it, a file watcher's event need not read it again. Monotonic, so a clock set
+    /// back does not stall the watcher; one <c>long</c>, so a read on another thread never sees half of it (review WP-03).
     /// </summary>
-    internal DateTimeOffset? StatusReadAt { get; set; }
+    internal long? StatusReadAt
+    {
+        get => Volatile.Read(ref _statusReadAt) is var read and not 0 ? read : null;
+        set => Volatile.Write(ref _statusReadAt, value ?? 0);
+    }
+
+    private long _statusReadAt;
 
     /// <summary>
     /// A file watcher sees its folder and git folder (WP-03, ADR 0011): the status tick reads it only as a fallback, every

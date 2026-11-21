@@ -127,22 +127,116 @@ public sealed class RepoWatchTests : IDisposable
     }
 
     /// <summary>
-    /// RepoBoard's own git calls write nothing a watcher sees (<c>GIT_OPTIONAL_LOCKS=0</c>): a read must not cause the next.
-    /// Waiting a fixed time is the point here – nothing may happen in it.
+    /// A read must not cause the next – also where RepoBoard's own <c>git status</c> writes into the git folder: fsmonitor
+    /// leaves a cookie there on every status (review WP-03, reproduced). Waiting a fixed time is the point here – nothing
+    /// may happen in it.
     /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Reading_the_status_does_not_read_it_again(bool fsmonitor)
+    {
+        if (fsmonitor)
+        {
+            GitSandbox.Git(_git.Mine, "config", "core.fsmonitor", "true");
+            Assert.SkipUnless(TryGit(_git.Mine, "fsmonitor--daemon", "start"), "git has no fsmonitor daemon on this platform.");
+        }
+
+        try
+        {
+            var (_, repo, watch) = await WatchMineAsync();
+            try
+            {
+                File.WriteAllText(Path.Combine(_git.Mine, "new.txt"), "new");
+                await Wait.UntilAsync(() => repo.Status is { Untracked: 1 }, "the new file on the board");
+                var read = repo.StatusReadAt;
+
+                await Task.Delay(RepoWatchService.Longest, Ct);
+
+                Assert.Equal(read, repo.StatusReadAt);
+            }
+            finally
+            {
+                await watch.StopAsync(Ct);
+            }
+        }
+        finally
+        {
+            if (fsmonitor)
+            {
+                TryGit(_git.Mine, "fsmonitor--daemon", "stop"); // it holds the folder the test deletes
+            }
+        }
+    }
+
+    /// <summary>An operation holds the gate when the change comes: the watcher reads once it is free (review WP-03).</summary>
     [Fact]
-    public async Task Reading_the_status_does_not_read_it_again()
+    public async Task A_change_while_the_repository_is_busy_is_read_afterwards()
     {
         var (_, repo, watch) = await WatchMineAsync();
         try
         {
-            File.WriteAllText(Path.Combine(_git.Mine, "new.txt"), "new");
-            await Wait.UntilAsync(() => repo.Status is { Untracked: 1 }, "the new file on the board");
+            await repo.Gate.WaitAsync(Ct);
+            try
+            {
+                File.WriteAllText(Path.Combine(_git.Mine, "new.txt"), "new");
+                await Task.Delay(RepoWatchService.Longest, Ct); // the watcher's read came and was skipped
+                Assert.Equal(0, repo.Status!.Untracked);
+            }
+            finally
+            {
+                repo.Gate.Release();
+            }
+
+            await Wait.UntilAsync(() => repo.Status is { Untracked: 1 }, "the new file once the gate is free");
+        }
+        finally
+        {
+            await watch.StopAsync(Ct);
+        }
+    }
+
+    [Fact]
+    public async Task A_full_buffer_reads_everything_under_the_watcher_again()
+    {
+        var (_, repo, watch) = await WatchMineAsync();
+        try
+        {
             var read = repo.StatusReadAt;
 
-            await Task.Delay(RepoWatchService.Longest, Ct);
+            watch.OnError(watch.WatchedRoots.Single(), new InternalBufferOverflowException());
 
-            Assert.Equal(read, repo.StatusReadAt);
+            await Wait.UntilAsync(() => repo.StatusReadAt > read, "a read after the overflow");
+            Assert.True(repo.Watched);
+        }
+        finally
+        {
+            await watch.StopAsync(Ct);
+        }
+    }
+
+    [Fact]
+    public async Task A_failed_watcher_leaves_the_repository_to_the_tick_and_is_tried_again()
+    {
+        var time = new FakeTimeProvider(DateTimeOffset.Parse("2026-11-21T08:00:00Z", System.Globalization.CultureInfo.InvariantCulture));
+        var board = NewBoard(time);
+        await board.AddAsync([_git.Mine], Ct);
+        var repo = board.Repos.Single();
+        var watch = new RepoWatchService(board, time, NullLogger<RepoWatchService>.Instance);
+        await watch.StartAsync(Ct);
+        try
+        {
+            await Wait.UntilAsync(() => repo.Watched, "the watcher on the repository");
+
+            watch.OnError(watch.WatchedRoots.Single(), new IOException("The network name is no longer available."));
+            await Wait.UntilAsync(() => !repo.Watched && watch.WatchedRoots.Count == 0, "the watcher stopped");
+
+            // Fake time moves on while the test waits: the loop may compute its wait before or after a step.
+            await Wait.UntilAsync(() =>
+            {
+                time.Advance(TimeSpan.FromSeconds(5));
+                return repo.Watched;
+            }, "the watcher back after a minute");
         }
         finally
         {
@@ -166,12 +260,49 @@ public sealed class RepoWatchTests : IDisposable
 
         time.Advance(TimeSpan.FromSeconds(1));
         await board.RefreshStaleAsync(Ct);
-        Assert.Equal(time.GetUtcNow(), repo.StatusReadAt);
+        Assert.Equal(time.GetTimestamp(), repo.StatusReadAt);
 
-        repo.Watched = false; // no watcher: every tick
+        // A status that fails keeps the time of the last good one, and the tick reads it every time (review WP-03).
+        var gitDir = Path.Combine(_git.Mine, ".git");
+        Directory.Move(gitDir, gitDir + "-away");
+        try
+        {
+            var good = repo.StatusReadAt;
+            time.Advance(TimeSpan.FromSeconds(20));
+            await board.RefreshAsync(repo, Ct);
+            Assert.NotNull(repo.Error);
+            Assert.Equal(good, repo.StatusReadAt);
+        }
+        finally
+        {
+            Directory.Move(gitDir + "-away", gitDir);
+        }
+
         time.Advance(TimeSpan.FromSeconds(20));
         await board.RefreshStaleAsync(Ct);
-        Assert.Equal(time.GetUtcNow(), repo.StatusReadAt);
+        Assert.Equal(time.GetTimestamp(), repo.StatusReadAt);
+
+        repo.Watched = false; // no watcher: every tick
+        repo.Error = null;
+        time.Advance(TimeSpan.FromSeconds(20));
+        await board.RefreshStaleAsync(Ct);
+        Assert.Equal(time.GetTimestamp(), repo.StatusReadAt);
+    }
+
+    /// <summary>git without failing the test: false when it ends with an error.</summary>
+    private static bool TryGit(string dir, params string[] args)
+    {
+        var start = new System.Diagnostics.ProcessStartInfo("git") { WorkingDirectory = dir, RedirectStandardOutput = true, RedirectStandardError = true };
+        foreach (var arg in args)
+        {
+            start.ArgumentList.Add(arg);
+        }
+
+        using var process = System.Diagnostics.Process.Start(start)!;
+        _ = process.StandardOutput.ReadToEndAsync();
+        _ = process.StandardError.ReadToEndAsync();
+        process.WaitForExit();
+        return process.ExitCode == 0;
     }
 
     public void Dispose() => _git.Dispose();

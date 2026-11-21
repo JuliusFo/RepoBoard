@@ -10,7 +10,7 @@ namespace RepoBoard.Core.Watch;
 /// a series of changes is read once (<see cref="Quiet"/>, at the latest after <see cref="Longest"/>), through
 /// <see cref="BoardService.RefreshAsync"/> and its gate. What the watchers see, the status tick reads only as a fallback
 /// (<see cref="BoardService.WatchedRefresh"/>); a watcher that fails leaves its repositories to the tick and is tried
-/// again after <see cref="RetryAfter"/>.
+/// again after <see cref="RetryAfter"/>. Network folders and drive roots are left to the tick from the start.
 /// </summary>
 public sealed class RepoWatchService(BoardService board, TimeProvider time, ILogger<RepoWatchService> logger) : BackgroundService
 {
@@ -18,16 +18,23 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
     public static readonly TimeSpan Longest = TimeSpan.FromSeconds(3);
     public static readonly TimeSpan RetryAfter = TimeSpan.FromMinutes(1);
 
+    /// <summary>After an unexpected failure of the loop: a pause, so a failure that repeats does not spin.</summary>
+    private static readonly TimeSpan PauseAfterFailure = TimeSpan.FromSeconds(5);
+
     /// <summary>As many status reads at once as <see cref="BoardService.RefreshAllAsync"/> runs.</summary>
     private const int MaxParallelReads = 8;
 
     private static readonly StringComparer PathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 
     private readonly Lock _lock = new();
-    private readonly ChangeDebouncer<RepoState> _pending = new(Quiet, Longest);
+    private readonly ChangeDebouncer<RepoState> _pending = new(Ticks(Quiet, time), Ticks(Longest, time));
     private readonly Dictionary<string, FileSystemWatcher> _watchers = new(PathComparer);
-    private readonly Dictionary<string, DateTimeOffset> _failed = new(PathComparer);
+    private readonly Dictionary<string, long> _failed = new(PathComparer);
+    private readonly Dictionary<string, string> _warned = new(PathComparer);
     private readonly HashSet<string> _broken = new(PathComparer);
+
+    // Never disposed: without AvailableWaitHandle there is nothing to free, and a watcher's callback or a read still
+    // running when the host is disposed would otherwise throw (review WP-03).
     private readonly SemaphoreSlim _wake = new(0, 1);
     private readonly SemaphoreSlim _reads = new(MaxParallelReads);
     private volatile WatchMap _map = WatchMap.Empty;
@@ -53,13 +60,23 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                if (Interlocked.Exchange(ref _boardChanged, 0) == 1 || Volatile.Read(ref _rebuild) == 1)
+                try
                 {
-                    Reconcile();
-                }
+                    if (Interlocked.Exchange(ref _boardChanged, 0) == 1 || Volatile.Read(ref _rebuild) == 1)
+                    {
+                        Reconcile();
+                    }
 
-                ReadDue(stoppingToken);
-                await WaitAsync(NextWake(), stoppingToken);
+                    ReadDue(stoppingToken);
+                    await WaitAsync(NextWake(), stoppingToken);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // Like the tick: one surprise must not end instant refresh for good – or stop the host (review WP-03).
+                    logger.LogError(ex, "File watching failed, trying again");
+                    Interlocked.Exchange(ref _rebuild, 1);
+                    await Task.Delay(PauseAfterFailure, time, stoppingToken);
+                }
             }
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -106,7 +123,7 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
         }
 
         var map = _map = WatchMap.Of(repos);
-        var now = time.GetUtcNow();
+        var now = time.GetTimestamp();
         lock (_lock)
         {
             foreach (var root in _broken)
@@ -116,12 +133,15 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
             }
 
             _broken.Clear();
-            foreach (var (root, _) in _failed.Where(f => now - f.Value >= RetryAfter || !map.Roots.Contains(f.Key, PathComparer)).ToList())
+            foreach (var (root, failedAt) in _failed.ToList())
             {
-                _failed.Remove(root);
+                if (RetryDue(failedAt, now) || !map.Roots.Contains(root, PathComparer))
+                {
+                    _failed.Remove(root);
+                }
             }
 
-            var wanted = map.Roots.Where(Directory.Exists).ToHashSet(PathComparer);
+            var wanted = map.Roots.Where(r => Directory.Exists(r) && !LeftToTheTick(r)).ToHashSet(PathComparer);
             foreach (var root in _watchers.Keys.Where(r => !wanted.Contains(r)).ToList())
             {
                 Stop(root);
@@ -141,13 +161,48 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
                 // As a change at the dawn of time it is due at once, and any read since – the tick at the start – will do.
                 if (state.StatusReadAt is null)
                 {
-                    _pending.Add(state, DateTimeOffset.MinValue);
+                    _pending.Add(state, long.MinValue);
                 }
             }
         }
     }
 
-    private void Start(string root, DateTimeOffset now)
+    private bool RetryDue(long failedAt, long now) => time.GetElapsedTime(failedAt, now) >= RetryAfter;
+
+    /// <summary>
+    /// A network folder may take a watcher and still report nothing (SMB, <c>\\wsl$</c>): it stays with the 20 s tick, as the
+    /// user decided for folders without a working watcher. A drive root – a worktree entry pointing there – would watch
+    /// the whole drive (review WP-03).
+    /// </summary>
+    private static bool LeftToTheTick(string root)
+    {
+        if (Path.GetPathRoot(root) is not { } driveRoot || WatchMap.Normalize(driveRoot) is not { } normalizedRoot
+            || string.Equals(normalizedRoot, root, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!OperatingSystem.IsWindows())
+        {
+            return false;
+        }
+
+        if (root.StartsWith(@"\\", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        try
+        {
+            return new DriveInfo(driveRoot).DriveType == DriveType.Network;
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private void Start(string root, long now)
     {
         FileSystemWatcher? watcher = null;
         try
@@ -165,13 +220,17 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
             watcher.Error += (_, e) => OnError(root, e.GetException());
             watcher.EnableRaisingEvents = true;
             _watchers[root] = watcher;
+            lock (_warned)
+            {
+                _warned.Remove(root);
+            }
         }
         catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
-            // A network drive without change notifications, the inotify limit on Linux: the tick reads it every 20 s.
+            // The inotify limit on Linux, a folder gone meanwhile: the tick reads it every 20 s.
             watcher?.Dispose();
             _failed[root] = now;
-            logger.LogWarning("Cannot watch {Folder}, its status is read on each tick: {Message}", root, ex.Message);
+            Warn(root, ex.Message, null);
         }
     }
 
@@ -181,6 +240,19 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
         {
             watcher.Dispose();
         }
+    }
+
+    /// <summary>The same failure of a folder once a warning, then on every retry only for debugging (review WP-03).</summary>
+    private void Warn(string root, string message, Exception? ex)
+    {
+        bool first;
+        lock (_warned)
+        {
+            first = !(_warned.TryGetValue(root, out var last) && last == message);
+            _warned[root] = message;
+        }
+
+        logger.Log(first ? LogLevel.Warning : LogLevel.Debug, ex, "Cannot watch {Folder}, its status is read on each tick: {Message}", root, message);
     }
 
     private void OnChanged(object sender, FileSystemEventArgs e) => Changed(e.FullPath);
@@ -199,7 +271,7 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
             return;
         }
 
-        var now = time.GetUtcNow();
+        var now = time.GetTimestamp();
         lock (_lock)
         {
             foreach (var state in stale)
@@ -215,12 +287,13 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
     /// A full buffer lost events: everything under the watcher is read once. Any other error (the folder went, the network
     /// drive dropped) stops the watcher; its repositories fall back to the tick until it is tried again.
     /// </summary>
-    private void OnError(string root, Exception ex)
+    internal void OnError(string root, Exception ex)
     {
-        var now = time.GetUtcNow();
+        var now = time.GetTimestamp();
+        var overflow = ex is InternalBufferOverflowException;
         lock (_lock)
         {
-            if (ex is InternalBufferOverflowException)
+            if (overflow)
             {
                 foreach (var state in _map.Under(root))
                 {
@@ -234,13 +307,13 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
             }
         }
 
-        if (ex is InternalBufferOverflowException)
+        if (overflow)
         {
             logger.LogDebug("Watcher buffer of {Folder} overflowed, reading its repositories again", root);
         }
         else
         {
-            logger.LogWarning(ex, "Watcher of {Folder} failed, its status is read on each tick", root);
+            Warn(root, ex.Message, ex);
         }
 
         Wake();
@@ -248,10 +321,10 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
 
     private void ReadDue(CancellationToken ct)
     {
-        IReadOnlyList<(RepoState State, DateTimeOffset Last)> due;
+        IReadOnlyList<(RepoState State, long Last)> due;
         lock (_lock)
         {
-            due = _pending.TakeDue(time.GetUtcNow());
+            due = _pending.TakeDue(time.GetTimestamp());
         }
 
         foreach (var (state, last) in due)
@@ -262,18 +335,20 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
 
     /// <summary>
     /// Reads the status unless a read began after the last change (a click, the tick, the end of an operation). A
-    /// repository busy with an operation skips the read; it is tried again after <see cref="Quiet"/>.
+    /// repository busy with an operation skips the read; it is tried again after <see cref="Quiet"/>. A read that fails is
+    /// not tried again here – the tick reads a repository with an error every time.
     /// </summary>
-    private async Task ReadAsync(RepoState state, DateTimeOffset last, CancellationToken ct)
+    private async Task ReadAsync(RepoState state, long last, CancellationToken ct)
     {
         try
         {
+            var skipped = false;
             await _reads.WaitAsync(ct);
             try
             {
                 if (!(state.StatusReadAt >= last))
                 {
-                    await board.RefreshAsync(state, ct);
+                    skipped = !await board.RefreshAsync(state, ct);
                 }
             }
             finally
@@ -281,11 +356,11 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
                 _reads.Release();
             }
 
-            if (!(state.StatusReadAt >= last))
+            if (skipped)
             {
                 lock (_lock)
                 {
-                    _pending.Add(state, time.GetUtcNow());
+                    _pending.Add(state, time.GetTimestamp());
                 }
 
                 Wake();
@@ -303,13 +378,13 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
     /// <summary>Until the next series is due or a failed watcher may be tried again; null: until something happens.</summary>
     private TimeSpan? NextWake()
     {
-        DateTimeOffset? next;
+        long? next;
         lock (_lock)
         {
             next = _pending.NextDue;
             foreach (var failed in _failed.Values)
             {
-                var retry = failed + RetryAfter;
+                var retry = failed + Ticks(RetryAfter, time);
                 next = next is null || retry < next ? retry : next;
             }
         }
@@ -319,13 +394,16 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
             return null;
         }
 
-        if (_failed.Count > 0 && next <= time.GetUtcNow())
+        var now = time.GetTimestamp();
+        lock (_lock)
         {
-            Interlocked.Exchange(ref _rebuild, 1);
+            if (_failed.Values.Any(f => RetryDue(f, now)))
+            {
+                Interlocked.Exchange(ref _rebuild, 1);
+            }
         }
 
-        var wait = next.Value - time.GetUtcNow();
-        return wait > TimeSpan.Zero ? wait : TimeSpan.Zero;
+        return next <= now ? TimeSpan.Zero : time.GetElapsedTime(now, next.Value);
     }
 
     private async Task WaitAsync(TimeSpan? delay, CancellationToken ct)
@@ -362,10 +440,5 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
         }
     }
 
-    public override void Dispose()
-    {
-        base.Dispose();
-        _wake.Dispose();
-        _reads.Dispose();
-    }
+    private static long Ticks(TimeSpan span, TimeProvider time) => (long)(span.TotalSeconds * time.TimestampFrequency);
 }
