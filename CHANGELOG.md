@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-21
+
 ### Added
 - Worktrees (WP-04): a repository’s linked worktrees show as rows below it, closed behind a count in its row – each with its branch, ahead and behind, changes and an unfinished merge or rebase, and the same actions as a repository (open, stage, commit, diff, switch branch, pull, push, Explorer, terminal, VS Code). Worktrees made by Claude Code sessions are marked “Claude”, locked ones “locked”. The chips and the search look at worktrees too. A worktree you add or scan shows below its repository instead of on its own.
 - Remove a worktree, or “Clean up …” the worktrees of a repository that look done – branch merged into the remote’s default branch, upstream deleted, detached on a merged commit, folder gone. RepoBoard asks first and lists, per worktree, every ignored file git deletes with it, and checks again right before removing; a worktree with changed or new files, a locked one, one with an unfinished merge or rebase and a detached one with commits no branch holds are shown but never removed. Only worktrees whose upstream was deleted or whose folder is gone are ticked from the start. The branch always stays.

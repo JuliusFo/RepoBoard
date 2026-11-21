@@ -1,5 +1,7 @@
 # Fix: Klicks und Hover erscheinen verspätet (`fix/webview-copy-fence`)
 
+Branch `fix/webview-copy-fence`, 2026-11-21, Release 0.2.0.
+
 Beobachtung des Nutzers beim E2E von WP-05 (2026-11-21, Testinstanz 1440×900): Klicks und CSS-Hover zeigen sich spürbar verspätet. Ursache wie in FerretSharp `fix/typing-delay` (ADR 0039 dort): WPF präsentiert die geteilte Textur der WebView-Aufnahme, bevor die GPU die Kopie fertig hat. ADR 0009.
 
 ## Messung
