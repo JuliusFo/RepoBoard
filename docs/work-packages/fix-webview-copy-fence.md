@@ -21,5 +21,4 @@ Beobachtung des Nutzers beim E2E von WP-05 (2026-11-21, Testinstanz 1440×900): 
 - `tools/e2e/Measure-PictureDelay.ps1` für die Gegenprobe beim nächsten Heben von WebView2/BlazorWebView.
 
 ## Offen
-- ADR 0008 ist ein Vorschlag, bis der Nutzer zustimmt.
 - Einmal mit echter Maus im großen Fenster gegenprüfen (beim Nutzer, maximiert).

@@ -1,6 +1,6 @@
 # ADR 0008: Jedes WebView-Bild erst zeigen, wenn es da ist
 
-- Status: **Vorschlag (nicht bestätigt)**
+- Status: akzeptiert (Entscheidung des Nutzers, 2026-11-21)
 - Datum: 2026-11-21
 - Fix: `fix/webview-copy-fence` (Protokoll `docs/work-packages/fix-webview-copy-fence.md`)
 - Bezug: FerretSharp ADR 0039 (`C:\Dev-Repos\FerretSharp\docs\decisions\0039-wait-for-webview-copy.md`, dort vom Nutzer akzeptiert), Teil „Bilder nicht mehr verwerfen“ aus FerretSharp ADR 0038
@@ -17,7 +17,7 @@ Messung vor der Änderung (`tools/e2e/Measure-PictureDelay.ps1`, Fensterbild per
 - **Den Bild-Handler des Controls ersetzen** (`App/Services/WebViewCapture`, der Bild-Teil von FerretSharps gleichnamiger Klasse): Nur so lässt sich nach der Kopie warten. `WebViewCapture` hängt `OnFrameArrived` des Controls vom Bildpuffer ab und einen eigenen an, der `RequestRender` ruft und danach wartet. Mitgenommen, weil es im selben Handler steckt: Ist das `D3DImage` beim Eintreffen gesperrt (WPF präsentiert noch), wartet das Bild im Puffer (alle 4 ms, höchstens 1 s), statt wie beim Control verworfen zu werden (FerretSharp ADR 0038). Ein neuer Bildpuffer nach einem Wiederaufbau des Controls (Änderung der Bildschirmeinstellungen) wird spätestens nach 2 s übernommen.
 - **Per Reflection auf private Member** (`WebView2CompositionControl._d3dImage`, `GraphicsItemD3DImage._framePool`, `OnFrameArrived`, `RequestRender`, `_d3d11Device`, `_d3d11DeviceContext`). Fehlen sie, warnt das Log beim Start („cannot be held“ bzw. „cannot be waited for“) und das Control arbeitet wie ohne diese Klassen.
 - **Abweichung von FerretSharp:** `CopyFence` prüft zusätzlich den Wert der Query – eine fertige Event-Query meldet TRUE. Ohne diese Prüfung blieb ein Test mit absichtlich verschobenem Slot in `ID3D11DeviceContext` grün (die falsche Methode lieferte zufällig „Erfolg“); jetzt gilt das als „Schnittstellen nicht gefunden“ (Warnung, Warten aus).
-- **Tests (Vorschlag, neu in RepoBoard):** `tests/RepoBoard.App.Tests` (nur Windows): `CopyFence` gegen ein echtes D3D11-Gerät (WARP, ohne GPU) – erkennt einen verschobenen Slot in Gerät oder Kontext – und die privaten Member gegen das gepinnte WebView2. FerretSharp hat dafür keinen Test.
+- **Tests (neu in RepoBoard):** `tests/RepoBoard.App.Tests` (nur Windows): `CopyFence` gegen ein echtes D3D11-Gerät (WARP, ohne GPU) – erkennt einen verschobenen Slot in Gerät oder Kontext – und die privaten Member gegen das gepinnte WebView2. FerretSharp hat dafür keinen Test.
 - **Nicht übernommen:** der Rest von FerretSharp ADR 0038 – Neustart der Aufnahme nach Ruhezustand, Sitzungswechsel, zurückkehrendem Front Buffer und Wiederherstellen aus minimiert, Wiederholungen des Wiederaufbaus, Software-Anzeige ohne Front Buffer (RDP). In RepoBoard ist davon noch nichts aufgefallen (Backlog).
 - **Versionen:** BlazorWebView 10.0.120 und WebView2 1.0.4258.31 wie FerretSharp; der Pin aus RepoBoard bleibt.
 - **Geprüft und verworfen (in FerretSharp):** nur `Flush` nach der Kopie – Befehl abgeschickt, aber nicht gewartet, beim Nutzer weiter verspätet.
