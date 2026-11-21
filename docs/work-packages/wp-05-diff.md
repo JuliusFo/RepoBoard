@@ -22,6 +22,7 @@ Branch `wp/05-diff`, 2026-11-21, noch ohne Release.
 ## Gebaut
 - **Core:** `FileDiff` (`Parse`, `DiffHunk`, `DiffLine`, `DiffSpan`, Grenzen `MaxLines`, `MaxFileBytes`, `MaxWordCells`), `DiffWords`, `GitClient.DiffAsync`, `BoardService.DiffAsync` (liest nur: wartet nicht auf das Tor, ein Fehler steht im Diff statt in `RepoState.Error`), Text `SyncText.Op_Diff`.
 - **UI:** `DiffPanel` (inline, Zeilennummern, Hunk-Köpfe, Wort-Markierung, ␍ und ⊘ mit Tooltip, Hinweise für Binär, zu groß, gekürzt, keine Textänderung, Konflikt, Fehler; Esc über den Fokus des Bereichs), `RepoDetailsPanel` (Dateiname als Knopf, Auswahl markiert, `details.diff-open`), `UI/State/DiffSelection` (`DiffTarget`, `Resolve`). Texte `Diff_*` in `BoardText` (en/de), Tokens `--green-mark`/`--danger-mark`.
+- **Seit dem Review:** `DiffSelection.Next`, `FileChange.IsNestedRepository`, `DiffPanel.FocusAsync` (Fokus nur nach Klick) und `ShouldRender`, `@key` je Datei und Seite in der Liste, `--literal-pathspecs` bei Diff/Stage/Unstage, `Task.Run` in `BoardService.DiffAsync`, zeilenweiser Parser, `MaxFileBytes` für alle Dateien, `MaxWordCells`.
 - **Doku:** ADR 0008, README, Architektur (UI-Konzept), Roadmap (WP-25 Hunk-Staging), Backlog.
 
 ## Geprüft
@@ -57,5 +58,10 @@ Zweiter Durchgang:
 10. K – Regel `git.md`, ADR 0008 und dieses Protokoll beschrieben den alten Stand → nachgezogen.
 11. K – Eine gelöschte große Datei hat keine Größe im Worktree, die Grenze greift nicht → nicht behoben, Backlog (Entscheidung des Nutzers).
 - Vorher schon da, Backlog: Scheitert ein Stagen, bleibt das vom Klick gesetzte Häkchen stehen (`checked` in der Liste „Nicht gestaged“ nicht gebunden).
+
+Dritter Durchgang (Nutzer: „Ja, beides“ – beheben und pushen):
+12. K – Der Test mit `Substitute.ForPartsOf` rief beim Einrichten die echte `RunAsync` auf → `Substitute.For`.
+13. K – Die Regel zu literalen Pfaden nannte die Bedingung „ohne Hooks“ nicht → ergänzt (sonst `:(literal)` je Pfad).
+14. K – „Gebaut“ nannte die Ergänzungen aus dem Review nicht → ergänzt.
 
 Regeln ergänzt: `git.md` (literale Pfade je Befehl, nie global; Erfolg von `--no-index`), `ui.md` (`@key` bei Listen mit Eingabefeldern).
