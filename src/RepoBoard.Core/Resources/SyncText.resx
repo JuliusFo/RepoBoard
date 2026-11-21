@@ -73,6 +73,15 @@
   <data name="Hunk_NotUtf8" xml:space="preserve">
     <value>This file is not UTF-8 – parts of it cannot be staged here. Stage the whole file instead.</value>
   </data>
+  <data name="Hunk_Changed" xml:space="preserve">
+    <value>The file changed since its diff was shown – nothing was staged. Look at the new diff and try again.</value>
+  </data>
+  <data name="Hunk_DiffDriver" xml:space="preserve">
+    <value>This file is shown through a diff driver (textconv) – parts of it cannot be staged here. Stage the whole file instead.</value>
+  </data>
+  <data name="Hunk_SpecialFile" xml:space="preserve">
+    <value>Symbolic links, submodules and changes of file type cannot be staged in parts. Stage the whole file instead.</value>
+  </data>
   <data name="Hunk_SplitsLastLine" xml:space="preserve">
     <value>The last line of the file has no newline – select it together with the lines next to it.</value>
   </data>

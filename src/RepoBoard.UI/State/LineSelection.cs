@@ -92,15 +92,9 @@ public sealed class LineSelection
             return;
         }
 
-        if (before is null || hunk >= before.Hunks.Count || hunk >= after.Hunks.Count || !Same(before.Hunks[hunk], after.Hunks[hunk]))
+        if (before is null || hunk >= before.Hunks.Count || hunk >= after.Hunks.Count || !before.Hunks[hunk].SameAs(after.Hunks[hunk]))
         {
             Clear();
         }
     }
-
-    private static bool Same(DiffHunk a, DiffHunk b) =>
-        (a.OldStart, a.OldCount, a.NewStart, a.NewCount) == (b.OldStart, b.OldCount, b.NewStart, b.NewCount)
-        && a.Lines.Select(Key).SequenceEqual(b.Lines.Select(Key));
-
-    private static (DiffLineKind, string, bool, bool) Key(DiffLine line) => (line.Kind, line.Text, line.EndsWithCr, line.NoNewlineAtEnd);
 }

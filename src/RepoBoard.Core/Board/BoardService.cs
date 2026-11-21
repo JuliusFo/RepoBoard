@@ -389,15 +389,26 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         RunAsync(repo, SyncText.Op_Stage, network: false,
             c => paths.Count == 0 ? git.StageAllAsync(repo.Path, c) : git.StageAsync(repo.Path, paths, c), null, ct);
 
-    /// <summary>Unstages <paramref name="paths"/>; all when empty.</summary>
-    public Task<bool> UnstageAsync(RepoState repo, IReadOnlyList<string> paths, CancellationToken ct) =>
-        RunAsync(repo, SyncText.Op_Unstage, network: false,
-            c => git.UnstageAsync(repo.Path, paths.Count == 0 ? ["."] : paths, repo.Status?.IsInitial == true, c), null, ct);
+    /// <summary>
+    /// Unstages <paramref name="paths"/>; all when empty. A staged rename is unstaged with its original path, or the index
+    /// would keep the old path's deletion and lose the new file (review WP-25).
+    /// </summary>
+    public Task<bool> UnstageAsync(RepoState repo, IReadOnlyList<string> paths, CancellationToken ct)
+    {
+        var originals = repo.Status?.Changes
+            .Where(c => c.IsStaged && c.OriginalPath is not null && paths.Contains(c.Path))
+            .Select(c => c.OriginalPath!) ?? [];
+        IReadOnlyList<string> all = paths.Count == 0 ? ["."] : [.. paths, .. originals];
+        return RunAsync(repo, SyncText.Op_Unstage, network: false,
+            c => git.UnstageAsync(repo.Path, all, repo.Status?.IsInitial == true, c), null, ct);
+    }
 
     /// <summary>
     /// Stages (or, from the staged side, unstages) one hunk of <paramref name="diff"/> or the selected lines in it (WP-25,
-    /// ADR 0012). Writes only to the index. The patch is built from the diff the user sees; if the file changed since,
-    /// git refuses it and the new status brings the current diff.
+    /// ADR 0012). Writes only to the index. Inside the repository's gate the diff is read again: if it is not the one the
+    /// user sees (the file changed since), nothing is staged and the new status brings the current diff; a patch is built
+    /// only from the file's own text (<c>--no-textconv</c>) – a diff driver's text in the index would replace the file, a
+    /// git-crypt secret with its plain text (review WP-25).
     /// </summary>
     /// <param name="lines">Indexes of the selected lines in the hunk; null for the whole hunk.</param>
     public Task<bool> StageHunkAsync(RepoState repo, FileChange change, FileDiff diff, bool staged, int hunk,
@@ -410,17 +421,47 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             (true, true) => SyncText.Op_UnstageHunk,
             (true, false) => SyncText.Op_UnstageLines,
         };
-        var patch = HunkPatch.Build(change.Path, diff, hunk, lines, reverse: staged);
-        return RunAsync(repo, label, network: false, c => patch.Kind switch
+        // Unstaging a rename as a whole would take the rename back too: the patch keeps it and takes out the hunk.
+        var patch = HunkPatch.Build(change.Path, diff, hunk, lines, reverse: staged, wholeFile: !(staged && change.OriginalPath is not null));
+        return RunAsync(repo, label, network: false, async c =>
         {
-            HunkPatchKind.Patch => git.ApplyToIndexAsync(repo.Path, patch, reverse: staged, c),
-            HunkPatchKind.WholeFile => staged
-                ? git.UnstageAsync(repo.Path, [change.Path], repo.Status?.IsInitial == true, c)
-                : git.StageAsync(repo.Path, [change.Path], c),
-            HunkPatchKind.Nothing => Task.FromResult(new GitResult(0, "", "")),
-            HunkPatchKind.Incomplete => Task.FromResult(GitResult.Failed(SyncText.Hunk_Incomplete)),
-            HunkPatchKind.NotUtf8 => Task.FromResult(GitResult.Failed(SyncText.Hunk_NotUtf8)),
-            _ => Task.FromResult(GitResult.Failed(SyncText.Hunk_SplitsLastLine)),
+            var (current, read) = await git.DiffAsync(repo.Path, change, staged, c);
+            if (current is null)
+            {
+                return read;
+            }
+
+            if (!current.SameAs(diff))
+            {
+                return GitResult.Failed(SyncText.Hunk_Changed);
+            }
+
+            if (patch.Kind == HunkPatchKind.Patch)
+            {
+                var (own, readOwn) = await git.DiffAsync(repo.Path, change, staged, c, textconv: false);
+                if (own is null)
+                {
+                    return readOwn;
+                }
+
+                if (!own.SameAs(diff))
+                {
+                    return GitResult.Failed(SyncText.Hunk_DiffDriver);
+                }
+            }
+
+            return patch.Kind switch
+            {
+                HunkPatchKind.Patch => await git.ApplyToIndexAsync(repo.Path, patch, reverse: staged, c),
+                HunkPatchKind.WholeFile => staged
+                    ? await git.UnstageAsync(repo.Path, [change.Path], repo.Status?.IsInitial == true, c)
+                    : await git.StageAsync(repo.Path, [change.Path], c),
+                HunkPatchKind.Nothing => new GitResult(0, "", ""),
+                HunkPatchKind.Incomplete => GitResult.Failed(SyncText.Hunk_Incomplete),
+                HunkPatchKind.NotUtf8 => GitResult.Failed(SyncText.Hunk_NotUtf8),
+                HunkPatchKind.SpecialFile => GitResult.Failed(SyncText.Hunk_SpecialFile),
+                _ => GitResult.Failed(SyncText.Hunk_SplitsLastLine),
+            };
         }, null, ct);
     }
 

@@ -242,5 +242,137 @@ public sealed class HunkStagingTests : IDisposable
         Assert.Equal(original, Index("latin.txt"));
     }
 
+    private async Task<(BoardService Board, RepoState Repo)> BoardAsync()
+    {
+        var board = new BoardService(_client, new ConfigStore(Path.Combine(_git.Root, "config.json"), TimeProvider.System), TimeProvider.System);
+        await board.AddAsync([_git.Mine], Ct);
+        return (board, board.Repos.Single());
+    }
+
+    /// <summary>Through the board, as the diff view does it: the diff shown, then the click.</summary>
+    private static async Task<(FileChange Change, FileDiff Diff)> ShownAsync(BoardService board, RepoState repo, string path, bool staged)
+    {
+        await board.RefreshAsync(repo, TestContext.Current.CancellationToken);
+        var change = repo.Status!.Changes.Single(c => c.Path == path);
+        var (diff, error) = await board.DiffAsync(repo, change, staged, TestContext.Current.CancellationToken);
+        Assert.True(diff is not null, error);
+        return (change, diff);
+    }
+
+    /// <summary>
+    /// Review WP-25: a diff driver's text (textconv – git-crypt shows a secret in plain text) must never become the file in
+    /// the index; parts are refused, the whole file is staged with its own content.
+    /// </summary>
+    [Fact]
+    public async Task Parts_of_a_file_shown_through_textconv_are_not_staged()
+    {
+        File.WriteAllText(Full(".gitattributes"), "*.rev diff=rev\n");
+        GitSandbox.Git(_git.Mine, "add", ".gitattributes");
+        GitSandbox.Git(_git.Mine, "config", "diff.rev.textconv", "sed s/^/T:/");
+        File.WriteAllText(Full("secret.rev"), Lines("abc", "def", "ghi"));
+        var (board, repo) = await BoardAsync();
+        var (change, diff) = await ShownAsync(board, repo, "secret.rev", staged: false);
+        Assert.Equal("T:abc", diff.Hunks[0].Lines[0].Text);
+
+        Assert.False(await board.StageHunkAsync(repo, change, diff, staged: false, 0, Pick(diff.Hunks[0], "+T:abc", "+T:ghi"), Ct));
+        Assert.Contains("textconv", repo.Error, StringComparison.Ordinal);
+        Assert.False(GitSandbox.TryGit(_git.Mine, "cat-file", "-e", ":secret.rev"));
+
+        Assert.True(await board.StageHunkAsync(repo, change, diff, staged: false, 0, null, Ct));
+        Assert.Equal(Lines("abc", "def", "ghi"), Index("secret.rev"));
+    }
+
+    /// <summary>Review WP-25: the file changed after its diff was shown – nothing is staged, not even as a whole file.</summary>
+    [Fact]
+    public async Task A_diff_that_is_no_longer_current_stages_nothing_through_the_board()
+    {
+        GitSandbox.Commit(_git.Mine, "f.txt", Lines("a", "b"));
+        File.WriteAllText(Full("f.txt"), Lines("a", "B"));
+        var (board, repo) = await BoardAsync();
+        var (change, diff) = await ShownAsync(board, repo, "f.txt", staged: false);
+
+        File.WriteAllText(Full("f.txt"), Lines("a", "B", "unseen"));
+
+        Assert.False(await board.StageHunkAsync(repo, change, diff, staged: false, 0, null, Ct));
+        Assert.Equal(Lines("a", "b"), Index("f.txt"));
+    }
+
+    /// <summary>
+    /// Review WP-25: "Unstage hunk" on a staged rename takes out the content change and keeps the rename; the checkbox
+    /// unstages the rename as a whole – both paths, not a staged deletion beside an untracked file.
+    /// </summary>
+    [Fact]
+    public async Task A_staged_rename_keeps_its_rename_or_goes_back_as_a_whole()
+    {
+        GitSandbox.Commit(_git.Mine, "long.txt", Ten);
+        GitSandbox.Git(_git.Mine, "mv", "long.txt", "renamed.txt");
+        File.AppendAllText(Full("renamed.txt"), Lines("line 11"));
+        GitSandbox.Git(_git.Mine, "add", "-A");
+        var (board, repo) = await BoardAsync();
+        var (change, diff) = await ShownAsync(board, repo, "renamed.txt", staged: true);
+
+        Assert.True(await board.StageHunkAsync(repo, change, diff, staged: true, 0, null, Ct));
+        Assert.Equal(Ten, Index("renamed.txt"));
+        Assert.Contains("long.txt", repo.Status!.Changes.Single(c => c.Path == "renamed.txt").OriginalPath, StringComparison.Ordinal);
+
+        Assert.True(await board.UnstageAsync(repo, ["renamed.txt"], Ct));
+        Assert.Equal(Ten, Index("long.txt"));
+        Assert.True(repo.Status!.Changes.Single(c => c.Path == "renamed.txt").Untracked);
+        Assert.False(repo.Status!.Changes.Single(c => c.Path == "long.txt").IsStaged);
+    }
+
+    /// <summary>Review WP-25: with diff.context=0 a part of a hunk has context only on one side – git needs --unidiff-zero.</summary>
+    [Fact]
+    public async Task Part_of_a_hunk_without_context_is_staged()
+    {
+        GitSandbox.Git(_git.Mine, "config", "diff.context", "0");
+        GitSandbox.Commit(_git.Mine, "f.txt", Ten);
+        File.WriteAllText(Full("f.txt"), Ten.Replace("line 5\nline 6\n", "X\nY\n", StringComparison.Ordinal)
+            .Replace("line 9\n", "line 9 changed\n", StringComparison.Ordinal));
+
+        await StageAsync("f.txt", 0, h => Pick(h, "-line 5", "+X"));
+
+        Assert.Equal(Ten.Replace("line 5\nline 6\n", "line 6\nX\n", StringComparison.Ordinal), Index("f.txt"));
+    }
+
+    /// <summary>A patch larger than a pipe's buffer: git's output is read while the patch is still written.</summary>
+    [Fact]
+    public async Task A_large_part_goes_through()
+    {
+        var old = Lines([.. Enumerable.Range(1, 2000).Select(n => $"line {n}")]);
+        GitSandbox.Commit(_git.Mine, "big.txt", old);
+        File.WriteAllText(Full("big.txt"), old.Replace("line ", "new line ", StringComparison.Ordinal));
+
+        await StageAsync("big.txt", 0, h => [.. Enumerable.Range(0, h.Lines.Count - 1)]);
+
+        Assert.Equal(1999, Index("big.txt").Split('\n').Count(l => l.StartsWith("new line ", StringComparison.Ordinal)));
+    }
+
+    /// <summary>Review WP-25: the line that gets its newline back in a CRLF file gets CR LF, not LF.</summary>
+    [Fact]
+    public async Task A_last_line_without_newline_gets_a_windows_one_in_a_crlf_file()
+    {
+        GitSandbox.Commit(_git.Mine, "f.txt", "a\r\nb");
+        File.WriteAllText(Full("f.txt"), "a\r\nb\r\nc");
+
+        await StageAsync("f.txt", 0, h => Pick(h, "+c"));
+
+        Assert.Equal("a\r\nb\r\nc", Index("f.txt"));
+    }
+
+    /// <summary>Review WP-25: a link target, submodule commit or change of type is no text to stage in parts.</summary>
+    [Theory]
+    [InlineData("diff --git a/l b/l\nindex 1a2b..3c4d 120000\n--- a/l\n+++ b/l\n@@ -1 +1,2 @@\n-old\n+new\n+more\n")]
+    [InlineData("diff --git a/s b/s\nindex 1a2b..3c4d 160000\n--- a/s\n+++ b/s\n@@ -1 +1,2 @@\n-Subproject commit 1\n+Subproject commit 2\n+x\n")]
+    [InlineData("diff --git a/t b/t\ndeleted file mode 100644\nindex 1a2b..0000000\n--- a/t\n+++ /dev/null\n@@ -1 +0,0 @@\n-x\n"
+        + "diff --git a/t b/t\nnew file mode 120000\nindex 0000000..3c4d\n--- /dev/null\n+++ b/t\n@@ -0,0 +1 @@\n+target\n")]
+    public void Links_submodules_and_type_changes_are_not_staged_in_parts(string output)
+    {
+        var diff = FileDiff.Parse(output);
+
+        Assert.True(diff.IsSpecialFile);
+        Assert.Equal(HunkPatchKind.SpecialFile, HunkPatch.Build("l", diff, 0, new HashSet<int> { 0 }, reverse: false).Kind);
+    }
+
     public void Dispose() => _git.Dispose();
 }

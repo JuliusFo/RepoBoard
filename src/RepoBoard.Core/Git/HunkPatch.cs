@@ -22,6 +22,9 @@ public enum HunkPatchKind
 
     /// <summary>The selection splits the last line of a file without a final newline from what follows it.</summary>
     SplitsLastLine,
+
+    /// <summary>A symbolic link, submodule or change of type (<see cref="FileDiff.IsSpecialFile"/>): only as a whole.</summary>
+    SpecialFile,
 }
 
 /// <summary>
@@ -31,7 +34,9 @@ public enum HunkPatchKind
 /// context, a removed one is dropped. Either way git checks every context line against the index and applies all or
 /// nothing, so a patch from a diff that is no longer current fails instead of changing the wrong lines.
 /// </summary>
-public sealed record HunkPatch(HunkPatchKind Kind, string Text = "", bool HasContext = true)
+/// <param name="UnidiffZero">The hunk has no context line at its start or its end: git applies it only with
+/// <c>--unidiff-zero</c> (the user's <c>diff.context=0</c>, review WP-25).</param>
+public sealed record HunkPatch(HunkPatchKind Kind, string Text = "", bool UnidiffZero = false)
 {
     private const string NoNewline = "\\ No newline at end of file\n";
 
@@ -39,7 +44,9 @@ public sealed record HunkPatch(HunkPatchKind Kind, string Text = "", bool HasCon
     /// <param name="hunk">Index of the hunk in <paramref name="diff"/>.</param>
     /// <param name="lines">Indexes of the selected lines in the hunk; null selects all of its changes.</param>
     /// <param name="reverse">Unstaging: the patch is applied backwards to the index (the diff's staged side).</param>
-    public static HunkPatch Build(string path, FileDiff diff, int hunk, IReadOnlySet<int>? lines, bool reverse)
+    /// <param name="wholeFile">False when the file-level command would do something else than the patch: unstaging a
+    /// rename as a whole takes the rename back too (review WP-25).</param>
+    public static HunkPatch Build(string path, FileDiff diff, int hunk, IReadOnlySet<int>? lines, bool reverse, bool wholeFile = true)
     {
         var source = diff.Hunks[hunk];
         if (diff.IsTruncated && hunk == diff.Hunks.Count - 1)
@@ -55,10 +62,15 @@ public sealed record HunkPatch(HunkPatchKind Kind, string Text = "", bool HasCon
             return new HunkPatch(HunkPatchKind.Nothing);
         }
 
-        if (!diff.IsTruncated && diff.Hunks.Count == 1 && picked == source.Lines.Count(l => l.Kind != DiffLineKind.Context))
+        if (wholeFile && !diff.IsTruncated && diff.Hunks.Count == 1 && picked == source.Lines.Count(l => l.Kind != DiffLineKind.Context))
         {
-            // Every change of the file: the file-level command also gets new, deleted and renamed files and the mode right.
+            // Every change of the file: the file-level command also gets new and deleted files and the mode right.
             return new HunkPatch(HunkPatchKind.WholeFile);
+        }
+
+        if (diff.IsSpecialFile)
+        {
+            return new HunkPatch(HunkPatchKind.SpecialFile);
         }
 
         if (source.Lines.Any(l => l.Text.Contains('�', StringComparison.Ordinal)))
@@ -130,21 +142,24 @@ public sealed record HunkPatch(HunkPatchKind Kind, string Text = "", bool HasCon
             }
         }
 
-        return new HunkPatch(HunkPatchKind.Patch, text.ToString(), entries.Any(e => e.Sign == ' '));
+        // Without context at one end git would pin the hunk to the start or end of the file (review WP-25).
+        return new HunkPatch(HunkPatchKind.Patch, text.ToString(), UnidiffZero: entries[0].Sign != ' ' || entries[^1].Sign != ' ');
     }
 
     /// <summary>
     /// A last line without a newline that stays as context while selected lines follow it gets a newline: it is removed
-    /// and added again with one (old "a" without newline, "+b" selected: "a\nb").
+    /// and added again with one (old "a" without newline, "+b" selected: "a\nb") – a Windows one if the file's other lines
+    /// end with CR (review WP-25).
     /// </summary>
     private static void SplitLastLine(List<(char Sign, DiffLine Line)> entries)
     {
+        var crlf = entries.Any(e => e.Line.EndsWithCr);
         for (var i = 0; i < entries.Count - 1; i++)
         {
             if (entries[i] is (' ', { NoNewlineAtEnd: true } line))
             {
                 entries[i] = ('-', line);
-                entries.Insert(i + 1, ('+', line with { NoNewlineAtEnd = false }));
+                entries.Insert(i + 1, ('+', line with { NoNewlineAtEnd = false, EndsWithCr = crlf }));
                 i++;
             }
         }

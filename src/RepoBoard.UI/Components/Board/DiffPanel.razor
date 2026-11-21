@@ -178,8 +178,14 @@
         (true, true) => TextFormat.Format(BoardText.Diff_UnstageLines, picked),
     };
 
-    private void Pick(DiffHunk hunk, int hunkIndex, int line, MouseEventArgs e) =>
-        _selection.Click(hunk, hunkIndex, line, e.ShiftKey);
+    // Not while a hunk is being staged: its success clears the selection, a pick made meanwhile would go with it (review WP-25).
+    private void Pick(DiffHunk hunk, int hunkIndex, int line, MouseEventArgs e)
+    {
+        if (!_staging)
+        {
+            _selection.Click(hunk, hunkIndex, line, e.ShiftKey);
+        }
+    }
 
     /// <summary>Stages (unstages on the staged side) the picked lines of the hunk, or all of it with none picked.</summary>
     private async Task StageAsync(int hunk)

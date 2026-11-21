@@ -99,8 +99,8 @@ public sealed class GitClient(GitRunner runner)
     /// <summary>
     /// Applies part of a hunk to the index (WP-25, ADR 0012): always <c>--cached</c>, so the worktree is never touched; git
     /// checks the patch against the index and applies all of it or nothing. The user's <c>apply.whitespace</c> must not
-    /// refuse a line that is already in the file (<c>--whitespace=nowarn</c>); a hunk without context lines (the user's
-    /// <c>diff.context=0</c>) needs <c>--unidiff-zero</c>.
+    /// refuse a line that is already in the file (<c>--whitespace=nowarn</c>); a hunk without context at one of its ends
+    /// (the user's <c>diff.context=0</c>) needs <c>--unidiff-zero</c>.
     /// </summary>
     public Task<GitResult> ApplyToIndexAsync(string repo, HunkPatch patch, bool reverse, CancellationToken ct)
     {
@@ -110,7 +110,7 @@ public sealed class GitClient(GitRunner runner)
             args.Add("--reverse");
         }
 
-        if (!patch.HasContext)
+        if (patch.UnidiffZero)
         {
             args.Add("--unidiff-zero");
         }
@@ -129,7 +129,10 @@ public sealed class GitClient(GitRunner runner)
     /// caller's to leave out. A file above <see cref="FileDiff.MaxFileBytes"/> in the worktree is not read (git would read it
     /// whole, with every new status while the diff is open; review WP-05).
     /// </summary>
-    public async Task<(FileDiff? Diff, GitResult Result)> DiffAsync(string repo, FileChange change, bool staged, CancellationToken ct)
+    /// <param name="textconv">False for the file's own text instead of what a diff driver makes of it – the text a patch
+    /// for the index must be built from (review WP-25).</param>
+    public async Task<(FileDiff? Diff, GitResult Result)> DiffAsync(string repo, FileChange change, bool staged, CancellationToken ct,
+        bool textconv = true)
     {
         var file = new FileInfo(Path.Combine(repo, change.Path));
         if (file.Exists && file.Length > FileDiff.MaxFileBytes)
@@ -137,7 +140,9 @@ public sealed class GitClient(GitRunner runner)
             return (FileDiff.TooLarge, new GitResult(0, "", ""));
         }
 
-        string[] options = [LiteralPaths, "diff", "--no-color", "--no-ext-diff"];
+        string[] options = textconv
+            ? [LiteralPaths, "diff", "--no-color", "--no-ext-diff"]
+            : [LiteralPaths, "diff", "--no-color", "--no-ext-diff", "--no-textconv"];
         GitResult result;
         if (change.Untracked)
         {
