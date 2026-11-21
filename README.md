@@ -16,6 +16,10 @@ sign-in, SSH, hooks and LFS work exactly as in your terminal.
 - **Commit:** open a row to stage or unstage files, commit the staged files or everything, commit and push.
 - **Diff:** click a changed file to see its staged or unstaged changes right next to the list – git’s own diff, with line
   numbers and the changed words highlighted; line endings and binary files show as git sees them.
+- **Worktrees:** a repository’s linked worktrees (`git worktree`) as rows below it, behind a count you click to show
+  them – with branch, ahead/behind and changes, and the same actions; worktrees made by Claude Code sessions are marked.
+  Remove one, or clean up those that look done (branch merged, upstream deleted, folder gone): RepoBoard asks first,
+  lists the ignored files git deletes with it, and never removes a worktree with changes. The branch always stays.
 - **Branches:** switch to a local or remote branch, create a new one; the last 15 commits with their refs.
 - **Auto-fetch and auto-pull** per repository, at an interval of 1 to 60 minutes. Auto-pull only fast-forwards a branch
   that has only fallen behind – never a merge, never over your local commits, never during a merge or rebase – and says
@@ -28,7 +32,8 @@ sign-in, SSH, hooks and LFS work exactly as in your terminal.
 - **Updates:** RepoBoard looks for a newer version at start and while it runs and tells you – in the top bar and once as
   a Windows notification – with what is new; downloading and restarting wait for your click. Switch it off or check now
   in the settings.
-- **Repositories:** add one, or scan a folder (three levels deep); open it in the Explorer, a terminal or VS Code.
+- **Repositories:** add one, or scan a folder (three levels deep); open it in the Explorer, a terminal or VS Code. A
+  worktree you add or scan shows below its repository.
 - English and German, light and dark.
 
 ## Install
