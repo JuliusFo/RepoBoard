@@ -8,12 +8,6 @@ Der Nutzer wollte die Ideenliste als Pakete abgelegt haben (2026-11-20). Zuschni
 
 ### Gruppe A – nötig für den Alltag
 
-#### WP-03 Sofort aktualisieren (Dateiwächter)
-Branch `wp/03-file-watch`.
-- `FileSystemWatcher` je Repo auf `.git/HEAD`, `.git/index`, `.git/refs`, `FETCH_HEAD` und den Worktree; Ruhezeit nach einer Änderungsserie, dann ein Status. Der 20-s-Takt bleibt als Rückfallebene (verpasste Ereignisse, Netzlaufwerke).
-- Grenzen: Anzahl Watcher bei vielen Repos, `node_modules`/`bin`/`obj` im Worktree, Puffer-Überlauf → einmal neu lesen.
-- Offen: Worktree-Änderungen auch beobachten (teurer) oder nur `.git`?
-
 #### WP-25 Hunks und Zeilen stagen
 Branch `wp/25-hunk-staging`. Braucht WP-05 (erledigt: Diff aus `git diff`, ADR 0008). Als eigenes Paket nach WP-05 entschieden vom Nutzer (2026-11-21).
 - Am Hunk-Kopf der Diff-Ansicht „Hunk stagen“ (ungestaged) bzw. „Hunk unstagen“ (gestaged): den Hunk als Patch mit Dateikopf an `git apply --cached` (bzw. `--cached --reverse`) über stdin geben; danach Status und Diff neu.

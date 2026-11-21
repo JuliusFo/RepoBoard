@@ -3,14 +3,16 @@ paths:
   - "src/RepoBoard.Core/Git/**"
   - "src/RepoBoard.Core/Board/**"
   - "src/RepoBoard.Core/Sync/**"
+  - "src/RepoBoard.Core/Watch/**"
   - "tests/RepoBoard.Core.Tests/Git/**"
   - "tests/RepoBoard.Core.Tests/Sync/**"
+  - "tests/RepoBoard.Core.Tests/Watch/**"
   - "tests/Shared/GitSandbox.cs"
 ---
 
 # Git, Board und Auto-Sync
 
-Invarianten: `CLAUDE.md` §2; Begründungen: ADR 0002 (CLI), ADR 0003 (Auto-Sync).
+Invarianten: `CLAUDE.md` §2; Begründungen: ADR 0002 (CLI), ADR 0003 (Auto-Sync), ADR 0011 (Dateiwächter).
 
 ## Aufrufe
 - Ein neuer Befehl kommt als Methode in `GitClient`, nie als Argumentliste anderswo. Lesende Befehle über `Local` (30 s), Netzwerk über `Network` (3 min) mit `GitCallMode` – im Hintergrund immer `Background`.
@@ -28,6 +30,7 @@ Invarianten: `CLAUDE.md` §2; Begründungen: ADR 0002 (CLI), ADR 0003 (Auto-Sync
 - Zustand des Boards, den mehr als ein Thread ändert, liest und ändert unter einer Sperre: `UpdateSettingsAsync` kommt auch vom Thread-Pool (Update-Prüfung), sonst geht eine Änderung des Nutzers verloren (Review WP-10).
 - Ein Fehler steht in `RepoState.Error` bis zum nächsten Erfolg. Derselbe Fehler bei jedem Auto-Sync kommt nur einmal ins Aktivitätsprotokoll; ein übersprungener Auto-Pull nur, wenn sich der Grund ändert.
 - Vor allem, was Dateien oder Refs entfernt: was die Rückfrage geprüft hat, unmittelbar vor dem git-Aufruf noch einmal prüfen (Status, laufende Operation mit frisch gelesenem Git-Ordner, Commits eines detached HEAD ohne Ref, Liste dessen, was mitgelöscht wird) – zwischen Frage und Klick arbeitet eine Session weiter (Review WP-04).
+- Was RepoBoard beim Lesen aufruft, darf in Repo und Git-Ordner nichts schreiben: der Dateiwächter (ADR 0011) läse sonst nach jedem Status den nächsten (`RepoWatchTests.Reading_the_status_does_not_read_it_again`). Ein neuer lesender Befehl, der Dateien anlegt (Cache, Lock), braucht eine Ausnahme in `WatchMap.Route`.
 - Texte für den Nutzer aus `SyncText`, nie zusammengeklebt (`TextFormat`, Plural über `CommitsOne`/`CommitsOther`).
 
 ## Tests
