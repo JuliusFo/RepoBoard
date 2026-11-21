@@ -100,3 +100,4 @@ jobs:
         run: |
           dotnet test tests/RepoBoard.Core.Tests --no-build
           dotnet test tests/RepoBoard.UI.Tests --no-build
+          dotnet test tests/RepoBoard.App.Tests --no-build

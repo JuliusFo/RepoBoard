@@ -8,6 +8,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ### Added
 - Diff view (WP-05): a click on a changed file in an opened row shows its staged or unstaged changes next to the list, in place of branches and history – git’s own diff, inline, with old and new line numbers, the changed words highlighted, Windows line endings and a missing newline at the end marked, binary files named. The diff follows the file when you stage or unstage it and is read again with each new status; Esc, the X or a second click closes it.
 
+### Fixed
+- Hover effects and the result of a click often showed late or only with the next mouse move: RepoBoard now waits until each picture of the page is really copied before the window shows it.
+
+### Internal
+- `RepoBoard.App.Tests` (Windows): the Direct3D interfaces of the copy wait and the WebView2 members it relies on; `tools/e2e/Measure-PictureDelay.ps1` measures how long a hover or click takes to show in the window.
+
 ## [0.1.0] - 2026-11-21
 
 ### Security

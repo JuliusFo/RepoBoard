@@ -30,4 +30,5 @@ powershell -ExecutionPolicy Bypass -File tools/e2e/Stop-TestInstance.ps1 -Root <
 | `Invoke-RealClick.ps1` | `SendInput` mouse through the WPF host; stops if the window is not in front or not under the point |
 | `cdp.mjs` | `eval`, `calls` (several CDP calls in one connection), `screenshot` |
 | `Invoke-TrayIcon.ps1` | Right or left click on the notification-area icon by message, menu items through UI Automation |
+| `Measure-PictureDelay.ps1` | How long a hover (or with `-Click` a click) takes to show in the window picture, lost frames as -1 (ADR 0009) |
 | `Stop-TestInstance.ps1` | End only that instance (`--exit`), report `[ERR]`/`[WRN]` |

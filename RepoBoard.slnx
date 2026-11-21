@@ -5,6 +5,7 @@
     <Project Path="src/RepoBoard.UI/RepoBoard.UI.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/RepoBoard.App.Tests/RepoBoard.App.Tests.csproj" />
     <Project Path="tests/RepoBoard.Core.Tests/RepoBoard.Core.Tests.csproj" />
     <Project Path="tests/RepoBoard.UI.Tests/RepoBoard.UI.Tests.csproj" />
   </Folder>

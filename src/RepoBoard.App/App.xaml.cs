@@ -85,6 +85,7 @@ public partial class App : Application
         builder.Services.AddSingleton(_paths);
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton(theme);
+        builder.Services.AddSingleton<WebViewCapture>();
         builder.Services.AddSingleton(new GitRunner());
         builder.Services.AddSingleton<GitClient>();
         builder.Services.AddSingleton(services => new ConfigStore(_paths.ConfigFile, services.GetRequiredService<TimeProvider>()));
