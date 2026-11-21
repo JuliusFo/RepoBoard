@@ -100,7 +100,8 @@ public sealed class GitDiffTests : IDisposable
     [InlineData("Fehler: Konnte nicht auf 'gone.txt' zugreifen")]
     public async Task A_new_file_gone_before_its_diff_is_an_error(string message)
     {
-        var runner = Substitute.ForPartsOf<GitRunner>("git");
+        // For, not ForPartsOf: setting up Returns must not call the real RunAsync (third review pass WP-05).
+        var runner = Substitute.For<GitRunner>("git");
         runner.RunAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<string>>(), Arg.Any<GitCallMode>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
             .Returns(new GitResult(1, "", message));
         var gone = new FileChange("gone.txt", null, '.', '?', Untracked: true, Conflict: false);
