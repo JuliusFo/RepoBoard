@@ -98,18 +98,25 @@ public sealed class WorktreeTests : IDisposable
         Assert.Single(_board.Repos); // never in the configuration
     }
 
-    /// <summary>Review WP-04: a submodule's git folder is git's "main worktree" of it – it stays as chosen.</summary>
+    /// <summary>
+    /// Review WP-04: a submodule's git folder is git's "main worktree" of it – the submodule stays as chosen, and so does a
+    /// linked worktree of it (second review pass): never a git folder on the board.
+    /// </summary>
     [Fact]
     public async Task Adding_a_worktree_puts_its_repository_on_the_board_but_a_submodule_stays()
     {
         var feature = AddWorktree("feature", null, "-b", "feature");
+        var sub = Path.Combine(_git.Theirs, "sub");
         GitSandbox.Git(_git.Theirs, "-c", "protocol.file.allow=always", "submodule", "add", _git.Remote, "sub");
+        var subWorktree = Path.Combine(_git.Root, "subwt");
+        GitSandbox.Git(sub, "worktree", "add", "-b", "subwt", subWorktree);
 
-        await _board.AddAsync([feature, Path.Combine(_git.Theirs, "sub")], Ct);
+        await _board.AddAsync([feature, sub, subWorktree], Ct);
 
-        Assert.Equal(["mine", "sub"], _board.Repos.Select(r => r.Name));
+        Assert.Equal(["mine", "sub", "subwt"], _board.Repos.Select(r => r.Name));
         Assert.Equal("feature", Assert.Single(_board.Repos[0].Worktrees).Name);
-        Assert.Equal(Path.Combine(_git.Theirs, "sub"), _board.Repos[1].Path, ignoreCase: OperatingSystem.IsWindows());
+        Assert.Equal(sub, _board.Repos[1].Path, ignoreCase: OperatingSystem.IsWindows());
+        Assert.Equal(subWorktree, _board.Repos[2].Path, ignoreCase: OperatingSystem.IsWindows());
     }
 
     /// <summary>Review WP-04: worktrees found by a scan bring their repository, also from outside the scanned folder.</summary>

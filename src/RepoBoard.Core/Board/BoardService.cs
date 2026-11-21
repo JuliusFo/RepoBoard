@@ -689,11 +689,12 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     /// <summary>
     /// The main worktree when <paramref name="root"/> is a linked worktree; null otherwise. Only a linked worktree's git
     /// folder holds <c>commondir</c>: for a submodule or a separate git folder, git lists the git folder itself as the main
-    /// worktree (review WP-04).
+    /// worktree (review WP-04) – also for a linked worktree of those, so the main worktree must be a work tree itself (second
+    /// review pass).
     /// </summary>
     private async Task<string?> MainOfLinkedWorktreeAsync(string root, CancellationToken ct) =>
         await git.GitDirAsync(root, ct) is { } gitDir && File.Exists(Path.Combine(gitDir, "commondir"))
-        && await git.WorktreesAsync(root, ct) is [{ IsBare: false } main, ..]
+        && await git.WorktreesAsync(root, ct) is [{ IsBare: false } main, ..] && Path.Exists(Path.Combine(main.Path, ".git"))
             ? main.Path
             : null;
 
