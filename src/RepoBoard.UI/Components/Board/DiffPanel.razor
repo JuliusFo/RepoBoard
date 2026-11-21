@@ -134,21 +134,32 @@
         var staged = Staged;
         Fire(async () =>
         {
-            var (diff, error) = await Board.DiffAsync(Repo, change, staged, default);
-            if (read == _reads)
+            try
             {
-                if (diff is not null)
+                var (diff, error) = await Board.DiffAsync(Repo, change, staged, default);
+                if (read == _reads)
                 {
-                    _selection.KeepFor(_diff, diff);
-                }
-                else
-                {
-                    _selection.Clear();
-                }
+                    if (diff is not null)
+                    {
+                        _selection.KeepFor(_diff, diff);
+                    }
+                    else
+                    {
+                        _selection.Clear();
+                    }
 
-                (_diff, _error) = (diff, error);
-                _current = true;
-                StateHasChanged();
+                    (_diff, _error) = (diff, error);
+                }
+            }
+            finally
+            {
+                // Also after an unexpected error (reported by the guard): the buttons do not stay off until the next status.
+                // Staging still compares with a fresh diff (third review pass WP-25).
+                if (read == _reads)
+                {
+                    _current = true;
+                    StateHasChanged();
+                }
             }
         });
     }

@@ -52,3 +52,7 @@ Zweiter Durchgang (Fix-Commits `e097af3..b10bf6c`; Nutzer: „Alle beheben“):
 11. M – Das Neu-Lesen im Tor parste den Diff zweimal auf dem UI-Thread (Regression aus 1) → behoben: `StageHunkAsync` arbeitet über `Task.Run` (`StageHunkCoreAsync`), wie `DiffAsync`. Ohne Test (UI-Thread).
 12. K (Verdacht) – Gleich nach dem Stagen war der Knopf am nächsten Hunk aktiv, obwohl der neue Diff noch lud → „Die Datei hat sich geändert“ → im E2E nachgestellt (ohne Fix: Fehlerzeile, mit Fix: beide Hunks gestaged), behoben: Knöpfe aus, bis der Diff zum neuen Status gelesen ist (`_current`).
 13. K – Eine von `diff -M` nicht gepaarte Umbenennung bekam die Meldung zu Links und Submodulen → eigener Fall `IsTwoFiles` mit Meldung `Hunk_TwoFiles`; `IsSpecialFile` nur noch bei `120000`/`160000`. Test `A_deleted_and_an_added_file_in_one_diff_are_not_staged_in_parts`.
+
+Dritter Durchgang (`b10bf6c..6e7c6b7`; Nutzer: „Beheben, dann pushen“):
+14. K – Nach einer unerwarteten Ausnahme beim Lesen des Diffs blieben die Hunk-Knöpfe bis zum nächsten Status gesperrt → behoben: `_current` im `finally` (das Stagen vergleicht ohnehin mit frisch gelesenem Diff). Ohne Test (Komponente).
+- Offen: echter Mausklick nach dem Umbau zu `DiffLineView` (Windows holte das Testfenster dreimal nicht nach vorn); per CDP geprüft.
