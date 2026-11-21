@@ -12,6 +12,7 @@ Aus FerretSharp übernommen, soweit es hier gilt; Git-Tests: `git.md`.
 - Die Tests laufen mit deutscher UI-Kultur (`UiCulture`), englische Texte mit `using (UiCulture.Use("en")) { … }`. Zahlen in Texten (`{0:N0}`) folgen dagegen der Kultur der Maschine: die erwartete Zahl mit `ToString("N0", CultureInfo.CurrentCulture)` bauen (FerretSharp WP-59, CI rot). `ResourceTests` (Core, UI) prüfen beide Sprachen je Schlüssel.
 - **Die CI testet zuerst unter Linux**, lokal läuft nur Windows: Pfade in Erwartungen über `Path.Combine`, nie mit `\` oder Laufwerksbuchstaben; Dateinamen sind dort case-sensitiv; Sperren über `FileShare` sind unter Linux nur beratend; kein Test hängt von Reihenfolge oder Zustand eines anderen ab. Vor dem Push `pwsh -NoProfile -File tools/linux/Test-Linux.ps1`.
 - Zeit über `TimeProvider` (`FakeTimeProvider`), nicht mit festen `Task.Delay` abwarten. Auf etwas warten, das ein anderer Thread wahr macht: `Wait.UntilAsync(…, what)`.
+- `RepoBoard.App.Tests` läuft nur unter Windows (CI-Job „Solution (Windows)“, nicht in `Test-Linux.ps1`) und prüft nur, was ein Paket-Update unbemerkt bricht: die Direct3D-Schnittstellen von `CopyFence` gegen ein WARP-Gerät und die privaten WebView2-Member (ADR 0008).
 - Testbare UI-Logik liegt in `UI/State` und wird ohne Rendern geprüft (`RepoBoard.UI.Tests`); Tests liegen im Ordner des Bereichs, den sie prüfen.
 
 ## Redundante Tests (aus FerretSharp, Review 3.54.0/3.70.0)

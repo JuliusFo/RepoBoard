@@ -13,7 +13,8 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - Schwärzen in git-Meldungen (`GitSecrets`, vor v0.1.0) erkennt Tokens ohne festes Präfix nur in einer URL: ein Azure-DevOps-PAT oder ein anderes Geheimnis, das ein Server frei in eine `remote:`-Zeile schreibt, bliebe sichtbar. Weitere Muster ergänzen, wenn eines auftaucht.
 - Beenden während eines Auto-Pulls bricht `git merge --ff-only` nach 3 s ab (`host.StopAsync`, `GitRunner` beendet den Prozessbaum): lokale Arbeit bleibt, aber ein halb aktualisierter Worktree oder `index.lock` kann liegen bleiben. Seit `--exit` (WP-02) gibt es dafür einen Auslöser von außen, seit WP-10 auch „Jetzt neu starten“ in der Kopfzeile (ein Klick ohne Rückfrage); laufende Operationen beim Beenden bis zum Zeitlimit zu Ende laufen lassen (Review WP-02, vorher schon da).
 - Status-Durchlauf alle 20 s über alle Repos: bei sehr vielen Repos messen (Prozessstarts); Abhilfe in WP-03.
-- WebView-Bild nach Ruhezustand/Dock/RDP: FerretSharp hat `WebViewCapture`/`CopyFence` (ADR 0038/0039 dort); hier nur das WebView2-Pin. Tritt es auf, von dort übernehmen.
+- WebView-Bild nach Ruhezustand/Dock/RDP: Seit ADR 0008 gibt es `WebViewCapture` mit `CopyFence` (Bild-Teil aus FerretSharp); der Neustart der Aufnahme nach Ruhezustand, Sitzungswechsel, zurückkehrendem Front Buffer und Wiederherstellen aus minimiert sowie die Software-Anzeige ohne Front Buffer (RDP) fehlen noch (FerretSharp ADR 0038 mit Nachträgen). Tritt ein stehendes Bild auf, von dort in `WebViewCapture` übernehmen.
+- Ein Klick von 70 blieb auch mit ADR 0008 bis zum nächsten unsichtbar, ohne Spur im Log (`fix-webview-copy-fence.md`). Tritt es beim Nutzer auf: mit `Measure-PictureDelay.ps1 -Click` und den Debug-Zeilen von `WebViewCapture` eingrenzen.
 - Ein Push ohne Remote `origin` (anderer Name) setzt keinen Upstream – Remote wählen lassen.
 
 ## Infobereich und Benachrichtigungen (Fortsetzung von WP-02)

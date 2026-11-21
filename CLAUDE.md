@@ -65,7 +65,7 @@ src/RepoBoard.Core/   net10.0 – reine Logik, KEIN WPF, KEINE Windows-only-APIs
 src/RepoBoard.UI/     net10.0 Razor Class Library, plattformneutral: Shell.razor, Components/ (Ordner = Namespace),
                       State/ (Namespace `UI.State`, testbare Logik, Host-Schnittstellen), Resources/, wwwroot/
 src/RepoBoard.App/    net10.0-windows10.0.19041.0 – schlanker WPF-Host (Program.Main, Generic Host, Serilog, Host-Dienste)
-tests/                Core.Tests, UI.Tests (State ohne Rendern), Shared/ (TestFolder, GitSandbox, …)
+tests/                Core.Tests, UI.Tests (State ohne Rendern), App.Tests (nur Windows: WebView-Aufnahme), Shared/ (TestFolder, GitSandbox, …)
 tools/                linux/ (Build und Tests im Linux-Container wie die CI), e2e/ (Testinstanz, echte Klicks, CDP)
 ```
 
