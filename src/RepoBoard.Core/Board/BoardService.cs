@@ -234,6 +234,23 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         await Parallel.ForEachAsync(_repos.SelectMany(r => r.Worktrees), options, async (worktree, token) => await RefreshAsync(worktree, token));
     }
 
+    /// <summary>
+    /// The status tick (WP-03, ADR 0011): every repository and worktree no file watcher sees, and the watched ones whose
+    /// last status is <see cref="WatchedRefresh"/> old – a fallback for an event the watcher missed.
+    /// </summary>
+    public async Task RefreshStaleAsync(CancellationToken ct)
+    {
+        var options = new ParallelOptions { MaxDegreeOfParallelism = 8, CancellationToken = ct };
+        await Parallel.ForEachAsync(_repos.Where(IsStale), options, async (repo, token) => await RefreshAsync(repo, token));
+        await Parallel.ForEachAsync(_repos.SelectMany(r => r.Worktrees).Where(IsStale), options, async (worktree, token) => await RefreshAsync(worktree, token));
+    }
+
+    /// <summary>How often the tick reads a repository a file watcher sees (decision of the user, 2026-11-21).</summary>
+    public static readonly TimeSpan WatchedRefresh = TimeSpan.FromMinutes(2);
+
+    private bool IsStale(RepoState repo) =>
+        !repo.Watched || repo.StatusReadAt is not { } read || time.GetUtcNow() - read >= WatchedRefresh;
+
     /// <summary>After a fetch or pull in a repository: its worktrees share the refs, their ahead and behind changed too.</summary>
     private Task RefreshWorktreesAsync(RepoState repo, CancellationToken ct, RepoState? except = null) =>
         Task.WhenAll(repo.Worktrees.Where(w => w != except).Select(w => RefreshAsync(w, ct)));
@@ -264,6 +281,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
 
     private async Task RefreshCoreAsync(RepoState repo, CancellationToken ct)
     {
+        repo.StatusReadAt = time.GetUtcNow();
         if (!Directory.Exists(repo.Path))
         {
             repo.Missing = true;

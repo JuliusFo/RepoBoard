@@ -5,8 +5,9 @@ using RepoBoard.Core.Board;
 namespace RepoBoard.Core.Sync;
 
 /// <summary>
-/// Every <see cref="Tick"/>: the local status of all repositories (a branch switched in the IDE shows up here), then the
-/// auto-sync of those whose interval has passed (ADR 0003).
+/// Every <see cref="Tick"/>: the local status of the repositories no file watcher sees, and of the watched ones as a
+/// fallback every <see cref="BoardService.WatchedRefresh"/> (WP-03, ADR 0011), then the auto-sync of those whose interval
+/// has passed (ADR 0003).
 /// </summary>
 public sealed class AutoSyncService(BoardService board, TimeProvider time, ILogger<AutoSyncService> logger) : BackgroundService
 {
@@ -19,7 +20,7 @@ public sealed class AutoSyncService(BoardService board, TimeProvider time, ILogg
         {
             try
             {
-                await board.RefreshAllAsync(stoppingToken);
+                await board.RefreshStaleAsync(stoppingToken);
                 await board.AutoSyncDueAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
