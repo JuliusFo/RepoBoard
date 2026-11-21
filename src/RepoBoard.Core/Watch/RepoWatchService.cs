@@ -138,9 +138,10 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
                 state.Watched = map.IsCovered(state, watched);
 
                 // A worktree just added (its repository read the list) has no status yet: read it now, not with the tick.
+                // As a change at the dawn of time it is due at once, and any read since – the tick at the start – will do.
                 if (state.StatusReadAt is null)
                 {
-                    _pending.Add(state, now);
+                    _pending.Add(state, DateTimeOffset.MinValue);
                 }
             }
         }
