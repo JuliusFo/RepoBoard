@@ -25,6 +25,8 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - Status je Worktree alle 20 s: bei Repos mit sehr vielen Worktrees messen (Prozessstarts); Abhilfe mit WP-03 oder Status nur für aufgeklappte Gruppen.
 - Ein verknüpfter Worktree, der schon vor WP-04 selbst auf dem Board stand, erscheint doppelt (oben und unter seinem Repo); ihn entfernen oder automatisch übernehmen?
 - Worktrees aller Repos auf einmal aufräumen (wie „gone“-Branches überall in WP-08).
+- Push auf einem Branch mit gelöschtem Upstream (`HasUpstream`, also ohne `-u`) legt den gelöschten Remote-Branch wieder an – seit „Upstream gelöscht“ sichtbar (vorher schon da, Review WP-04).
+- Lokale Commits eines Branches mit gelöschtem Upstream zählen nicht als „Voraus“ (Chip, Tray; vorher schon da, Review WP-04).
 
 ## Diff (Fortsetzung von WP-05)
 
