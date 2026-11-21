@@ -25,6 +25,9 @@ internal sealed class GitSandbox : IDisposable
         Environment.SetEnvironmentVariable("GIT_AUTHOR_EMAIL", "test@example.invalid");
         Environment.SetEnvironmentVariable("GIT_COMMITTER_NAME", "Test");
         Environment.SetEnvironmentVariable("GIT_COMMITTER_EMAIL", "test@example.invalid");
+
+        // A repository above the temp folder (dotfiles in $HOME) must not answer for a sandbox whose .git is gone (review WP-03).
+        Environment.SetEnvironmentVariable("GIT_CEILING_DIRECTORIES", Path.TrimEndingDirectorySeparator(Path.GetTempPath()));
     }
 
     public GitSandbox()
@@ -53,7 +56,17 @@ internal sealed class GitSandbox : IDisposable
         Git(repo, "commit", "-m", $"{file}: {content}");
     }
 
+    /// <summary>git without failing the test: false when it ends with an error (a feature the platform lacks).</summary>
+    public static bool TryGit(string dir, params string[] args) => Run(dir, args).ExitCode == 0;
+
     public static string Git(string dir, params string[] args)
+    {
+        var (exitCode, output, error) = Run(dir, args);
+        Assert.True(exitCode == 0, $"git {string.Join(' ', args)}: {error}");
+        return output;
+    }
+
+    private static (int ExitCode, string Output, string Error) Run(string dir, string[] args)
     {
         var start = new ProcessStartInfo("git") { WorkingDirectory = dir, RedirectStandardOutput = true, RedirectStandardError = true };
         foreach (var arg in args)
@@ -65,8 +78,7 @@ internal sealed class GitSandbox : IDisposable
         var error = process.StandardError.ReadToEndAsync();
         var output = process.StandardOutput.ReadToEnd();
         process.WaitForExit();
-        Assert.True(process.ExitCode == 0, $"git {string.Join(' ', args)}: {error.Result}");
-        return output;
+        return (process.ExitCode, output, error.Result);
     }
 
     /// <summary>Skips without git; in the CI (<c>CI=true</c>) a missing git is a failure, not a skip.</summary>

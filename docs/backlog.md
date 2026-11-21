@@ -12,7 +12,7 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - Ein Repo zu scannen heißt, seiner Konfiguration zu vertrauen (`core.fsmonitor`, Hooks laufen mit jedem `git status`, ADR 0002) – beim Scannen die Liste vorher bestätigen lassen?
 - Schwärzen in git-Meldungen (`GitSecrets`, vor v0.1.0) erkennt Tokens ohne festes Präfix nur in einer URL: ein Azure-DevOps-PAT oder ein anderes Geheimnis, das ein Server frei in eine `remote:`-Zeile schreibt, bliebe sichtbar. Weitere Muster ergänzen, wenn eines auftaucht.
 - Beenden während eines Auto-Pulls bricht `git merge --ff-only` nach 3 s ab (`host.StopAsync`, `GitRunner` beendet den Prozessbaum): lokale Arbeit bleibt, aber ein halb aktualisierter Worktree oder `index.lock` kann liegen bleiben. Seit `--exit` (WP-02) gibt es dafür einen Auslöser von außen, seit WP-10 auch „Jetzt neu starten“ in der Kopfzeile (ein Klick ohne Rückfrage); laufende Operationen beim Beenden bis zum Zeitlimit zu Ende laufen lassen (Review WP-02, vorher schon da).
-- Status-Durchlauf alle 20 s über alle Repos: bei sehr vielen Repos messen (Prozessstarts); Abhilfe in WP-03.
+- Repos ohne Dateiwächter (Netzlaufwerk, inotify-Grenze, Fehler) liest der Takt weiter alle 20 s (ADR 0011): bei sehr vielen solchen Repos messen.
 - WebView-Bild nach Ruhezustand/Dock/RDP: Seit ADR 0009 gibt es `WebViewCapture` mit `CopyFence` (Bild-Teil aus FerretSharp); der Neustart der Aufnahme nach Ruhezustand, Sitzungswechsel, zurückkehrendem Front Buffer und Wiederherstellen aus minimiert sowie die Software-Anzeige ohne Front Buffer (RDP) fehlen noch (FerretSharp ADR 0038 mit Nachträgen). Tritt ein stehendes Bild auf, von dort in `WebViewCapture` übernehmen.
 - Ein Klick von 70 blieb auch mit ADR 0009 bis zum nächsten unsichtbar, ohne Spur im Log (`fix-webview-copy-fence.md`). Tritt es beim Nutzer auf: mit `Measure-PictureDelay.ps1 -Click` und den Debug-Zeilen von `WebViewCapture` eingrenzen.
 - Ein Push ohne Remote `origin` (anderer Name) setzt keinen Upstream – Remote wählen lassen.
@@ -22,7 +22,7 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - Worktree anlegen (Branch wählen oder neu, Ordner vorschlagen, z. B. neben dem Repo).
 - Beim Entfernen auch den Branch löschen, wenn er gemergt ist – gehört zu WP-08 (Branches aufräumen).
 - Auto-Pull je Worktree (Fast-Forward seines Branches nach dem Auto-Fetch des Repos); bräuchte Konfiguration Version 2 – vom Nutzer erst einmal nicht gewollt (2026-11-21).
-- Status je Worktree alle 20 s: bei Repos mit sehr vielen Worktrees messen (Prozessstarts); Abhilfe mit WP-03 oder Status nur für aufgeklappte Gruppen.
+- Status je Worktree: seit WP-03 nur bei Änderungen und alle 2 min als Rückfall; bei Repos mit sehr vielen Worktrees noch messen (Prozessstarts beim Start und bei „Status neu lesen“).
 - Ein verknüpfter Worktree, der schon vor WP-04 selbst auf dem Board stand, erscheint doppelt (oben und unter seinem Repo); ihn entfernen oder automatisch übernehmen?
 - Worktrees aller Repos auf einmal aufräumen (wie „gone“-Branches überall in WP-08).
 - Push auf einem Branch mit gelöschtem Upstream (`HasUpstream`, also ohne `-u`) legt den gelöschten Remote-Branch wieder an – seit „Upstream gelöscht“ sichtbar (vorher schon da, Review WP-04).
@@ -39,6 +39,14 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - Hunks und Zeilen stagen: WP-25 (Roadmap).
 - Größengrenze bei gelöschten Dateien (Review WP-05, Punkt 11): gemessen wird die Datei im Worktree – eine gelöschte große Datei hat keine, git liest ihren Diff bei offenem Diff alle 20 s ganz ein (geparst wird höchstens bis 5 000 Zeilen, nicht auf dem UI-Thread). Abhilfe: Größe aus Index bzw. HEAD (`git cat-file -s :<pfad>` / `HEAD:<pfad>`).
 - Scheitert ein Stagen per Häkchen, bleibt das vom Klick gesetzte Häkchen in der Liste „Nicht gestaged“ stehen (`checked` dort nicht gebunden; vorher schon da, Review WP-05).
+
+## Dateiwächter (Fortsetzung von WP-03)
+
+- Die Ordner, deren Änderungen nichts auslösen (`bin`, `obj`, `node_modules`, `.vs`, `.idea`, `TestResults`), sind fest: stattdessen die ignorierten Pfade von git fragen (`check-ignore --stdin`) oder die Liste einstellbar machen.
+- Ein Repo mit eigenem Git-Ordner außerhalb (Submodul, `--separate-git-dir`) wird nur beobachtet, wenn auch dieser Ordner eine Wurzel ist – gelöst über `WatchMap.Roots`, aber nicht end-to-end geprüft.
+- Ein erfolgreicher Status löscht einen Status-Fehler in der Zeile nicht; er steht bis zum Ausblenden oder zur nächsten erfolgreichen Operation (vorher schon da, Review WP-03). Bei Erfolg löschen?
+- Unter Linux löst `git worktree lock` (nur `worktrees/<n>/locked` entsteht) kein Lesen des Repos aus, unter Windows schon (Review WP-03, ohne Belang für Windows).
+- Wächter, die nicht starten oder scheitern, stehen nur im Log; im Board sieht man nicht, welches Repo nur mit dem Takt gelesen wird.
 
 ## Infobereich und Benachrichtigungen (Fortsetzung von WP-02)
 

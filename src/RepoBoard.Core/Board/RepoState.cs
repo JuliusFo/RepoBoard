@@ -79,6 +79,43 @@ public sealed class RepoState(RepoEntry entry, RepoState? mainRepo = null)
 
     public DateTimeOffset? LastAutoSync { get; internal set; }
 
+    /// <summary>
+    /// When the board last began a status read that succeeded (WP-03), as a <see cref="TimeProvider.GetTimestamp"/>: a
+    /// change seen before that moment is in it, a file watcher's event need not read it again. Monotonic, so a clock set
+    /// back does not stall the watcher; one <c>long</c>, so a read on another thread never sees half of it (review WP-03).
+    /// </summary>
+    internal long? StatusReadAt
+    {
+        get => Volatile.Read(ref _statusReadAt) is var read and not 0 ? read : null;
+        set => Volatile.Write(ref _statusReadAt, value ?? 0);
+    }
+
+    private long _statusReadAt;
+
+    /// <summary>
+    /// The last status read failed (WP-03): the tick reads it every time, watched or not. Not <see cref="Error"/>, which
+    /// also holds failed operations and auto-fetches – offline, every repository would be read every 20 s (review WP-03).
+    /// </summary>
+    internal bool StatusFailed
+    {
+        get => Volatile.Read(ref _statusFailed);
+        set => Volatile.Write(ref _statusFailed, value);
+    }
+
+    private bool _statusFailed;
+
+    /// <summary>
+    /// A file watcher sees its folder and git folder (WP-03, ADR 0011): the status tick reads it only as a fallback, every
+    /// <see cref="BoardService.WatchedRefresh"/>.
+    /// </summary>
+    internal bool Watched
+    {
+        get => Volatile.Read(ref _watched);
+        set => Volatile.Write(ref _watched, value);
+    }
+
+    private bool _watched;
+
     /// <summary>Worktrees have no auto-sync of their own: they share the refs a fetch of their repository brings.</summary>
     public bool AutoSyncOn => !IsWorktree && (Entry.AutoFetch || Entry.AutoPull);
 
