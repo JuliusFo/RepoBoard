@@ -312,9 +312,17 @@ code { font-family: var(--mono); font-size: 12px; }
   display: grid; align-content: start; overflow: auto; flex: 1; min-height: 60px;
   border: 1px solid var(--border); border-radius: 6px; font: 12px/1.45 var(--mono);
 }
-.diff-hunk { padding: 2px 8px; white-space: pre; color: var(--muted); background: var(--accent-weak); }
-.diff-hunk span { color: var(--text); }
+.diff-hunk { display: flex; align-items: center; gap: 8px; padding: 2px 4px 2px 8px; white-space: pre; color: var(--muted); background: var(--accent-weak); }
+.diff-hunk .range { flex: 1; }
+.diff-hunk .section { color: var(--text); }
+/* Stays at the right edge of the pane when the diff is scrolled sideways (WP-25). */
+.diff-hunk .hunk-stage { position: sticky; right: 4px; height: 20px; font-size: 11px; }
 .diff-line { display: flex; white-space: pre; }
+.diff-line .gutter { flex: none; display: flex; }
+.diff-line .gutter.pick { cursor: pointer; }
+.diff-line .gutter.pick:hover { background: var(--accent-weak); }
+.diff-line.picked .gutter, .diff-line.picked .gutter.pick:hover { background: var(--accent); }
+.diff-line.picked .gutter .no, .diff-line.picked .gutter .sign { color: var(--accent-text); }
 .diff-line .no { flex: none; width: 44px; padding-right: 6px; text-align: right; color: var(--faint); user-select: none; }
 .diff-line .sign { flex: none; width: 16px; text-align: center; user-select: none; }
 .diff-line .text { padding-right: 12px; }
