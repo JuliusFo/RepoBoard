@@ -44,6 +44,8 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 
 - Die Ordner, deren Änderungen nichts auslösen (`bin`, `obj`, `node_modules`, `.vs`, `.idea`, `TestResults`), sind fest: stattdessen die ignorierten Pfade von git fragen (`check-ignore --stdin`) oder die Liste einstellbar machen.
 - Ein Repo mit eigenem Git-Ordner außerhalb (Submodul, `--separate-git-dir`) wird nur beobachtet, wenn auch dieser Ordner eine Wurzel ist – gelöst über `WatchMap.Roots`, aber nicht end-to-end geprüft.
+- Ein erfolgreicher Status löscht einen Status-Fehler in der Zeile nicht; er steht bis zum Ausblenden oder zur nächsten erfolgreichen Operation (vorher schon da, Review WP-03). Bei Erfolg löschen?
+- Unter Linux löst `git worktree lock` (nur `worktrees/<n>/locked` entsteht) kein Lesen des Repos aus, unter Windows schon (Review WP-03, ohne Belang für Windows).
 - Wächter, die nicht starten oder scheitern, stehen nur im Log; im Board sieht man nicht, welches Repo nur mit dem Takt gelesen wird.
 
 ## Infobereich und Benachrichtigungen (Fortsetzung von WP-02)

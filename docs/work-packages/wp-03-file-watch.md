@@ -31,5 +31,22 @@ Branch `wp/03-file-watch`, 2026-11-21.
   - Leerlauf 150 s: 4 `git status` (ein Rückfall-Durchlauf für Repo und drei Worktrees nach 2 min) statt etwa 30 mit dem 20-s-Takt. Start: 5 für 4 Zeilen.
   - Log ohne `[ERR]`/`[WRN]`. Keine neue Mausinteraktion, daher keine echten Klicks (die Worktree-Gruppe per CDP aufgeklappt).
 - Unter Linux (`Test-Linux.ps1`): grün.
-- `dotnet build -warnaserror`, `dotnet test`: 316 Tests grün.
+- `dotnet build -warnaserror`, `dotnet test`: 316 Tests grün, nach dem Review 338.
 - Nicht geprüft: Netzlaufwerk (Wächter scheitert → Takt), Pufferüberlauf, sehr viele Repos. Neu: `WatchMapTests` (Routing je Fall, Wurzeln, eigener Git-Ordner, Abgleich), `ChangeDebouncerTests`, `RepoWatchTests` gegen echte Repos (Commit, Branchwechsel, neue Datei, Stage, Fetch ohne Refresh-Aufruf; neuer Worktree mit Status und Commits; Wächter folgen dem Board, `git worktree remove` trotz Wächter; ein Lesen löst kein weiteres aus – einmal gebrochen: scheitert; Rückfall-Takt mit `FakeTimeProvider`).
+
+## Nachtrag: Code-Review (2026-11-21)
+Getrennter Reviewer-Agent über `6438d18..69ce61b`, danach ein zweiter Durchgang über die Fix-Commits. Entscheidung des Nutzers vorab: „Wenn dir beim Code Review Dinge auffallen, evaluiere die beste Lösung und setze diese um. Das Ganze so lange wiederholen, bis alles gut ist.“ Jeder Fix mit Test wurde einmal gebrochen: der genannte Test scheiterte.
+
+1. M – Endlosschleife: Mit fsmonitor (Cookie je `git status`) oder Git LFS (`lfs/tmp`) schreibt RepoBoards eigener Status in `.git`, der Wächter las daraufhin wieder (vom Reviewer nachgestellt) → behoben: im Git-Ordner zählt nur eine Positivliste (`WatchMap.StateFiles`/`StateFolders`, Submodule über `SubmoduleChanged`). Tests: Theory-Fälle in `WatchMapTests`, `Reading_the_status_does_not_read_it_again` auch mit fsmonitor-Daemon (übersprungen, wo git keinen hat).
+2. K – `config` und `info/` (Upstream, Excludes) gingen nur an das Repo, nicht an seine Worktrees → behoben, Theory-Fälle.
+3. K – `StatusReadAt` wurde auch bei gescheitertem Status gesetzt → behoben: erst nach Erfolg; `RefreshAsync` meldet ein belegtes Tor (`false`), nur dann liest der Wächter erneut; ein gescheiterter Status wird bei jedem Takt gelesen (`RepoState.StatusFailed`, im zweiten Durchgang statt `Error`, das auch gescheiterte Fetches hält). Test im Rückfall-Test.
+4. K – `StatusReadAt` als `DateTimeOffset?` konnte zerrissen gelesen werden, die Entprellung hing an der Wanduhr → behoben: `long` über `Volatile`, Zeit aus `TimeProvider.GetTimestamp` (monoton).
+5. K – Beim Beenden konnten Lesevorgänge und Callbacks auf entsorgte Semaphoren treffen → behoben: nicht mehr entsorgt.
+6. K – Eine unerwartete Ausnahme beendete die Schleife (und mit `StopHost` den Host) → behoben: geloggt, 5 s Pause, neuer Abgleich.
+7. K – Jedes Lesen eines Repos mit Worktrees erzeugte eine neue Liste und damit eine neue Karte → behoben: gleiche Worktrees, gleiche Liste; `NextWake` erzwingt den Abgleich nur bei fälligem Neuversuch.
+8. K – Ein Wächter auf einem Netzlaufwerk kann starten und nichts melden; ein Worktree-Eintrag auf eine Laufwerkswurzel beobachtete das ganze Laufwerk → behoben: keine Wächter auf UNC, Netzlaufwerken und Laufwerkswurzeln (20-s-Takt).
+9. K – Ein dauerhaft scheiternder Wächter warnte jede Minute → behoben: Warnung je Ordner und Meldung einmal, danach Debug; im zweiten Durchgang auch für einen Wächter, der startet und dann scheitert.
+10. K – Testlücken (Neuversuch, Überlauf, belegtes Tor, `Under`) → Tests ergänzt.
+11. K – Doku veraltet (CLAUDE.md, ADR 0002, ADR 0003) → nachgetragen.
+
+Zweiter Durchgang: alle Fixes decken ihre Befunde, nichts gebrochen; dazu behoben: `StatusFailed` statt `Error` (s. 3), Warnung (s. 9), `reftable/` in der Positivliste und geteilt, `GIT_CEILING_DIRECTORIES` in `GitSandbox` (ein Repo über dem Temp-Ordner beantwortete sonst einen Test ohne `.git`), `GitSandbox.TryGit` statt eines zweiten Prozessstarts im Test, zwei Kleinigkeiten in Architektur und ADR. Vorher schon da und in den Backlog: ein Status-Fehler bleibt nach einem erfolgreichen Status stehen; `git worktree lock` unter Linux ohne Lesen.
