@@ -20,7 +20,6 @@ Invarianten: `CLAUDE.md` §2; Begründungen: ADR 0002 (CLI), ADR 0003 (Auto-Sync
 - Diffs (ADR 0008) aus `git diff --no-color --no-ext-diff`, geparst von `FileDiff.Parse` nach den Zählern im Hunk-Kopf (nicht nach Leerzeilen). `diff --no-index` endet mit 1 bei Unterschied **und** bei Fehler, stderr kann eine bloße Warnung (CRLF) sein und git übersetzt seine Meldungen: Erfolg ist Exit 1 mit Diff auf stdout, nie ein Präfix wie `error:` (E2E und Review WP-05).
 - `GIT_OPTIONAL_LOCKS=0` setzt `GitRunner` für alles: `status` legt sonst `index.lock` an und kollidiert mit IDE oder Terminal im selben Repo.
 - In Literalen von Tests `\u001f` statt `\x1f` schreiben: C# liest `\x` mit bis zu vier Hex-Ziffern, `"\x1f2 hours"` ist U+01F2 (im Spike passiert).
-
 - `git worktree list` nennt bei einem Submodul oder `--separate-git-dir` den Git-Ordner als Hauptworktree: verknüpft ist ein Worktree nur, wenn sein Git-Ordner `commondir` enthält und der Hauptworktree ein `.git` hat (Review WP-04).
 
 ## Board
