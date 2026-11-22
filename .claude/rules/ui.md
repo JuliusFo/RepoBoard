@@ -21,6 +21,7 @@ Zustand und testbare Logik: `ui-state.md`; CSS: `ui-css.md`; WPF-Host: `app-host
 ## Bausteine
 - Icons nur aus `Icons.cs` (`@Icons.X`), nie als eigenes SVG im Markup. Ein Icon steht für genau eine Bedeutung (Summary in `Icons.cs`); neue aus Lucide 1.55 unverändert kopieren, möglichst aus FerretSharps `Icons.cs`.
 - Tooltips immer als `title`-Attribut (auch an deaktivierten Knöpfen), keine eigenen Tooltip-Komponenten.
+- Ein `string`-Parameter einer Komponente bekommt seinen Wert mit `@`: `Error="@_error"`. Ohne `@` übergibt Razor den Text wörtlich – nur bei Parametern anderer Typen ist `Diff="_diff"` ein Ausdruck. Der Diff zeigte so „_error“, und es baute ohne Warnung (E2E Review 0.4.0).
 - Jeder sichtbare Text aus `BoardText` (bzw. Core-Sätze direkt aus `SyncText`), nie im Markup festgeschrieben.
 
 ## Blazor im WPF-Host (WebView2)

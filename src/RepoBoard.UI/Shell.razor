@@ -116,7 +116,7 @@
 
 @if (_scan is { } scan)
 {
-    <ScanDialog @key="scan" Root="scan.Root" Selection="scan.Selection" OnClose="() => _scan = null" />
+    <ScanDialog @key="scan" Root="@scan.Root" Selection="scan.Selection" OnClose="() => _scan = null" />
 }
 
 @code {

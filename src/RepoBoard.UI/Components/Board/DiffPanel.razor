@@ -24,7 +24,7 @@
     }
     else
     {
-        <DiffBody Diff="_diff" Error="_error">
+        <DiffBody Diff="_diff" Error="@_error">
             <HunkTools Context="hunkIndex">
                 @{ var picked = _selection.CountIn(hunkIndex); }
                 <button class="btn small hunk-stage" disabled="@(_staging || !_current || IsCutOff(hunkIndex))"
