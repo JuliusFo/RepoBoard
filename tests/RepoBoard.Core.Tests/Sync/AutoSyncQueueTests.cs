@@ -99,18 +99,45 @@ public sealed class AutoSyncQueueTests : IDisposable
         Assert.Null(board.Repos[1].Error);
     }
 
+    /// <summary>
+    /// Second review pass R1: the tick waited for the auto-sync – offline for minutes, and no status of a repository without a
+    /// watcher was read meanwhile.
+    /// </summary>
+    [Fact]
+    public async Task The_status_is_read_while_an_auto_sync_still_runs()
+    {
+        var (board, git) = await BoardAsync(repos: 2);
+        await board.SetAutoFetchAsync(board.Repos[1], false, Ct); // only read by the tick
+        git.FetchTime = TimeSpan.FromSeconds(30);
+        var service = new AutoSyncService(board, _time, NullLogger<AutoSyncService>.Instance);
+
+        await service.StartAsync(Ct);
+        await Wait.UntilAsync(() => git.Fetches == 1, "the auto-sync's fetch");
+        var reads = git.StatusReads;
+        _time.Advance(AutoSyncService.Tick);
+        await Wait.UntilAsync(() => git.StatusReads > reads, "a status read during the fetch");
+
+        Assert.Equal(0, git.FetchesDone);
+        await service.StopAsync(Ct);
+    }
+
     /// <summary>A tick that throws is logged and the next one runs; stopping ends the loop quietly (ADR 0003, review 0.4.0, C1).</summary>
     [Fact]
     public async Task The_tick_goes_on_after_one_that_threw_and_stops_quietly()
     {
         var (board, git) = await BoardAsync(repos: 1);
-        git.FailGitDir = true; // the status after the fetch throws out of the tick
+        git.FailGitDir = true; // the status after the fetch throws
         var service = new AutoSyncService(board, _time, NullLogger<AutoSyncService>.Instance);
 
         await service.StartAsync(Ct);
         await Wait.UntilAsync(() => git.Fetches == 1, "the first tick");
         _time.Advance(TimeSpan.FromMinutes(board.AutoSyncMinutes));
-        await Wait.UntilAsync(() => git.Fetches == 2, "a tick after one that threw");
+        // The tick does not wait for a run: one still finishing is left alone, the next tick starts the new one.
+        await Wait.UntilAsync(() =>
+        {
+            _time.Advance(AutoSyncService.Tick);
+            return git.Fetches == 2;
+        }, "a run after one that threw");
         await service.StopAsync(Ct);
 
         Assert.True(service.ExecuteTask!.IsCompletedSuccessfully);
@@ -152,6 +179,11 @@ public sealed class AutoSyncQueueTests : IDisposable
 
         /// <summary>Fetches that ran to their end (not cancelled).</summary>
         public int FetchesDone { get; private set; }
+
+        /// <summary>How long a fetch takes.</summary>
+        public TimeSpan FetchTime { get; set; } = TimeSpan.FromMilliseconds(300);
+
+        public int StatusReads { get; private set; }
         public int Fetches { get; private set; }
         public int MostAtOnce { get; private set; }
         public int MostBusy { get; private set; }
@@ -171,6 +203,14 @@ public sealed class AutoSyncQueueTests : IDisposable
                 return new GitResult(0, Worktrees, "");
             }
 
+            if (args[0] == "status")
+            {
+                lock (_lock)
+                {
+                    StatusReads++;
+                }
+            }
+
             if (args[0] is not ("fetch" or "pull"))
             {
                 return new GitResult(0, "", "");
@@ -187,7 +227,7 @@ public sealed class AutoSyncQueueTests : IDisposable
             var failing = FailGitDirIn is { } path && Paths.Same(path, workingDirectory);
             try
             {
-                await Task.Delay(failing ? 10 : 300, cancellationToken);
+                await Task.Delay(failing ? TimeSpan.FromMilliseconds(10) : FetchTime, cancellationToken);
             }
             finally
             {

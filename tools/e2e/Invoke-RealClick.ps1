@@ -114,6 +114,7 @@ $flags = @{ Left = 0x0002, 0x0004; Right = 0x0008, 0x0010; Middle = 0x0020, 0x00
 [RealInput]::MoveTo($start)
 Start-Sleep -Milliseconds 80
 if ($Shift) { [RealInput]::Key(0x10, $false); Start-Sleep -Milliseconds 40 }
+try {
 if (-not $MoveOnly) {
     if ($drag) {
         for ($i = 1; $i -lt $Clicks; $i++) {
@@ -136,7 +137,10 @@ if (-not $MoveOnly) {
         }
     }
 }
-if ($Shift) { Start-Sleep -Milliseconds 40; [RealInput]::Key(0x10, $true) }
+} finally {
+    # Never leave Shift down on the user's desktop, whatever failed (second review pass R1).
+    if ($Shift) { Start-Sleep -Milliseconds 40; [RealInput]::Key(0x10, $true) }
+}
 if ($Key) {
     $vk = @{ Escape = 0x1B; Enter = 0x0D; Tab = 0x09; Down = 0x28 }[$Key]
     Start-Sleep -Milliseconds 80

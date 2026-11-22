@@ -1008,8 +1008,9 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         return new WorktreeCleanup(target, candidates);
     }, ct);
 
+    /// <summary>A worktree folder that lost its .git has no status of its own – git would answer for the repository around it (second review pass R1).</summary>
     private async Task<RepoStatus?> StatusOfAsync(RepoState worktree, CancellationToken ct) =>
-        Directory.Exists(worktree.Path) ? (await git.StatusAsync(worktree.Path, ct)).Status : null;
+        IsRepository(worktree.Path) ? (await git.StatusAsync(worktree.Path, ct)).Status : null;
 
     private async Task<WorktreeCandidate> InspectAsync(RepoState worktree, WorktreeReason? reason, RepoStatus? status, CancellationToken ct)
     {

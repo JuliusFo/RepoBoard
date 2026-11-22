@@ -3,15 +3,15 @@
 
 <section class="pane diff-pane" tabindex="-1" @ref="_pane" @onkeydown="OnKeyDown">
     <header>
-        <h3 class="diff-title" title="@Change.Path">
-            <span class="path">@Change.Path</span>
+        <h3 class="diff-title" title="@VisibleText.Of(Change.Path)">
+            <span class="path">@VisibleText.Of(Change.Path)</span>
         </h3>
         <span class="diff-side @(Staged ? "staged" : "")">@(Staged ? BoardText.Diff_Staged : BoardText.Diff_Unstaged)</span>
         <button class="btn small ghost icon-only" title="@BoardText.Diff_Close_Hint" @onclick="OnClose">@Icons.Close</button>
     </header>
     @if (Change.OriginalPath is { } from)
     {
-        <p class="muted diff-note">@TextFormat.Format(BoardText.Diff_Renamed, from)</p>
+        <p class="muted diff-note">@TextFormat.Format(BoardText.Diff_Renamed, VisibleText.Of(from))</p>
     }
 
     @if (Change.Conflict)

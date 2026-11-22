@@ -37,7 +37,7 @@
                                 <input type="checkbox" checked @onchange="() => StageAsync(file, stage: false)" />
                                 <span class="letter l-@LetterClass(file.Letter(true))">@file.Letter(true)</span>
                             </label>
-                            <button class="path" title="@BoardText.Diff_Show_Hint" @onclick="() => Select(file, true)"><span>@file.Path</span></button>
+                            <button class="path" title="@BoardText.Diff_Show_Hint" @onclick="() => Select(file, true)"><span>@VisibleText.Of(file.Path)</span></button>
                         </div>
                     }
                 }
@@ -51,7 +51,7 @@
                                 <input type="checkbox" @onchange="() => StageAsync(file, stage: true)" />
                                 <span class="letter l-@LetterClass(file.Letter(false))">@file.Letter(false)</span>
                             </label>
-                            <button class="path" title="@BoardText.Diff_Show_Hint" @onclick="() => Select(file, false)"><span>@file.Path</span></button>
+                            <button class="path" title="@BoardText.Diff_Show_Hint" @onclick="() => Select(file, false)"><span>@VisibleText.Of(file.Path)</span></button>
                         </div>
                     }
                 }
@@ -105,7 +105,7 @@
                     @foreach (var branch in details.Branches)
                     {
                         <div class="branch-item @(branch.IsCurrent ? "current" : "") @(branch.IsRemote ? "remote" : "")">
-                            <span class="b-name" title="@branch.Name">@(branch.IsCurrent ? Icons.Check : Icons.Branch) @branch.Name</span>
+                            <span class="b-name" title="@VisibleText.Of(branch.Name)">@(branch.IsCurrent ? Icons.Check : Icons.Branch) @VisibleText.Of(branch.Name)</span>
                             <span class="b-track">@RelativeTime.Track(branch)</span>
                             <span class="b-when" title="@RelativeTime.Exact(branch.LastCommit)">@(branch.LastCommit is null ? "" : RelativeTime.Text(branch.LastCommit, Now))</span>
                             @if (!branch.IsCurrent)

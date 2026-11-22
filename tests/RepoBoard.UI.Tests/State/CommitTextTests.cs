@@ -20,6 +20,7 @@ public sealed class CommitTextTests
     {
         Assert.Equal("old.cs → new.cs", CommitText.PathTitle("new.cs", "old.cs"));
         Assert.Equal("a.cs", CommitText.PathTitle("a.cs", null));
+        Assert.Equal("rechnung⟨U+202E⟩txt.exe", CommitText.PathTitle("rechnung‮txt.exe", null)); // second review pass R1
     }
 
     [Theory]

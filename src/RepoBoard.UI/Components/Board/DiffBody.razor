@@ -30,7 +30,7 @@ else
             var hunkIndex = h;
             var hunk = Diff.Hunks[h];
             <div class="diff-hunk">
-                <span class="range">@($"@@ -{hunk.OldStart},{hunk.OldCount} +{hunk.NewStart},{hunk.NewCount} @@") <span class="section">@hunk.Section</span></span>
+                <span class="range">@($"@@ -{hunk.OldStart},{hunk.OldCount} +{hunk.NewStart},{hunk.NewCount} @@") <span class="section">@VisibleText.Of(hunk.Section)</span></span>
                 @HunkTools?.Invoke(hunkIndex)
             </div>
             @for (var i = 0; i < hunk.Lines.Count; i++)

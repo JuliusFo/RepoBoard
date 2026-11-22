@@ -40,7 +40,7 @@
         }
         else
         {
-            <span class="badge branch-name @(CommitText.IsMainBranch(Status.Branch) ? "main" : "feature")" title="@Status.Branch">@Icons.Branch <span>@Status.Branch</span></span>
+            <span class="badge branch-name @(CommitText.IsMainBranch(Status.Branch) ? "main" : "feature")" title="@VisibleText.Of(Status.Branch ?? "")">@Icons.Branch <span>@VisibleText.Of(Status.Branch ?? "")</span></span>
         }
         @if (Repo.Operation is { } op)
         {

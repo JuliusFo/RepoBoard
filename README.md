@@ -65,7 +65,7 @@ Both update themselves. The installer is not signed: Windows SmartScreen warns o
 
 ## Requirements
 
-- Windows 10/11 with the WebView2 runtime, [Git for Windows](https://git-scm.com/download/win), .NET 10 SDK to build.
+- Windows 10/11 with the WebView2 runtime, [Git for Windows](https://git-scm.com/download/win) 2.27 or newer, .NET 10 SDK to build.
 
 ## Build and run
 

@@ -22,10 +22,10 @@
             <span class="c-subject" title="@VisibleText.Of(Commit.Subject)">@VisibleText.Of(Commit.Subject)</span>
         </span>
         <span class="c-meta">
-            <span title="@RelativeTime.Exact(Commit.When)">@Commit.Author · @RelativeTime.Text(Commit.When, Now)</span>
+            <span title="@RelativeTime.Exact(Commit.When)">@VisibleText.Of(Commit.Author) · @RelativeTime.Text(Commit.When, Now)</span>
             @foreach (var r in CommitText.RefNames(Commit.Refs))
             {
-                <span class="ref">@r</span>
+                <span class="ref">@VisibleText.Of(r)</span>
             }
         </span>
     </span>

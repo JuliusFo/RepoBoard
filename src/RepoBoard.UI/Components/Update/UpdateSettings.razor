@@ -72,5 +72,4 @@
             ? Board.UpdateSettingsAsync(s => s with { UpdateCheckHours = hours }, default)
             : Task.CompletedTask);
 
-    /// <summary>From any thread (the download's progress comes from the thread pool).</summary>
 }

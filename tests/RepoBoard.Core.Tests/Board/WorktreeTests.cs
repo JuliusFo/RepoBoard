@@ -137,6 +137,23 @@ public sealed class WorktreeTests : IDisposable
         Assert.Equal(["one", "two"], repo.Worktrees.Select(w => w.Name).Order(StringComparer.Ordinal));
     }
 
+    /// <summary>
+    /// Second review pass R1: a worktree folder inside its repository that lost its .git showed the repository's status in the
+    /// question – git found the repository around it. It has no status of its own now: git cannot tell.
+    /// </summary>
+    [Fact]
+    public async Task A_worktree_folder_without_its_git_file_shows_nothing_of_the_repository_around_it()
+    {
+        var path = AddWorktree("inside", Path.Combine(_git.Mine, ".claude", "worktrees", "inside"), "-b", "inside");
+        var repo = await AddMineAsync();
+        File.Delete(Path.Combine(path, ".git"));
+        File.WriteAllText(Path.Combine(_git.Mine, "dirty.txt"), "the repository around it has changes");
+
+        var candidate = await AskAsync(repo, "inside");
+
+        Assert.Equal(WorktreeBlock.Unknown, candidate.Block); // not "changes" of the repository around it
+    }
+
     [Fact]
     public async Task Removing_a_clean_worktree_keeps_its_branch()
     {

@@ -103,6 +103,17 @@ public sealed class GitOutputTests
         Assert.Equal(A, Assert.Single(log).Id);
     }
 
+    /// <summary>A range from git's output (an upstream's name) never reaches git as an option (second review pass R1).</summary>
+    [Fact]
+    public async Task A_range_that_looks_like_an_option_is_not_counted() =>
+        Assert.Null(await new GitClient(new NoGit()).CountAsync("/repo", "--output=x", TestContext.Current.CancellationToken));
+
+    private sealed class NoGit : GitRunner
+    {
+        public override Task<GitResult> RunAsync(string workingDirectory, IReadOnlyList<string> args, GitCallMode mode, TimeSpan timeout,
+            string? input, CancellationToken cancellationToken) => throw new InvalidOperationException($"git {string.Join(' ', args)}");
+    }
+
     [Theory]
     [InlineData("origin/feature", "feature")]
     [InlineData("origin/feat/x", "feat/x")]

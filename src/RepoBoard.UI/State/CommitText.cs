@@ -14,7 +14,7 @@ public static class CommitText
         refs.Split(", ", StringSplitOptions.RemoveEmptyEntries).Select(r => r.Replace("HEAD -> ", "", StringComparison.Ordinal));
 
     /// <summary>A file's path for a tooltip; a renamed one with where it came from.</summary>
-    public static string PathTitle(string path, string? from) => from is null ? path : $"{from} → {path}";
+    public static string PathTitle(string path, string? from) => VisibleText.Of(from is null ? path : $"{from} → {path}");
 
     /// <summary>A branch the badge shows as the main line rather than a feature.</summary>
     public static bool IsMainBranch(string? name) => name is "main" or "master" or "develop" or "dev";

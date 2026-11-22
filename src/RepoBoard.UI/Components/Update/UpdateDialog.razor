@@ -122,8 +122,6 @@
         }
     }
 
-    /// <summary>From any thread (the download's progress comes from the thread pool).</summary>
-
     /// <summary>Consecutive bullets form one list.</summary>
     private static IEnumerable<(NoteBlock Block, List<NoteBlock>? Bullets)> Group(IReadOnlyList<NoteBlock> blocks)
     {

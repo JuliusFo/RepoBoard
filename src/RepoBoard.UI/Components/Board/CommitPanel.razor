@@ -38,10 +38,10 @@
     else
     {
         <div class="commit-meta">
-            <span>@BoardText.Commit_Author <b>@commit.Author</b> &lt;@commit.AuthorEmail&gt; · @RelativeTime.Exact(commit.AuthorDate)</span>
+            <span>@BoardText.Commit_Author <b>@VisibleText.Of(commit.Author)</b> &lt;@VisibleText.Of(commit.AuthorEmail)&gt; · @RelativeTime.Exact(commit.AuthorDate)</span>
             @if (commit.Committer != commit.Author || commit.CommitDate != commit.AuthorDate)
             {
-                <span>@BoardText.Commit_Committer <b>@commit.Committer</b> · @RelativeTime.Exact(commit.CommitDate)</span>
+                <span>@BoardText.Commit_Committer <b>@VisibleText.Of(commit.Committer)</b> · @RelativeTime.Exact(commit.CommitDate)</span>
             }
             <span>
                 @(commit.IsRoot ? BoardText.Commit_Root : BoardText.Commit_Parents)
@@ -51,7 +51,7 @@
                 }
                 @foreach (var r in CommitText.RefNames(commit.Refs))
                 {
-                    <span class="ref">@r</span>
+                    <span class="ref">@VisibleText.Of(r)</span>
                 }
             </span>
         </div>
@@ -75,7 +75,7 @@
                     <div class="file @(file == _file ? "selected" : "")" @key="file">
                         <span class="letter l-@file.Status">@file.Status</span>
                         <button class="path" title="@CommitText.PathTitle(file.Path, file.OriginalPath)"
-                                @onclick="() => SelectFile(file)"><span>@file.Path</span></button>
+                                @onclick="() => SelectFile(file)"><span>@VisibleText.Of(file.Path)</span></button>
                     </div>
                 }
             </div>
@@ -207,8 +207,6 @@
         }
     });
 
-
-    /// <summary>The message after its subject line.</summary>
 
     /// <summary>Esc closes the commit; called after a click on one.</summary>
     public ValueTask FocusAsync() => _pane.FocusAsync(preventScroll: true);

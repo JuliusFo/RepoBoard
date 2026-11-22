@@ -15,7 +15,10 @@ public sealed class RelativeTimeTests
     [InlineData(30 * 3600, "gestern")]
     [InlineData(4 * 86400, "vor 4 Tagen")]
     [InlineData(59 * 86400, "vor 59 Tagen")]
+    [InlineData(60 * 86400, "vor 2 Monaten")] // 1.97 months: never "vor 1 Monaten"
     [InlineData(100 * 86400, "vor 3 Monaten")]
+    [InlineData(729 * 86400, "vor 23 Monaten")]
+    [InlineData(730 * 86400, "vor 2 Jahren")] // 1.999 years
     [InlineData(800 * 86400, "vor 2 Jahren")]
     public void A_time_reads_as_its_age(int? secondsAgo, string expected) =>
         Assert.Equal(expected, RelativeTime.Text(secondsAgo is { } s ? Now.AddSeconds(-s) : null, Now));

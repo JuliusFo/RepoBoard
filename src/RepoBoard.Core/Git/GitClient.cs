@@ -307,9 +307,18 @@ public sealed class GitClient(GitRunner runner)
     internal static DateTimeOffset? Date(string? seconds) =>
         long.TryParse(seconds, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var s) ? DateTimeOffset.FromUnixTimeSeconds(s) : null;
 
+    /// <summary>
+    /// The commits of <paramref name="range"/>; null if git cannot tell. A range from git's output (an upstream's name, which
+    /// a hand-edited config sets) never goes to git as an option (second review pass R1).
+    /// </summary>
     public async Task<int?> CountAsync(string repo, string range, CancellationToken ct)
     {
-        var result = await Local(repo, ct, "rev-list", "--count", range);
+        if (range.StartsWith('-'))
+        {
+            return null;
+        }
+
+        var result = await Local(repo, ct, "rev-list", "--count", range, "--");
         return result.Success && int.TryParse(result.Output.Trim(), out var n) ? n : null;
     }
 

@@ -27,8 +27,9 @@ public static class RelativeTime
             : age.TotalDays < 1 ? TextFormat.Format(BoardText.Ago_Hours, (int)age.TotalHours)
             : age.TotalDays < 2 ? BoardText.Ago_Yesterday
             : age.TotalDays < 60 ? TextFormat.Format(BoardText.Ago_Days, (int)age.TotalDays)
-            : age.TotalDays < 730 ? TextFormat.Format(BoardText.Ago_Months, (int)(age.TotalDays / 30.4))
-            : TextFormat.Format(BoardText.Ago_Years, (int)(age.TotalDays / 365.25));
+            // At least 2: the texts are plural, and 60 days / 30.4 is 1.97 (second review pass R1).
+            : age.TotalDays < 730 ? TextFormat.Format(BoardText.Ago_Months, Math.Max(2, (int)(age.TotalDays / 30.4)))
+            : TextFormat.Format(BoardText.Ago_Years, Math.Max(2, (int)(age.TotalDays / 365.25)));
     }
 
     /// <summary>How a branch stands to its upstream for the branch list: "1 ahead, 2 behind", "upstream deleted", or nothing.</summary>

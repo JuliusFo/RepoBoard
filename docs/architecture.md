@@ -21,7 +21,7 @@ UpdateState ──► IAppUpdater (App: VelopackUpdater ──► GitHub-Release
 ```
 
 ### 1.1 Git-Weg (ADR 0002)
-- `GitRunner` startet git mit Zeitlimit und ohne Shell; `GitCallMode.Background` verbietet Anmeldefenster. Die git-Variablen des Elternprozesses (`GIT_DIR`, `GIT_INDEX_FILE` …) kommen nicht bei git an (`EnvironmentFor`).
+- Mindestens git 2.27 (`merge --no-autostash`; `switch` braucht 2.23). `GitRunner` startet git mit Zeitlimit und ohne Shell; `GitCallMode.Background` verbietet Anmeldefenster. Die git-Variablen des Elternprozesses (`GIT_DIR`, `GIT_INDEX_FILE` …) kommen nicht bei git an (`EnvironmentFor`).
 - `GitClient` kennt jeden Befehl und liest nur maschinenlesbare Ausgaben: `RepoStatus.Parse` (`status --porcelain=v2 --branch -z --untracked-files=all`), `ParseBranches` (`for-each-ref`), `ParseLog` (`log -z --topo-order --format` mit Eltern, Felder mit NUL getrennt), `CommitDetails.Parse` (`show -s --format`, NUL-getrennt; `show --name-status -z`). Zeiten als Zahl (`%ct`, `committerdate:unix`), Ahead/Behind der Branches aus `upstream:track` als Zahlen – in der UI in ihrer Sprache. Commit-IDs gehen nur als Hex an git (`IsCommitId`, ADR 0013).
 - Aus dem Git-Ordner direkt gelesen: `FETCH_HEAD` (Zeit des letzten Fetch, auch aus IDE/Terminal) und die Marker laufender Operationen (`MERGE_HEAD`, `rebase-merge`, `rebase-apply`, `CHERRY_PICK_HEAD`, `REVERT_HEAD`).
 
