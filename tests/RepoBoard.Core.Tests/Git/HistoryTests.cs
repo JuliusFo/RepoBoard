@@ -243,6 +243,9 @@ public sealed class HistoryTests : IDisposable
     public async Task Cherry_pick_brings_a_commit_of_another_branch_onto_the_current_one()
     {
         Feature();
+        // Main moves on: picked onto the feature's own parent within the same second, git would make the very same commit.
+        GitSandbox.Commit(_git.Mine, "b.txt", "on main");
+        var before = Head();
         var repo = await OpenMineAsync();
         var commit = await DetailsAsync(repo, "feature");
         Assert.False(commit.InHead);
@@ -250,7 +253,7 @@ public sealed class HistoryTests : IDisposable
         Assert.True(await _board.CherryPickAsync(repo, commit, Ct));
 
         Assert.Equal("feature", File.ReadAllText(Mine("f.txt")));
-        Assert.NotEqual(commit.Id, Head()); // a new commit with the same change
+        Assert.Equal(before, Head("HEAD~1")); // a new commit with the same change on top of main
     }
 
     public static TheoryData<string, bool> Refusals => new()

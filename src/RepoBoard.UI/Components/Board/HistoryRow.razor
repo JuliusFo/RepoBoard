@@ -1,0 +1,61 @@
+@* One commit of the history with its part of the graph (WP-09, ADR 0013). A component of its own with ShouldRender: the
+   page renders on every change of any repository, a history of up to 1,000 commits only where a row changed. *@
+@inherits BoardComponent
+
+<button class="commit-item" title="@BoardText.History_Open_Hint" @onclick="OnSelect">
+    @if (Lanes > 0)
+    {
+        <span class="graph" style="width: @(GraphDrawing.Width(Lanes))px">
+            <svg aria-hidden="true">
+                @foreach (var s in GraphDrawing.Segments(Graph))
+                {
+                    <line class="g@(s.Colour)" x1="@s.X1" y1="@s.Y1" x2="@s.X2" y2="@s.Y2" />
+                }
+                <circle class="g@(GraphDrawing.Colour(Graph.Column)) @(Commit.IsMerge ? "merge" : "")"
+                        cx="@GraphDrawing.X(Graph.Column)" cy="@GraphDrawing.NodeY" r="@(Commit.IsMerge ? 3 : 4)" />
+            </svg>
+        </span>
+    }
+    <span class="c-text">
+        <span class="c-line">
+            <code>@Commit.ShortId</code>
+            <span class="c-subject">@Commit.Subject</span>
+        </span>
+        <span class="c-meta">
+            @Commit.Author · @Commit.When
+            @foreach (var r in Refs(Commit))
+            {
+                <span class="ref">@r</span>
+            }
+        </span>
+    </span>
+</button>
+
+@code {
+    [Parameter, EditorRequired] public CommitInfo Commit { get; set; } = null!;
+    [Parameter, EditorRequired] public GraphRow Graph { get; set; } = null!;
+
+    /// <summary>The lanes of the whole history: every row draws as wide, so the text lines up.</summary>
+    [Parameter] public int Lanes { get; set; }
+
+    [Parameter] public EventCallback OnSelect { get; set; }
+
+    // The board reads the history anew with each status: new objects, mostly the same content.
+    private string? _shown;
+
+    protected override bool ShouldRender()
+    {
+        var now = string.Join('\u001f', Commit.Id, Commit.When, Commit.Refs, Commit.Subject, Commit.Author, Lanes, Graph.Column,
+            string.Join(',', Graph.Lines));
+        if (_shown == now)
+        {
+            return false;
+        }
+
+        _shown = now;
+        return true;
+    }
+
+    private static IEnumerable<string> Refs(CommitInfo commit) =>
+        commit.Refs.Split(", ", StringSplitOptions.RemoveEmptyEntries).Select(r => r.Replace("HEAD -> ", "", StringComparison.Ordinal));
+}

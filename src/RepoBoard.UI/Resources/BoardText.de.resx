@@ -465,4 +465,64 @@ Log: {1}</value>
   <data name="Dialog_Close" xml:space="preserve">
     <value>Schließen</value>
   </data>
+  <data name="History_AllBranches" xml:space="preserve">
+    <value>Alle Branches</value>
+  </data>
+  <data name="History_AllBranches_Hint" xml:space="preserve">
+    <value>Die Commits aller lokalen und Remote-Branches zeigen, nicht nur die des aktuellen</value>
+  </data>
+  <data name="History_LoadMore" xml:space="preserve">
+    <value>{0} weitere laden</value>
+  </data>
+  <data name="History_Open_Hint" xml:space="preserve">
+    <value>Nachricht, Dateien und Änderungen des Commits zeigen</value>
+  </data>
+  <data name="Commit_Close_Hint" xml:space="preserve">
+    <value>Commit schließen (Esc)</value>
+  </data>
+  <data name="Commit_Author" xml:space="preserve">
+    <value>Autor</value>
+  </data>
+  <data name="Commit_Committer" xml:space="preserve">
+    <value>Committet von</value>
+  </data>
+  <data name="Commit_Parents" xml:space="preserve">
+    <value>Eltern</value>
+  </data>
+  <data name="Commit_Root" xml:space="preserve">
+    <value>Erster Commit</value>
+  </data>
+  <data name="Commit_Parent_Hint" xml:space="preserve">
+    <value>Diesen Eltern-Commit zeigen</value>
+  </data>
+  <data name="Commit_MergeNote" xml:space="preserve">
+    <value>Merge-Commit: Dateien und Änderungen gegenüber dem ersten Elternteil – was der Merge in den Branch gebracht hat.</value>
+  </data>
+  <data name="Commit_NoFiles" xml:space="preserve">
+    <value>Keine Dateien geändert.</value>
+  </data>
+  <data name="Commit_Revert" xml:space="preserve">
+    <value>Revert</value>
+  </data>
+  <data name="Commit_Revert_Hint" xml:space="preserve">
+    <value>Einen neuen Commit anlegen, der diesen rückgängig macht</value>
+  </data>
+  <data name="Commit_CherryPick" xml:space="preserve">
+    <value>Cherry-Pick</value>
+  </data>
+  <data name="Commit_CherryPick_Hint" xml:space="preserve">
+    <value>Diesen Commit als neuen Commit auf {0} übernehmen</value>
+  </data>
+  <data name="Amend_Label" xml:space="preserve">
+    <value>Letzten Commit ändern</value>
+  </data>
+  <data name="Amend_Hint" xml:space="preserve">
+    <value>Den letzten Commit durch die gestagten Änderungen und diese Nachricht ersetzen – nur solange er nicht gepusht ist</value>
+  </data>
+  <data name="Amend_Commit" xml:space="preserve">
+    <value>Commit ändern</value>
+  </data>
+  <data name="Amend_CommitPush" xml:space="preserve">
+    <value>Ändern und pushen</value>
+  </data>
 </root>

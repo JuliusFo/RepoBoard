@@ -513,4 +513,66 @@ Log: {1}</value>
   <data name="Dialog_Close" xml:space="preserve">
     <value>Close</value>
   </data>
+  <data name="History_AllBranches" xml:space="preserve">
+    <value>All branches</value>
+  </data>
+  <data name="History_AllBranches_Hint" xml:space="preserve">
+    <value>Show the commits of every local and remote branch, not only of the current one</value>
+  </data>
+  <data name="History_LoadMore" xml:space="preserve">
+    <value>Load {0} more</value>
+    <comment>{0} = number of commits</comment>
+  </data>
+  <data name="History_Open_Hint" xml:space="preserve">
+    <value>Show the commit's message, files and changes</value>
+  </data>
+  <data name="Commit_Close_Hint" xml:space="preserve">
+    <value>Close the commit (Esc)</value>
+  </data>
+  <data name="Commit_Author" xml:space="preserve">
+    <value>Author</value>
+  </data>
+  <data name="Commit_Committer" xml:space="preserve">
+    <value>Committed by</value>
+  </data>
+  <data name="Commit_Parents" xml:space="preserve">
+    <value>Parents</value>
+  </data>
+  <data name="Commit_Root" xml:space="preserve">
+    <value>First commit</value>
+  </data>
+  <data name="Commit_Parent_Hint" xml:space="preserve">
+    <value>Show this parent commit</value>
+  </data>
+  <data name="Commit_MergeNote" xml:space="preserve">
+    <value>Merge commit: the files and changes against its first parent – what the merge brought into the branch.</value>
+  </data>
+  <data name="Commit_NoFiles" xml:space="preserve">
+    <value>No files changed.</value>
+  </data>
+  <data name="Commit_Revert" xml:space="preserve">
+    <value>Revert</value>
+  </data>
+  <data name="Commit_Revert_Hint" xml:space="preserve">
+    <value>Add a new commit that undoes this one</value>
+  </data>
+  <data name="Commit_CherryPick" xml:space="preserve">
+    <value>Cherry-pick</value>
+  </data>
+  <data name="Commit_CherryPick_Hint" xml:space="preserve">
+    <value>Apply this commit onto {0} as a new commit</value>
+    <comment>{0} = the current branch</comment>
+  </data>
+  <data name="Amend_Label" xml:space="preserve">
+    <value>Amend last commit</value>
+  </data>
+  <data name="Amend_Hint" xml:space="preserve">
+    <value>Replace the last commit with the staged changes and this message – only while it is not pushed</value>
+  </data>
+  <data name="Amend_Commit" xml:space="preserve">
+    <value>Amend commit</value>
+  </data>
+  <data name="Amend_CommitPush" xml:space="preserve">
+    <value>Amend and push</value>
+  </data>
 </root>

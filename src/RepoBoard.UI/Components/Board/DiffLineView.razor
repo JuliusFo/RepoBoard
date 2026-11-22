@@ -27,13 +27,16 @@
     [Parameter, EditorRequired] public DiffLine Line { get; set; } = null!;
     [Parameter] public bool Picked { get; set; }
 
+    /// <summary>False for a diff that cannot be staged from (a commit's, WP-09): the edge is not clickable.</summary>
+    [Parameter] public bool Pickable { get; set; } = true;
+
     /// <summary>A click on the edge; true with Shift held.</summary>
     [Parameter] public EventCallback<bool> OnPick { get; set; }
 
     private bool _pickable;
     private (DiffLine Line, bool Picked)? _shown;
 
-    protected override void OnParametersSet() => _pickable = LineSelection.CanPick(Line);
+    protected override void OnParametersSet() => _pickable = Pickable && LineSelection.CanPick(Line);
 
     // The panel renders all its lines with every pick and every new status; a line only when it changed.
     protected override bool ShouldRender()
