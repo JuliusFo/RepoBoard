@@ -95,8 +95,8 @@ public sealed record RepoStatus(
         }
 
         // An upstream git names but cannot compare with is gone on the remote (deleted after its pull request): "up to date"
-        // would be wrong (E2E WP-04).
-        return new RepoStatus(branch, head, upstream, ahead, behind, changes, upstream is not null && !compared);
+        // would be wrong (E2E WP-04). Not without a commit of our own: git compares nothing then (review 0.4.0, A18).
+        return new RepoStatus(branch, head, upstream, ahead, behind, changes, upstream is not null && head is not null && !compared);
     }
 
     /// <summary>One header line; true for <c>branch.ab</c>, which git writes only when the upstream exists.</summary>

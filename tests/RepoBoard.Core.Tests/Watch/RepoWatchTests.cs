@@ -261,9 +261,11 @@ public sealed class RepoWatchTests : IDisposable
         await board.RefreshStaleAsync(Ct);
         Assert.Equal(time.GetTimestamp(), repo.StatusReadAt);
 
-        // A status that fails keeps the time of the last good one, and the tick reads it every time (review WP-03).
-        var gitDir = Path.Combine(_git.Mine, ".git");
-        Directory.Move(gitDir, gitDir + "-away");
+        // A status that fails keeps the time of the last good one, and the tick reads it every time (review WP-03). A broken
+        // HEAD, not a missing .git – that counts as a missing repository (review 0.4.0, A6).
+        var head = Path.Combine(_git.Mine, ".git", "HEAD");
+        var headText = File.ReadAllText(head);
+        File.WriteAllText(head, "garbage");
         try
         {
             var good = repo.StatusReadAt;
@@ -274,7 +276,7 @@ public sealed class RepoWatchTests : IDisposable
         }
         finally
         {
-            Directory.Move(gitDir + "-away", gitDir);
+            File.WriteAllText(head, headText);
         }
 
         time.Advance(TimeSpan.FromSeconds(20));

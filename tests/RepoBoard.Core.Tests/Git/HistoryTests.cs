@@ -208,6 +208,26 @@ public sealed class HistoryTests : IDisposable
         Assert.Equal((BoardService.LogLength, true), (repo.LogLength, repo.LogAll)); // "all" stays, the length does not
     }
 
+    /// <summary>
+    /// Review 0.4.0, A13: "all branches" while a status read held the gate – the read was skipped, the box was ticked and the
+    /// history still showed HEAD only, up to two minutes for a quiet repository.
+    /// </summary>
+    [Fact]
+    public async Task All_branches_while_a_status_is_read_shows_once_the_read_is_done()
+    {
+        var feature = Feature();
+        var repo = await OpenMineAsync();
+        Assert.DoesNotContain(repo.Details!.Log, c => c.Id == feature);
+
+        await repo.Gate.WaitAsync(Ct); // a status read of the file watcher
+        var set = _board.SetLogAsync(repo, BoardService.LogLength, all: true, Ct);
+        Assert.False(set.IsCompleted);
+        repo.Gate.Release();
+        await set;
+
+        Assert.Contains(repo.Details!.Log, c => c.Id == feature);
+    }
+
     // ---------- amend ----------
 
     [Fact]

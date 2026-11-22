@@ -104,6 +104,16 @@ public sealed class GitOutputTests
     }
 
     [Theory]
+    [InlineData("origin/feature", "feature")]
+    [InlineData("origin/feat/x", "feat/x")]
+    [InlineData("up/stream/feat/x", "feat/x")] // the longest remote wins
+    [InlineData("up/x", "x")]
+    [InlineData("unknown/x", null)]
+    [InlineData("origin/", null)]
+    public void A_remote_branch_s_local_name_follows_its_remote(string remoteBranch, string? local) =>
+        Assert.Equal(local, GitClient.LocalNameOf(remoteBranch, ["origin", "up", "up/stream"]));
+
+    [Theory]
     [InlineData("Fix it", "Fix it", "")]
     [InlineData("Fix crash when\nthe repo is gone\n\nDetails\nmore", "Fix crash when the repo is gone", "Details\nmore")]
     [InlineData("\n\nSubject\r\n\r\nBody\r\n", "Subject", "Body")]

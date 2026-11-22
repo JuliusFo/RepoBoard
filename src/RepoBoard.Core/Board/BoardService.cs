@@ -69,10 +69,12 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         var added = new List<RepoState>();
         foreach (var path in paths)
         {
-            var root = await git.FindRootAsync(path, ct);
-            if (root is null)
+            var (found, problem) = await git.FindRootAsync(path, ct);
+            if (found is not { } root)
             {
-                Log(Path.GetFileName(path), TextFormat.Format(SyncText.NotARepository, path), ActivityKind.Error);
+                Log(Path.GetFileName(path), problem is null
+                    ? TextFormat.Format(SyncText.NotARepository, path)
+                    : TextFormat.Format(SyncText.Add_Refused, path, problem), ActivityKind.Error);
                 continue;
             }
 
@@ -124,9 +126,11 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         return added;
     }
 
+    /// <summary>Takes a repository off the board (the folder stays); the activity log says so, with its path (review 0.4.0, A10).</summary>
     public async Task RemoveAsync(RepoState repo, CancellationToken ct)
     {
         ImmutableInterlocked.Update(ref _repos, list => list.Remove(repo));
+        Log(repo.Name, TextFormat.Format(SyncText.RemovedFromBoard, repo.Path), ActivityKind.Info);
         await SaveAsync(ct);
         Notify();
     }
@@ -239,7 +243,23 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     {
         repo.LogLength = Math.Clamp(length, LogLength, MaxLogLength);
         repo.LogAll = all;
-        await RefreshAsync(repo, ct);
+        // Waits like a click: a status read under way may have read the history already and would keep the old one, up to
+        // two minutes for a quiet watched repository (review 0.4.0, A13).
+        await repo.Gate.WaitAsync(ct);
+        try
+        {
+            await RefreshCoreAsync(repo, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            repo.Error = TextFormat.Format(SyncText.OperationFailed, SyncText.Op_Status, ex.Message);
+            repo.StatusFailed = true;
+        }
+        finally
+        {
+            repo.Gate.Release();
+            Notify();
+        }
     }
 
     /// <summary>The repositories first – that reads their lists of worktrees –, then every worktree.</summary>
@@ -306,12 +326,15 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     {
         // Set only once the status is read: a failed read does not hide the change a watcher saw (review WP-03).
         var started = time.GetTimestamp();
-        if (!Directory.Exists(repo.Path))
+        // A folder that lost its .git counts as missing too: git would find the repository around it and show – and
+        // auto-sync, commit – that one (review 0.4.0, A6).
+        if (!IsRepository(repo.Path))
         {
             repo.StatusReadAt = started;
             repo.StatusFailed = false;
             repo.Missing = true;
             repo.Status = null;
+            repo.GitDir = null;
             repo.Worktrees = [];
             return;
         }
@@ -324,6 +347,13 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             repo.Error = TextFormat.Format(SyncText.OperationFailed, SyncText.Op_Status, result.Message);
             repo.StatusFailed = true;
             return;
+        }
+
+        // A clone of an empty repository has no commit, and git writes no ahead/behind for it – even once a colleague pushed
+        // the first commit. Then it is that far behind, and auto-pull brings it (review 0.4.0, A18).
+        if (status is { IsInitial: true, Upstream: { } upstream } && await git.CountAsync(repo.Path, upstream, ct) is > 0 and var behind)
+        {
+            status = status with { Behind = behind };
         }
 
         repo.Status = status;
@@ -344,8 +374,8 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         {
             var branches = await git.BranchesAsync(repo.Path, status.Branch, ct);
             var (log, more) = status.IsInitial ? ([], false) : await git.LogAsync(repo.Path, repo.LogLength, repo.LogAll, ct);
-            // Unknown counts as pushed: an amend then stays off rather than needing a force push.
-            var onRemote = status.IsInitial || await git.IsOnRemoteAsync(repo.Path, "HEAD", ct) != false;
+            // Unknown (null) keeps amend off as pushed does, with its own reason (review 0.4.0, A38).
+            var onRemote = status.IsInitial ? true : await git.IsOnRemoteAsync(repo.Path, "HEAD", ct);
             repo.Details = new RepoDetails(branches, log, CommitGraph.Build(log), more, onRemote);
         }
     }
@@ -424,8 +454,13 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
 
     // ---------- operations (clicks) ----------
 
-    /// <summary>"Fetch all" – the button on the page and the tray's menu.</summary>
-    public Task FetchAllAsync(CancellationToken ct) => Task.WhenAll(_repos.Select(r => FetchAsync(r, ct)));
+    /// <summary>
+    /// "Fetch all" – the button on the page and the tray's menu. No more at once than the network takes: one waiting in line
+    /// would hold its repository's gate meanwhile (review 0.4.0, A3); a missing one has nothing to fetch (A17).
+    /// </summary>
+    public Task FetchAllAsync(CancellationToken ct) =>
+        Parallel.ForEachAsync(_repos.Where(r => !r.Missing), new ParallelOptions { MaxDegreeOfParallelism = MaxParallelNetwork, CancellationToken = ct },
+            async (repo, token) => await FetchAsync(repo, token));
 
     public Task<bool> FetchAsync(RepoState repo, CancellationToken ct) =>
         RunAsync(repo, SyncText.Op_Fetch, network: true, c => git.FetchAsync(repo.Path, GitCallMode.Interactive, c),
@@ -745,13 +780,28 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         }
     }
 
-    public Task<bool> SwitchAsync(RepoState repo, BranchInfo branch, CancellationToken ct)
-    {
-        // A remote branch "origin/feature" is switched to as "feature": git creates the local tracking branch.
-        var name = branch.IsRemote ? branch.Name[(branch.Name.IndexOf('/', StringComparison.Ordinal) + 1)..] : branch.Name;
-        return RunAsync(repo, SyncText.Op_Switch, network: false, c => CheckedAsync(repo, name, git.SwitchAsync, c),
-            () => Info(TextFormat.Format(SyncText.Switched, name)), ct);
-    }
+    /// <summary>
+    /// A local branch by name; a remote one ("upstream/main") as a new local branch that tracks exactly it. git's guess from
+    /// the bare name took the local "main" of origin, a local branch of the same name, or failed on two remotes (review
+    /// 0.4.0, A5); now git refuses clearly when the local name is taken.
+    /// </summary>
+    public Task<bool> SwitchAsync(RepoState repo, BranchInfo branch, CancellationToken ct) =>
+        RunAsync(repo, SyncText.Op_Switch, network: false, async c =>
+        {
+            if (!branch.IsRemote)
+            {
+                return await CheckedAsync(repo, branch.Name, git.SwitchAsync, c);
+            }
+
+            if (GitClient.LocalNameOf(branch.Name, await git.RemotesAsync(repo.Path, c)) is not { } local)
+            {
+                return GitResult.Failed(TextFormat.Format(SyncText.InvalidBranchName, branch.Name));
+            }
+
+            return await git.IsBranchNameAsync(repo.Path, branch.Name, c)
+                ? await CheckedAsync(repo, local, (path, name, token) => git.SwitchTrackingAsync(path, name, branch.Name, token), c)
+                : GitResult.Failed(TextFormat.Format(SyncText.InvalidBranchName, branch.Name));
+        }, () => Info(TextFormat.Format(SyncText.Switched, repo.Status?.Branch ?? branch.Name)), ct);
 
     public Task<bool> CreateBranchAsync(RepoState repo, string name, CancellationToken ct) =>
         RunAsync(repo, SyncText.Op_CreateBranch, network: false, c => CheckedAsync(repo, name, git.CreateBranchAsync, c),
@@ -800,7 +850,11 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         Interlocked.Increment(ref _autoSyncRuns);
         try
         {
-            await Task.WhenAll(due.Select(r => AutoSyncAsync(r, ct)));
+            // No more at once than the network takes, one slot left for a click: a repository waiting in line would hold its
+            // gate (spinner, commit locked, no status) for as long as the others take – minutes offline (review 0.4.0, A3).
+            // Each sets its LastAutoSync when it starts, so the next intervals spread out by themselves.
+            var options = new ParallelOptions { MaxDegreeOfParallelism = MaxParallelNetwork - 1, CancellationToken = ct };
+            await Parallel.ForEachAsync(due, options, async (repo, token) => await AutoSyncAsync(repo, token));
         }
         finally
         {
@@ -843,9 +897,15 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
                 ? new ActivityNote(TextFormat.Format(SyncText.NewOnUpstream, Commits(s.Behind), s.Upstream), ActivityKind.NewCommits)
                 : null,
             auto: true, ct);
-        if (!fetched || !repo.Entry.AutoPull || repo.Status is not { Behind: > 0 } status)
+        if (!fetched)
+        {
+            return; // the reason a pull was skipped stays: a flaky network must not log it again after every fetch (A2)
+        }
+
+        if (!repo.Entry.AutoPull || repo.Status is not { Behind: > 0 } status)
         {
             repo.AutoPullBlocked = null;
+            repo.LastAutoError = null;
             return;
         }
 
@@ -858,17 +918,21 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         repo.AutoPullBlocked = blocker;
         if (blocker is not null)
         {
+            repo.LastAutoError = null;
             return;
         }
 
         var before = status.Head;
         ActivityNote? pulled = null;
-        await RunLockedAsync(repo, SyncText.Op_AutoPull, network: false, async c =>
+        if (await RunLockedAsync(repo, SyncText.Op_AutoPull, network: true, async c =>
+            {
+                var result = await git.FastForwardAsync(repo.Path, GitCallMode.Background, c);
+                pulled = result.Success ? await PulledTextAsync(repo.Path, before, c) : null;
+                return result;
+            }, () => pulled, auto: true, ct))
         {
-            var result = await git.FastForwardAsync(repo.Path, GitCallMode.Background, c);
-            pulled = result.Success ? await PulledTextAsync(repo.Path, before, c) : null;
-            return result;
-        }, () => pulled, auto: true, ct);
+            repo.LastAutoError = null;
+        }
     }
 
     // ---------- worktrees (WP-04, ADR 0010) ----------
@@ -1095,6 +1159,9 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         }
     }
 
+    /// <summary>A worktree root: <c>.git</c> as a folder, or as a file in a linked worktree or submodule.</summary>
+    private static bool IsRepository(string path) => Path.Exists(Path.Combine(path, ".git"));
+
     private static bool SamePath(string a, string b) =>
         string.Equals(Path.TrimEndingDirectorySeparator(a), Path.TrimEndingDirectorySeparator(b),
             OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
@@ -1138,20 +1205,30 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         GitResult result;
         try
         {
-            if (network)
+            if (Directory.Exists(repo.Path) && !IsRepository(repo.Path))
             {
-                await _network.WaitAsync(ct);
+                // Without its .git git would find the repository around the folder and work there (review 0.4.0, A6). A
+                // folder that is gone altogether is git's to report – removing a worktree whose folder is gone runs in its
+                // repository.
+                result = GitResult.Failed(TextFormat.Format(SyncText.NotARepository, repo.Path));
             }
-
-            try
-            {
-                result = await operation(ct);
-            }
-            finally
+            else
             {
                 if (network)
                 {
-                    _network.Release();
+                    await _network.WaitAsync(ct);
+                }
+
+                try
+                {
+                    result = await operation(ct);
+                }
+                finally
+                {
+                    if (network)
+                    {
+                        _network.Release();
+                    }
                 }
             }
         }
@@ -1161,8 +1238,15 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         }
 
         var error = result.Success ? null : TextFormat.Format(SyncText.OperationFailed, label, result.Message);
-        // The same failure on every auto-sync (offline, sign-in needed) is logged once, not every few minutes.
-        var repeated = auto && error is not null && error == repo.Error;
+        // The same failure on every auto-sync (offline, sign-in needed, a pull local changes keep out) is logged once, not
+        // every few minutes – compared with the last one auto-sync logged, which a successful fetch in between does not
+        // clear (review 0.4.0, A2).
+        var repeated = auto && error is not null && error == repo.LastAutoError;
+        if (auto && error is not null)
+        {
+            repo.LastAutoError = error;
+        }
+
         repo.Error = error;
         try
         {

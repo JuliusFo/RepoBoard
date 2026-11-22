@@ -116,6 +116,103 @@ public sealed class AutoSyncTests : IDisposable
         Assert.Equal(0, repo.Status!.Conflicts);
     }
 
+    /// <summary>
+    /// Review 0.4.0, A2: the fetch before succeeds and cleared the row's error, so the same failed fast-forward was logged –
+    /// and notified – on every interval until the user committed.
+    /// </summary>
+    [Fact]
+    public async Task A_fast_forward_local_changes_keep_out_is_logged_once()
+    {
+        var repo = await AddMineAsync(autoPull: true);
+        GitSandbox.Commit(_git.Theirs, "a.txt", "theirs");
+        GitSandbox.Git(_git.Theirs, "push");
+        File.WriteAllText(Path.Combine(_git.Mine, "a.txt"), "my unsaved work");
+
+        await _board.AutoSyncAsync(repo, Ct);
+        await _board.AutoSyncAsync(repo, Ct);
+
+        Assert.NotNull(repo.Error);
+        Assert.Single(_board.Activity.Entries, e => e.Kind == ActivityKind.Error);
+    }
+
+    /// <summary>Offline or signed out, every interval fails the same way: one entry, not one per interval (ADR 0003, review 0.4.0, C1).</summary>
+    [Fact]
+    public async Task The_same_failed_fetch_is_logged_once()
+    {
+        var repo = await AddMineAsync(autoPull: false);
+        await _board.SetAutoFetchAsync(repo, true, Ct);
+        GitSandbox.Git(_git.Mine, "remote", "set-url", "origin", Path.Combine(_git.Root, "gone.git"));
+
+        await _board.AutoSyncAsync(repo, Ct);
+        await _board.AutoSyncAsync(repo, Ct);
+
+        Assert.NotNull(repo.Error);
+        Assert.Single(_board.Activity.Entries, e => e.Kind == ActivityKind.Error);
+    }
+
+    /// <summary>
+    /// A stopped revert: git itself fast-forwards past REVERT_HEAD, so <see cref="PullCheck"/> is the only thing that keeps
+    /// auto-pull out (ADR 0003, review 0.4.0, C1 – reproduced with git 2.41).
+    /// </summary>
+    [Fact]
+    public async Task Auto_pull_keeps_out_of_an_unfinished_revert()
+    {
+        var repo = await AddMineAsync(autoPull: true);
+        File.WriteAllText(Path.Combine(_git.Mine, ".git", "REVERT_HEAD"), GitSandbox.Git(_git.Mine, "rev-parse", "HEAD"));
+        GitSandbox.Commit(_git.Theirs, "b.txt", "two");
+        GitSandbox.Git(_git.Theirs, "push");
+
+        await _board.AutoSyncAsync(repo, Ct);
+
+        Assert.Equal(1, repo.Status!.Behind);
+        Assert.NotNull(repo.AutoPullBlocked);
+        Assert.False(File.Exists(Path.Combine(_git.Mine, "b.txt")));
+    }
+
+    [Fact]
+    public async Task A_busy_repository_is_left_for_the_next_tick()
+    {
+        var repo = await AddMineAsync(autoPull: true);
+        await repo.Gate.WaitAsync(Ct);
+        try
+        {
+            await _board.AutoSyncAsync(repo, Ct);
+        }
+        finally
+        {
+            repo.Gate.Release();
+        }
+
+        Assert.Null(repo.LastAutoSync);
+    }
+
+    /// <summary>
+    /// Review 0.4.0, A18: a clone of an empty repository has no commit, git writes no ahead/behind for it – it read as
+    /// "upstream deleted" and never got the first commit a colleague pushed.
+    /// </summary>
+    [Fact]
+    public async Task A_clone_of_an_empty_repository_gets_the_first_commit()
+    {
+        var remote = Path.Combine(_git.Root, "empty.git");
+        var mine = Path.Combine(_git.Root, "empty-mine");
+        var theirs = Path.Combine(_git.Root, "empty-theirs");
+        GitSandbox.Git(_git.Root, "init", "-q", "--bare", "-b", "main", remote);
+        GitSandbox.Git(_git.Root, "clone", "-q", remote, mine);
+        GitSandbox.Git(_git.Root, "clone", "-q", remote, theirs);
+        await _board.AddAsync([mine], Ct);
+        var repo = Assert.Single(_board.Repos);
+        await _board.SetAutoPullAsync(repo, true, Ct);
+        Assert.False(repo.Status!.UpstreamGone);
+
+        GitSandbox.Commit(theirs, "first.txt", "hello");
+        GitSandbox.Git(theirs, "push", "-q", "origin", "main");
+        await _board.AutoSyncAsync(repo, Ct);
+
+        Assert.Null(repo.Error);
+        Assert.True(File.Exists(Path.Combine(mine, "first.txt")));
+        Assert.False(repo.Status!.IsInitial);
+    }
+
     /// <summary>The fast-forward a click on Pull makes with the user's <c>pull.rebase</c>: unrelated local changes stay (review 0.4.0, A1).</summary>
     [Fact]
     public async Task Pull_fast_forwards_past_unrelated_local_changes_whatever_pull_rebase_says()

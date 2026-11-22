@@ -81,6 +81,13 @@ public sealed class RepoState(RepoEntry entry, RepoState? mainRepo = null)
     /// <summary>Why auto-pull did not pull what the last auto-fetch brought (diverged branch, merge running …).</summary>
     public string? AutoPullBlocked { get; internal set; }
 
+    /// <summary>
+    /// The last failure auto-sync logged, kept apart from <see cref="Error"/>: a successful auto-fetch clears that right
+    /// before the fast-forward fails again the same way, and the failure was logged and notified on every interval
+    /// (review 0.4.0, A2). Cleared once an auto-sync ends without a failure.
+    /// </summary>
+    internal string? LastAutoError { get; set; }
+
     public bool Missing { get; internal set; }
 
     /// <summary>

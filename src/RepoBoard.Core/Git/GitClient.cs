@@ -25,16 +25,33 @@ public sealed class GitClient(GitRunner runner)
     private Task<GitResult> Network(string repo, GitCallMode mode, CancellationToken ct, params string[] args) =>
         runner.RunAsync(repo, args, mode, GitRunner.NetworkTimeout, null, ct);
 
-    /// <summary>The worktree root of <paramref name="path"/>, or null if it is not inside a repository.</summary>
-    public async Task<string?> FindRootAsync(string path, CancellationToken ct)
+    /// <summary>
+    /// The worktree root of <paramref name="path"/>; null if it is not inside a repository. <c>Problem</c> is git's own
+    /// message when it refused a repository it found (<c>safe.directory</c> for another owner, a broken config) – "not a
+    /// repository" would hide what to do (review 0.4.0, A22).
+    /// </summary>
+    public async Task<(string? Root, string? Problem)> FindRootAsync(string path, CancellationToken ct)
     {
         if (!Directory.Exists(path))
         {
-            return null;
+            return (null, null);
         }
 
         var result = await Local(path, ct, "rev-parse", "--show-toplevel");
-        return result.Success ? Path.GetFullPath(result.Output.Trim()) : null;
+        if (result.Success)
+        {
+            return (Path.GetFullPath(result.Output.Trim()), null);
+        }
+
+        for (var dir = new DirectoryInfo(path); dir is not null; dir = dir.Parent)
+        {
+            if (Path.Exists(Path.Combine(dir.FullName, ".git")))
+            {
+                return (null, result.Message);
+            }
+        }
+
+        return (null, null);
     }
 
     public async Task<string?> GitDirAsync(string repo, CancellationToken ct)
@@ -188,12 +205,34 @@ public sealed class GitClient(GitRunner runner)
     public async Task<bool> IsBranchNameAsync(string repo, string name, CancellationToken ct) =>
         name.Length > 0 && !name.StartsWith('-') && (await Local(repo, ct, "check-ref-format", "--branch", name)).Success;
 
-    /// <summary>
-    /// A local branch, or a remote one: <c>git switch</c> creates the local tracking branch for a unique remote branch.
-    /// The caller checks the name (<see cref="IsBranchNameAsync"/>).
-    /// </summary>
+    /// <summary>A local branch. The caller checks the name (<see cref="IsBranchNameAsync"/>).</summary>
     public Task<GitResult> SwitchAsync(string repo, string branch, CancellationToken ct) =>
-        Local(repo, ct, "switch", branch);
+        Local(repo, ct, "switch", "--no-guess", branch);
+
+    /// <summary>
+    /// A remote branch (<c>upstream/main</c>): a new local branch <paramref name="local"/> that tracks exactly it; git refuses
+    /// if that name is taken. The name is given, not left to git: with a remote named "up/stream" git cut "up/" only. The
+    /// caller checks both names (<see cref="IsBranchNameAsync"/>).
+    /// </summary>
+    public Task<GitResult> SwitchTrackingAsync(string repo, string local, string remoteBranch, CancellationToken ct) =>
+        Local(repo, ct, "switch", "-c", local, "--track", remoteBranch);
+
+    /// <summary>The names of the repository's remotes; empty if git fails.</summary>
+    public async Task<IReadOnlyList<string>> RemotesAsync(string repo, CancellationToken ct)
+    {
+        var result = await Local(repo, ct, "remote");
+        return result.Success ? result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) : [];
+    }
+
+    /// <summary>
+    /// The local name for a remote branch: what follows the longest remote name it starts with ("up/stream/feat/x" with a
+    /// remote "up/stream" → "feat/x"); null if no remote matches.
+    /// </summary>
+    public static string? LocalNameOf(string remoteBranch, IEnumerable<string> remotes) =>
+        remotes.Where(r => remoteBranch.StartsWith(r + "/", StringComparison.Ordinal) && remoteBranch.Length > r.Length + 1)
+            .MaxBy(r => r.Length) is { } remote
+            ? remoteBranch[(remote.Length + 1)..]
+            : null;
 
     /// <inheritdoc cref="SwitchAsync"/>
     public Task<GitResult> CreateBranchAsync(string repo, string branch, CancellationToken ct) =>

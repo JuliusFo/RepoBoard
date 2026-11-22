@@ -17,7 +17,8 @@ public static class CommitTools
         repo.Status is not { } status || repo.Details is not { } details ? SyncText.Pick_Unknown
         : status.IsInitial ? SyncText.Pick_Initial
         : repo.Operation is { } running ? TextFormat.Format(SyncText.Pick_Operation, PullCheck.Name(running))
-        : details.HeadOnRemote ? SyncText.Amend_Pushed
+        : details.HeadOnRemote is null ? SyncText.Amend_Unknown
+        : details.HeadOnRemote == true ? SyncText.Amend_Pushed
         : null;
 
     /// <summary>Why <paramref name="commit"/> cannot be reverted (or cherry-picked); null if it can.</summary>
