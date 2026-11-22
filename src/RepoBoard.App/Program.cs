@@ -13,6 +13,9 @@ namespace RepoBoard.App;
 /// <summary>Own entry point (as in FerretSharp): Velopack first, then one instance per data folder, then the WPF app.</summary>
 internal static class Program
 {
+    /// <summary>How long a second start waits for the running instance to listen before it says "already running".</summary>
+    private static readonly TimeSpan SecondStartWait = TimeSpan.FromSeconds(10);
+
     [STAThread]
     public static int Main(string[] args)
     {
@@ -37,16 +40,25 @@ internal static class Program
         InstanceLock? instance = null;
         try
         {
-            if (!InstanceLock.TryAcquire(paths, Environment.ProcessId, out instance, out var running))
+            // Two instances would fetch and pull the same repositories at once: the running one comes forward instead –
+            // through its signal, as its window may be hidden in the notification area (ADR 0006). It listens only once it
+            // has loaded the board: a start meanwhile (autostart at sign-in, a second click) tries for a while before it
+            // says "already running" – and starts itself if the other one ends (review 0.4.0, A11).
+            var deadline = Environment.TickCount64 + (long)SecondStartWait.TotalMilliseconds;
+            while (!InstanceLock.TryAcquire(paths, Environment.ProcessId, out instance, out var running))
             {
-                // Two instances would fetch and pull the same repositories at once: the running one comes forward instead –
-                // through its signal, as its window may be hidden in the notification area (ADR 0006).
-                if (!InstanceSignal.Send(paths, InstanceRequest.Show, running) && !RunningInstance.BringForward(running))
+                if (InstanceSignal.Send(paths, InstanceRequest.Show, running))
                 {
-                    MessageBox.Show(TextFormat.Format(BoardText.App_AlreadyRunning, paths.Root), "RepoBoard", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return 0;
                 }
 
-                return 0;
+                if (Environment.TickCount64 > deadline)
+                {
+                    MessageBox.Show(TextFormat.Format(BoardText.App_AlreadyRunning, paths.Root), "RepoBoard", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return 0;
+                }
+
+                Thread.Sleep(200);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

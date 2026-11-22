@@ -74,8 +74,7 @@
     <value>No repositories yet</value>
   </data>
   <data name="Empty_Text" xml:space="preserve">
-    <value>Add single repositories or let RepoBoard look through a folder like {0}.</value>
-    <comment>{0} = an example folder path</comment>
+    <value>Add single repositories, or let RepoBoard look through a folder that holds them.</value>
   </data>
   <data name="Empty_Add" xml:space="preserve">
     <value>Add repository</value>
@@ -632,5 +631,18 @@ Log: {1}</value>
   <data name="Scan_AddOther" xml:space="preserve">
     <value>Add {0} repositories</value>
     <comment>{0} = number of repositories</comment>
+  </data>
+  <data name="Editor_UnsafePath" xml:space="preserve">
+    <value>{0} cannot be passed to VS Code safely: it contains a character the command line would read as an instruction.</value>
+    <comment>{0} = folder path</comment>
+  </data>
+  <data name="Editor_NotFound" xml:space="preserve">
+    <value>VS Code was not found: the command "code" is not on the PATH.</value>
+  </data>
+  <data name="Error_Unexpected" xml:space="preserve">
+    <value>Unexpected error.</value>
+  </data>
+  <data name="Error_Reload" xml:space="preserve">
+    <value>Reload</value>
   </data>
 </root>

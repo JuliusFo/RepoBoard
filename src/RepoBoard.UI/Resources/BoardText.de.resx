@@ -73,7 +73,7 @@
     <value>Noch keine Repositories</value>
   </data>
   <data name="Empty_Text" xml:space="preserve">
-    <value>Füge einzelne Repos hinzu oder lass einen Ordner wie {0} durchsuchen.</value>
+    <value>Füge einzelne Repos hinzu oder lass einen Ordner durchsuchen, in dem sie liegen.</value>
   </data>
   <data name="Empty_Add" xml:space="preserve">
     <value>Repo hinzufügen</value>
@@ -572,5 +572,17 @@ Log: {1}</value>
   </data>
   <data name="Scan_AddOther" xml:space="preserve">
     <value>{0} Repos hinzufügen</value>
+  </data>
+  <data name="Editor_UnsafePath" xml:space="preserve">
+    <value>{0} kann nicht sicher an VS Code übergeben werden: der Pfad enthält ein Zeichen, das die Kommandozeile als Anweisung liest.</value>
+  </data>
+  <data name="Editor_NotFound" xml:space="preserve">
+    <value>VS Code wurde nicht gefunden: der Befehl „code“ steht nicht im PATH.</value>
+  </data>
+  <data name="Error_Unexpected" xml:space="preserve">
+    <value>Unerwarteter Fehler.</value>
+  </data>
+  <data name="Error_Reload" xml:space="preserve">
+    <value>Neu laden</value>
   </data>
 </root>

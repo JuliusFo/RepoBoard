@@ -50,7 +50,7 @@
         {
             <div class="empty-board">
                 <h2>@BoardText.Empty_Title</h2>
-                <p>@TextFormat.Format(BoardText.Empty_Text, @"C:\Dev-Repos")</p>
+                <p>@BoardText.Empty_Text</p>
                 <div class="empty-actions">
                     <button class="btn primary" @onclick="Scan">@BoardText.Scan</button>
                     <button class="btn" @onclick="Add">@Icons.Plus @BoardText.Empty_Add</button>
@@ -103,6 +103,11 @@
 </div>
 
 <UpdateDialog />
+
+@* Blazor shows this after an unhandled error; here, not in index.html, so its text follows the UI's language (review 0.4.0, A36). *@
+<div id="blazor-error-ui">
+    <span class="message">@BoardText.Error_Unexpected</span> <a href="" class="reload">@BoardText.Error_Reload</a> <a class="dismiss">✕</a>
+</div>
 
 @if (_worktreeDialog is { } dialog)
 {
@@ -222,7 +227,7 @@
 
     private Task Add() => GuardAsync(async () =>
     {
-        if (await Desktop.PickFolderAsync(BoardText.Add_DialogTitle) is { } folder)
+        if (await Desktop.PickFolderAsync(BoardText.Add_DialogTitle, DesktopPaths.StartFolder(Board.Repos.Select(r => r.Path))) is { } folder)
         {
             await Board.AddAsync([folder], default);
         }
@@ -230,7 +235,7 @@
 
     private Task Scan() => GuardAsync(async () =>
     {
-        if (await Desktop.PickFolderAsync(BoardText.Scan_DialogTitle) is not { } folder)
+        if (await Desktop.PickFolderAsync(BoardText.Scan_DialogTitle, DesktopPaths.StartFolder(Board.Repos.Select(r => r.Path))) is not { } folder)
         {
             return;
         }
