@@ -1,6 +1,6 @@
 # WP-09 Historie und Commit-Werkzeuge
 
-Branch `wp/09-history`, 2026-11-22, noch kein Release.
+Branch `wp/09-history`, 2026-11-22, Release 0.4.0.
 
 ## Planung (aus `docs/roadmap.md`)
 - Commit-Details: Dateien des Commits, Diff (mit WP-05), Nachricht, Refs.

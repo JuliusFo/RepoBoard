@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-22
+
 ### Added
 - Stage hunks and lines (WP-25): each hunk of the diff view has a button “Stage hunk” (“Unstage hunk” on the staged side). A click on a changed line at the left edge selects it, Shift+click selects a range; the button then stages or unstages only the selected lines. Works for new files (the index gets a new file with just those lines) and deleted ones. Only the index is changed, never the file on disk; if the file changed since the diff was read, git refuses the patch and nothing is staged.
 - History and commit tools (WP-09): the history of an opened row shows a graph of branches and merges, “All branches” adds every local and remote branch, “Load 50 more” goes further back (up to 1,000 commits). A click on a commit shows its whole message, author and committer, parents (click to go there), refs, the files it changed and their diff against the first parent, in place of branches and history.
