@@ -82,6 +82,23 @@ public sealed class AutoSyncQueueTests : IDisposable
         Assert.Empty(repo.Worktrees);
     }
 
+    /// <summary>
+    /// Second review pass R1: a failure in one repository cancelled the loop's token, and that killed git in all the others –
+    /// a fast-forward mid-checkout. Each runs to its end; the failure stays in its row.
+    /// </summary>
+    [Fact]
+    public async Task A_failure_in_one_repository_never_stops_the_others()
+    {
+        var (board, git) = await BoardAsync(repos: 2);
+        git.FailGitDirIn = board.Repos[0].Path;
+
+        await board.AutoSyncDueAsync(Ct);
+
+        Assert.Equal(2, git.FetchesDone);
+        Assert.NotNull(board.Repos[0].Error);
+        Assert.Null(board.Repos[1].Error);
+    }
+
     /// <summary>A tick that throws is logged and the next one runs; stopping ends the loop quietly (ADR 0003, review 0.4.0, C1).</summary>
     [Fact]
     public async Task The_tick_goes_on_after_one_that_threw_and_stops_quietly()
@@ -129,6 +146,12 @@ public sealed class AutoSyncQueueTests : IDisposable
 
         /// <summary><c>rev-parse</c> throws – a surprise inside the board.</summary>
         public bool FailGitDir { get; set; }
+
+        /// <summary>The same, only in this repository.</summary>
+        public string? FailGitDirIn { get; set; }
+
+        /// <summary>Fetches that ran to their end (not cancelled).</summary>
+        public int FetchesDone { get; private set; }
         public int Fetches { get; private set; }
         public int MostAtOnce { get; private set; }
         public int MostBusy { get; private set; }
@@ -138,7 +161,7 @@ public sealed class AutoSyncQueueTests : IDisposable
         {
             if (args[0] == "rev-parse")
             {
-                return FailGitDir
+                return FailGitDir || (FailGitDirIn is { } broken && Paths.Same(broken, workingDirectory))
                     ? throw new InvalidOperationException("git broke")
                     : new GitResult(0, Path.Combine(workingDirectory, ".git"), "");
             }
@@ -160,10 +183,23 @@ public sealed class AutoSyncQueueTests : IDisposable
                 MostBusy = Math.Max(MostBusy, Board.Repos.Count(r => r.Busy is not null));
             }
 
-            await Task.Delay(150, cancellationToken);
+            // The failing repository is done first, so its failure comes while the others still fetch.
+            var failing = FailGitDirIn is { } path && Paths.Same(path, workingDirectory);
+            try
+            {
+                await Task.Delay(failing ? 10 : 300, cancellationToken);
+            }
+            finally
+            {
+                lock (_lock)
+                {
+                    _running--;
+                }
+            }
+
             lock (_lock)
             {
-                _running--;
+                FetchesDone++;
             }
 
             return new GitResult(0, "", "");

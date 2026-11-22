@@ -286,9 +286,8 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     /// <summary>The repositories first – that reads their lists of worktrees –, then the worktrees; each only if <paramref name="which"/>.</summary>
     private async Task RefreshManyAsync(Func<RepoState, bool> which, CancellationToken ct)
     {
-        var options = new ParallelOptions { MaxDegreeOfParallelism = MaxParallelReads, CancellationToken = ct };
-        await Parallel.ForEachAsync(_repos.Where(which), options, async (repo, token) => await RefreshAsync(repo, token));
-        await Parallel.ForEachAsync(_repos.SelectMany(r => r.Worktrees).Where(which), options, async (worktree, token) => await RefreshAsync(worktree, token));
+        await EachAsync(_repos.Where(which), MaxParallelReads, RefreshAsync, ct);
+        await EachAsync(_repos.SelectMany(r => r.Worktrees).Where(which), MaxParallelReads, RefreshAsync, ct);
     }
 
     /// <summary>How often the tick reads a repository a file watcher sees (decision of the user, 2026-11-21).</summary>
@@ -469,9 +468,28 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     /// "Fetch all" – the button on the page and the tray's menu. No more at once than the network takes: one waiting in line
     /// would hold its repository's gate meanwhile (review 0.4.0, A3); a missing one has nothing to fetch (A17).
     /// </summary>
-    public Task FetchAllAsync(CancellationToken ct) =>
-        Parallel.ForEachAsync(_repos.Where(r => !r.Missing), new ParallelOptions { MaxDegreeOfParallelism = MaxParallelNetwork, CancellationToken = ct },
-            async (repo, token) => await FetchAsync(repo, token));
+    public Task FetchAllAsync(CancellationToken ct) => EachAsync(_repos.Where(r => !r.Missing), MaxParallelNetwork, FetchAsync, ct);
+
+    /// <summary>
+    /// <paramref name="work"/> for each repository, <paramref name="parallel"/> at once. Each runs to its end with the caller's
+    /// token: <c>Parallel.ForEachAsync</c> cancels its own token at the first failure, and that killed git in every other
+    /// repository – a fast-forward mid-checkout, leaving <c>index.lock</c> behind (second review pass R1). A failure stays in
+    /// its repository's row.
+    /// </summary>
+    private Task EachAsync<T>(IEnumerable<RepoState> repos, int parallel, Func<RepoState, CancellationToken, Task<T>> work, CancellationToken ct) =>
+        Parallel.ForEachAsync(repos, new ParallelOptions { MaxDegreeOfParallelism = parallel, CancellationToken = ct }, async (repo, _) =>
+        {
+            try
+            {
+                await work(repo, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                repo.Error = TextFormat.Format(SyncText.OperationFailed, SyncText.Op_Status, ex.Message);
+                repo.StatusFailed = true;
+                Notify();
+            }
+        });
 
     public Task<bool> FetchAsync(RepoState repo, CancellationToken ct) =>
         RunAsync(repo, SyncText.Op_Fetch, network: true, c => git.FetchAsync(repo.Path, GitCallMode.Interactive, c),
@@ -849,8 +867,11 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             // No more at once than the network takes, one slot left for a click: a repository waiting in line would hold its
             // gate (spinner, commit locked, no status) for as long as the others take – minutes offline (review 0.4.0, A3).
             // Each sets its LastAutoSync when it starts, so the next intervals spread out by themselves.
-            var options = new ParallelOptions { MaxDegreeOfParallelism = MaxParallelNetwork - 1, CancellationToken = ct };
-            await Parallel.ForEachAsync(due, options, async (repo, token) => await AutoSyncAsync(repo, token));
+            await EachAsync(due, MaxParallelNetwork - 1, async (repo, token) =>
+            {
+                await AutoSyncAsync(repo, token);
+                return true;
+            }, ct);
         }
         finally
         {
