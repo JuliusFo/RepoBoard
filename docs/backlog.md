@@ -41,6 +41,19 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - Größengrenze bei gelöschten Dateien (Review WP-05, Punkt 11): gemessen wird die Datei im Worktree – eine gelöschte große Datei hat keine, git liest ihren Diff bei offenem Diff alle 20 s ganz ein (geparst wird höchstens bis 5 000 Zeilen, nicht auf dem UI-Thread). Abhilfe: Größe aus Index bzw. HEAD (`git cat-file -s :<pfad>` / `HEAD:<pfad>`).
 - Scheitert ein Stagen per Häkchen, bleibt das vom Klick gesetzte Häkchen in der Liste „Nicht gestaged“ stehen (`checked` dort nicht gebunden; vorher schon da, Review WP-05).
 
+## Historie (Fortsetzung von WP-09)
+
+- Amend eines gepushten Commits mit `push --force-with-lease` – eigene Rückfrage, ADR (Ausnahme zu `CLAUDE.md` §2).
+- Revert und Cherry-Pick von Merge-Commits (`-m 1`), mehrere Commits auf einmal; Abbrechen und Fortsetzen eines angehaltenen kommt mit WP-07.
+- Konflikt vorher erkennen (`git merge-tree --write-tree`, wie WP-17) statt erst beim Revert/Cherry-Pick.
+- `git log --topo-order` geht ohne Commit-Graph-Datei die ganze Historie durch, mit jedem Status bei offener Zeile: bei sehr großen Repos messen; ggf. nur neu lesen, wenn sich HEAD oder Refs geändert haben.
+- Graph: Spuren nach links rücken lassen (wie `git log --graph`), mehr als acht Spuren (seitlich scrollen), Spuren je Branch einfärben statt je Spalte.
+- Commit-Details: Tastatur (↑/↓ durch die Historie), Commit-ID kopieren, „im Terminal zeigen“, Suche in der Historie (mit WP-16).
+- „Alle Branches“ je Repo merken (Konfiguration Version 2).
+- Ignorierte Dateien überschreibt git auch beim Branchwechsel (`SwitchAsync`) und beim Fast-Forward von Auto-Pull, ebenso lokal geänderte Dateien mit `skip-worktree`/`assume-unchanged` – dort wie bei Revert/Cherry-Pick vorher prüfen (Review WP-09, vorher schon da).
+- Commit, Amend, Revert und Cherry-Pick laufen mit 30 s Zeitlimit (`Local`): wartet eine gpg-Passphrase (pinentry) länger, bricht `GitRunner` git mitten im Schreiben ab – für Befehle, die signieren können, ein längeres Limit (Review WP-09, vorher schon da).
+- Leerer Cherry-Pick nach Squash: auf Wunsch `--skip` selbst ausführen (Nutzer wollte zunächst nur die Meldung, 2026-11-22).
+
 ## Dateiwächter (Fortsetzung von WP-03)
 
 - Die Ordner, deren Änderungen nichts auslösen (`bin`, `obj`, `node_modules`, `.vs`, `.idea`, `TestResults`), sind fest: stattdessen die ignorierten Pfade von git fragen (`check-ignore --stdin`) oder die Liste einstellbar machen.

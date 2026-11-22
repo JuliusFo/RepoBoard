@@ -70,10 +70,15 @@ public sealed class GitOutputTests
     [Fact]
     public void Log_splits_records_and_fields()
     {
-        var log = GitClient.ParseLog("abc1234\u001fJo\u001f2 hours ago\u001fHEAD -> main, origin/main\u001fFix it\u001e\ndef5678\u001fJo\u001f3 days ago\u001f\u001fStart\u001e\n");
+        var log = GitClient.ParseLog(
+            "abc1234full\u001fabc1234\u001fdef5678full 9999999full\u001fJo\u001f2 hours ago\u001fHEAD -> main, origin/main\u001fFix it\u001e\n" +
+            "def5678full\u001fdef5678\u001f\u001fJo\u001f3 days ago\u001f\u001fStart\u001e\n");
 
         Assert.Equal(2, log.Count);
-        Assert.Equal("Fix it", log[0].Subject);
+        Assert.Equal(("abc1234full", "abc1234", "Fix it"), (log[0].Id, log[0].ShortId, log[0].Subject));
+        Assert.Equal(["def5678full", "9999999full"], log[0].Parents);
+        Assert.True(log[0].IsMerge);
+        Assert.Empty(log[1].Parents);
         Assert.Equal("", log[1].Refs);
     }
 }

@@ -30,14 +30,6 @@ Branch `wp/08-branch-cleanup`.
 - Invariante: `branch -D` (ungemergt) nur mit eigener Rückfrage, ADR.
 - Offen: auch über alle Repos auf einmal („gone“-Branches überall)?
 
-#### WP-09 Historie und Commit-Werkzeuge
-Branch `wp/09-history`.
-- Commit-Details: Dateien des Commits, Diff (mit WP-05), Nachricht, Refs.
-- Historie als Graph (mehrere Branches), mehr als 15 Commits (nachladen).
-- Amend (nur ungepusht, sonst Warnung), Revert, Cherry-Pick.
-- Invariante: Amend eines gepushten Commits braucht Force-Push → nicht in diesem Paket.
-- Offen: Graph selbst zeichnen (SVG) oder vorhandene Bibliothek?
-
 ### Gruppe B – sehr nützlich, weil RepoBoard alle Repos sieht
 
 #### WP-11 Gruppen und „Alles aktualisieren“
@@ -89,7 +81,7 @@ Branch `wp/17-conflict-preview`.
 Branch `wp/18-unread`.
 - Je Repo ein Ungelesen-Zähler der hereingezogenen bzw. gefetchten Commits seit dem letzten Öffnen der Zeile, mit kurzer Liste (Autor, Betreff).
 - Zustand „zuletzt gesehen“ je Repo in einer eigenen Datei (`AtomicJsonFile`).
-- Mit WP-09 als Sprung in die Commit-Details.
+- Mit WP-09 (erledigt) als Sprung in die Commit-Details.
 
 #### WP-19 Tagesrückblick: Standup, Feierabend, Morgen
 Branch `wp/19-daily`.

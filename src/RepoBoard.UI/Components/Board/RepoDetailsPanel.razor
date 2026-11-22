@@ -1,10 +1,10 @@
-@* The opened row: changes and commit, branches, recent history; a selected file's diff in place of the last two. *@
+@* The opened row: changes and commit, branches, history; a selected file's diff or commit in place of the last two. *@
 @inherits BoardComponent
 
 @{
     var selected = DiffSelection.Resolve(_diffTarget, Status);
 }
-<div class="details @(selected is not null ? "diff-open" : "")">
+<div class="details @(selected is not null || _commitId is not null ? "diff-open" : "")">
     <section class="pane">
         <header>
             <h3>@BoardText.Changes</h3>
@@ -58,12 +58,25 @@
             </div>
         }
         <div class="commit">
-            <textarea rows="3" placeholder="@BoardText.CommitMessage_Placeholder" @bind="_message" @bind:event="oninput" disabled="@(Status is null or { IsClean: true })"></textarea>
+            <textarea rows="3" placeholder="@BoardText.CommitMessage_Placeholder" @bind="_message" @bind:event="oninput"
+                      disabled="@(Status is null || (Status.IsClean && !_draft.On))"></textarea>
+            @{
+                var amendBlocker = CommitTools.AmendBlocker(Repo);
+            }
+            <label class="amend" title="@(amendBlocker ?? BoardText.Amend_Hint)">
+                <input type="checkbox" checked="@_draft.On" disabled="@(amendBlocker is not null && !_draft.On)" @onchange="ToggleAmend" />
+                @BoardText.Amend_Label
+            </label>
+            @if (_draft.Note is { } note)
+            {
+                <p class="amend-note">@note</p>
+            }
             <div class="commit-actions">
                 <button class="btn primary" disabled="@(!CanCommit)" @onclick="() => Commit(push: false)">
-                    @(Status is { Staged: > 0 } ? TextFormat.Format(BoardText.CommitStaged, Status.Staged) : BoardText.CommitAll)
+                    @(_draft.On ? BoardText.Amend_Commit
+                        : Status is { Staged: > 0 } ? TextFormat.Format(BoardText.CommitStaged, Status.Staged) : BoardText.CommitAll)
                 </button>
-                <button class="btn" disabled="@(!CanCommit)" @onclick="() => Commit(push: true)">@BoardText.CommitPush</button>
+                <button class="btn" disabled="@(!CanCommit)" @onclick="() => Commit(push: true)">@(_draft.On ? BoardText.Amend_CommitPush : BoardText.CommitPush)</button>
             </div>
         </div>
     </section>
@@ -71,6 +84,10 @@
     @if (selected is { } diff)
     {
         <DiffPanel @ref="_diffPanel" Repo="Repo" Change="diff.Change" Staged="diff.Staged" OnClose="CloseDiff" />
+    }
+    else if (_commitId is { } commitId)
+    {
+        <CommitPanel @ref="_commitPanel" Repo="Repo" Id="@commitId" OnClose="CloseCommit" OnOpen="OpenCommit" />
     }
     else
     {
@@ -108,6 +125,11 @@
         <section class="pane">
             <header>
                 <h3>@BoardText.RecentCommits</h3>
+                <label class="log-all" title="@BoardText.History_AllBranches_Hint">
+                    <input type="checkbox" checked="@Repo.LogAll"
+                           @onchange="e => GuardAsync(() => Board.SetLogAsync(Repo, Repo.LogLength, e.Value is true, default))" />
+                    @BoardText.History_AllBranches
+                </label>
             </header>
             @if (Repo.Details is null)
             {
@@ -119,22 +141,21 @@
             }
             else
             {
+                var history = Repo.Details;
+                var lanes = GraphDrawing.Lanes(history.Graph);
                 <div class="log">
-                    @foreach (var commit in Repo.Details.Log)
+                    @for (var i = 0; i < history.Log.Count; i++)
                     {
-                        <div class="commit-item">
-                            <div class="c-line">
-                                <code>@commit.Hash</code>
-                                <span class="c-subject" title="@commit.Subject">@commit.Subject</span>
-                            </div>
-                            <div class="c-meta">
-                                @commit.Author · @commit.When
-                                @foreach (var r in Refs(commit))
-                                {
-                                    <span class="ref">@r</span>
-                                }
-                            </div>
-                        </div>
+                        var commit = history.Log[i];
+                        <HistoryRow @key="commit.Id" Commit="commit" Graph="history.Graph[i]" Lanes="lanes"
+                                    OnSelect="() => OpenCommit(commit.Id)" />
+                    }
+                    @if (history.HasMore && Repo.LogLength < BoardService.MaxLogLength)
+                    {
+                        <button class="btn small ghost load-more"
+                                @onclick="() => GuardAsync(() => Board.SetLogAsync(Repo, Repo.LogLength + BoardService.LogStep, Repo.LogAll, default))">
+                            @TextFormat.Format(BoardText.History_LoadMore, BoardService.LogStep)
+                        </button>
                     }
                 </div>
             }
@@ -153,10 +174,31 @@
 
     private DiffPanel? _diffPanel;
 
+    /// <summary>The commit of the history whose details are open (WP-09, page state only); a file's diff wins.</summary>
+    private string? _commitId;
+
+    private CommitPanel? _commitPanel;
+
+    /// <summary>"Amend last commit" (WP-09): for which HEAD, with which message (review WP-09).</summary>
+    private readonly AmendDraft _draft = new();
+
+    /// <summary>A commit or amend of this box runs: the new HEAD it makes is no other session's.</summary>
+    private bool _committing;
+
     /// <summary>Only a click on a file moves the focus to its diff (for Esc) – never a diff that a new status brought.</summary>
     private bool _focusDiff;
 
-    protected override void OnParametersSet() => _diffTarget = DiffSelection.Next(_diffTarget, Status);
+    private bool _focusCommit;
+
+    protected override void OnParametersSet()
+    {
+        _diffTarget = DiffSelection.Next(_diffTarget, Status);
+        if (!_committing)
+        {
+            // Another commit is the last one now: the message filled in belongs to the one before.
+            _message = _draft.Follow(_message, Status?.Head);
+        }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -168,10 +210,23 @@
                 await panel.FocusAsync();
             }
         }
+
+        if (_focusCommit)
+        {
+            _focusCommit = false;
+            if (_commitPanel is { } panel)
+            {
+                await panel.FocusAsync();
+            }
+        }
     }
 
     private RepoStatus? Status => Repo.Status;
-    private bool CanCommit => Status is { IsClean: false, Conflicts: 0 } && !string.IsNullOrWhiteSpace(_message) && Repo.Busy is null;
+
+    private bool CanCommit => !string.IsNullOrWhiteSpace(_message) && Repo.Busy is null
+        && (_draft.On
+            ? CommitTools.AmendBlocker(Repo) is null && Status is { Conflicts: 0 }
+            : Status is { IsClean: false, Conflicts: 0 });
 
     // A row per file and side (a partly staged file is in both lists, which share one parent): without a key Blazor reuses
     // the row of a file that moved to the other list for the next file – with the checkbox the click left ticked (E2E
@@ -192,20 +247,55 @@
 
     private void CloseDiff() => _diffTarget = null;
 
+    /// <summary>A click on a commit of the history, or on a parent in the open commit, shows its details.</summary>
+    private void OpenCommit(string id)
+    {
+        _diffTarget = null;
+        _commitId = id;
+        _focusCommit = true;
+    }
+
+    private void CloseCommit() => _commitId = null;
+
+    /// <summary>Amend starts from the last commit's message; unticked, an unedited one goes again.</summary>
+    private Task ToggleAmend(ChangeEventArgs e) => GuardAsync(async () =>
+    {
+        if (e.Value is not true)
+        {
+            _message = _draft.Untick(_message);
+            return;
+        }
+
+        _draft.Tick(Status?.Head);
+        if (string.IsNullOrWhiteSpace(_message) && await Board.HeadMessageAsync(Repo, default) is { } message)
+        {
+            _message = _draft.Fill(_message, Status?.Head, message);
+        }
+    });
+
     private static string Title(FileChange file) =>
         file.OriginalPath is { } from ? $"{from} → {file.Path}" : file.Path;
 
     /// <summary>A CSS class for the status letter: '?' is no valid class character.</summary>
     private static string LetterClass(char letter) => letter == '?' ? "new" : letter.ToString();
 
-    private static IEnumerable<string> Refs(CommitInfo commit) =>
-        commit.Refs.Split(", ", StringSplitOptions.RemoveEmptyEntries).Select(r => r.Replace("HEAD -> ", "", StringComparison.Ordinal));
-
     private Task Commit(bool push) => GuardAsync(async () =>
     {
-        if (await Board.CommitAsync(Repo, _message.Trim(), push, default))
+        var amend = _draft.On;
+        _committing = true;
+        try
         {
-            _message = "";
+            var done = await Board.CommitAsync(Repo, _message.Trim(), push, default, amend, amend ? _draft.Head : null);
+            // An amend whose push failed is still done: HEAD is the new commit.
+            if (done || (amend && Status?.Head != _draft.Head))
+            {
+                _message = "";
+                _draft.Done();
+            }
+        }
+        finally
+        {
+            _committing = false;
         }
     });
 

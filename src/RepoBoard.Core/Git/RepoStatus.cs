@@ -132,8 +132,18 @@ public sealed record RepoStatus(
 /// <summary>A local branch, or a remote branch without a local one.</summary>
 public sealed record BranchInfo(string Name, bool IsCurrent, bool IsRemote, string? Upstream, string? Track, string? LastCommit);
 
-/// <summary>A commit of the recent history.</summary>
-public sealed record CommitInfo(string Hash, string Author, string When, string Refs, string Subject);
+/// <summary>A commit of the history (WP-09: with its parents, for the graph).</summary>
+/// <param name="Id">The full commit id.</param>
+/// <param name="ShortId">The abbreviated id git chose (unique in the repository).</param>
+/// <param name="Parents">The full ids of its parents, the first parent first; none for a root commit.</param>
+public sealed record CommitInfo(string Id, string ShortId, IReadOnlyList<string> Parents, string Author, string When, string Refs, string Subject)
+{
+    public bool IsMerge => Parents.Count > 1;
+}
 
 /// <summary>What the expanded row shows besides the status.</summary>
-public sealed record RepoDetails(IReadOnlyList<BranchInfo> Branches, IReadOnlyList<CommitInfo> Log);
+/// <param name="Graph">One row of the graph per commit of <paramref name="Log"/> (WP-09).</param>
+/// <param name="HasMore">The history goes on beyond <paramref name="Log"/>.</param>
+/// <param name="HeadOnRemote">HEAD is on a remote branch (or git could not tell): amending it would need a force push.</param>
+public sealed record RepoDetails(IReadOnlyList<BranchInfo> Branches, IReadOnlyList<CommitInfo> Log, IReadOnlyList<GraphRow> Graph,
+    bool HasMore, bool HeadOnRemote);

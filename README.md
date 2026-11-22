@@ -17,7 +17,8 @@ sign-in, SSH, hooks and LFS work exactly as in your terminal.
 - **Filter and search:** chips with counts – changes, behind, ahead, auto-sync, problems – and a search over name, path and
   branch.
 - **Git actions per repository:** fetch, pull (fast-forward only), push (the first push sets the upstream), fetch all.
-- **Commit:** open a row to stage or unstage files, commit the staged files or everything, commit and push.
+- **Commit:** open a row to stage or unstage files, commit the staged files or everything, commit and push. “Amend last
+  commit” replaces the last commit with the staged changes and a new message – only while it is not pushed.
 - **Diff:** click a changed file to see its staged or unstaged changes right next to the list – git’s own diff, with line
   numbers and the changed words highlighted; line endings and binary files show as git sees them.
 - **Stage hunks and lines:** “Stage hunk” at each hunk of the diff (“Unstage hunk” on the staged side); click lines at
@@ -27,7 +28,11 @@ sign-in, SSH, hooks and LFS work exactly as in your terminal.
   them – with branch, ahead/behind and changes, and the same actions; worktrees made by Claude Code sessions are marked.
   Remove one, or clean up those that look done (branch merged, upstream deleted, folder gone): RepoBoard asks first,
   lists the ignored files git deletes with it, and never removes a worktree with changes. The branch always stays.
-- **Branches:** switch to a local or remote branch, create a new one; the last 15 commits with their refs.
+- **Branches:** switch to a local or remote branch, create a new one.
+- **History:** the commits of the current branch – or of all branches – with a graph of their branches and merges, and
+  their refs; “Load 50 more” goes further back. Click a commit for its whole message, author, parents, the files it changed
+  and their diff. Revert a commit of the branch (a new commit that undoes it) or cherry-pick one of another branch onto
+  it – only with no staged or changed files; if git stops at a conflict, finish it in your IDE or terminal.
 - **Auto-fetch and auto-pull** per repository, at an interval of 1 to 60 minutes. Auto-pull only fast-forwards a branch
   that has only fallen behind – never a merge, never over your local commits, never during a merge or rebase – and says
   why when it keeps out. Background syncs never ask for credentials.

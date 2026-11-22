@@ -228,4 +228,79 @@
   <data name="Worktree_AddedMain" xml:space="preserve">
     <value>{0} ist ein Worktree – sein Repository {1} kommt aufs Board, der Worktree steht darunter.</value>
   </data>
+  <data name="InvalidCommit" xml:space="preserve">
+    <value>{0} ist keine Commit-ID.</value>
+  </data>
+  <data name="Op_Show" xml:space="preserve">
+    <value>Commit</value>
+  </data>
+  <data name="Op_Amend" xml:space="preserve">
+    <value>Amend</value>
+  </data>
+  <data name="Op_AmendPush" xml:space="preserve">
+    <value>Amend und Push</value>
+  </data>
+  <data name="Op_Revert" xml:space="preserve">
+    <value>Revert</value>
+  </data>
+  <data name="Op_CherryPick" xml:space="preserve">
+    <value>Cherry-Pick</value>
+  </data>
+  <data name="Amended" xml:space="preserve">
+    <value>Letzten Commit geändert: {0}</value>
+  </data>
+  <data name="AmendedAndPushed" xml:space="preserve">
+    <value>Letzten Commit geändert und gepusht: {0}</value>
+  </data>
+  <data name="Amend_Pushed" xml:space="preserve">
+    <value>der letzte Commit liegt schon auf einem Remote-Branch – ihn zu ändern bräuchte einen Force-Push</value>
+  </data>
+  <data name="Amend_Unknown" xml:space="preserve">
+    <value>git konnte nicht sagen, ob der letzte Commit gepusht ist – er bleibt, wie er ist</value>
+  </data>
+  <data name="Reverted" xml:space="preserve">
+    <value>{0} {1} per Revert rückgängig gemacht</value>
+  </data>
+  <data name="CherryPicked" xml:space="preserve">
+    <value>{0} {1} per Cherry-Pick auf {2} übernommen</value>
+  </data>
+  <data name="Pick_Merge" xml:space="preserve">
+    <value>Merge-Commits lassen sich hier nicht reverten oder cherry-picken</value>
+  </data>
+  <data name="Pick_Unknown" xml:space="preserve">
+    <value>git konnte den Zustand des Repositorys nicht lesen</value>
+  </data>
+  <data name="Pick_Operation" xml:space="preserve">
+    <value>ein {0} läuft noch – erst abschließen oder abbrechen</value>
+  </data>
+  <data name="Pick_Initial" xml:space="preserve">
+    <value>der Branch hat noch keinen Commit</value>
+  </data>
+  <data name="Pick_Changes" xml:space="preserve">
+    <value>nur ohne gestagte oder geänderte Dateien – erst committen oder stashen</value>
+  </data>
+  <data name="Revert_NotInHead" xml:space="preserve">
+    <value>der Commit ist nicht im aktuellen Branch</value>
+  </data>
+  <data name="CherryPick_InHead" xml:space="preserve">
+    <value>der Commit ist schon im aktuellen Branch</value>
+  </data>
+  <data name="Revert_Stopped" xml:space="preserve">
+    <value>angehalten – im IDE oder Terminal abschließen (git revert --continue, oder --abort): {0}</value>
+  </data>
+  <data name="CherryPick_Stopped" xml:space="preserve">
+    <value>angehalten – im IDE oder Terminal abschließen (git cherry-pick --continue, oder --abort): {0}</value>
+  </data>
+  <data name="CherryPick_Applied" xml:space="preserve">
+    <value>der aktuelle Branch hat diese Änderung schon (früher übernommen)</value>
+  </data>
+  <data name="Pick_Ignored" xml:space="preserve">
+    <value>{0} ist hier ignoriert und würde ohne Rückfrage überschrieben – erst wegschieben</value>
+  </data>
+  <data name="CherryPick_Empty" xml:space="preserve">
+    <value>nichts zu übernehmen: der Branch hat diese Änderung schon (etwa über einen Squash-Merge) – den Cherry-Pick im IDE oder Terminal mit git cherry-pick --skip beenden</value>
+  </data>
+  <data name="Amend_HeadMoved" xml:space="preserve">
+    <value>der letzte Commit hat sich geändert, seit seine Nachricht eingefüllt wurde – „Letzten Commit ändern“ neu ankreuzen</value>
+  </data>
 </root>

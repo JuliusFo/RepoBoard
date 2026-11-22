@@ -51,6 +51,24 @@ public sealed class RepoState(RepoEntry entry, RepoState? mainRepo = null)
     /// <summary>The opened row wants branches and history; they are read with each refresh only then.</summary>
     public bool WantsDetails { get; internal set; }
 
+    /// <summary>How many commits the opened row's history shows ("Load more", WP-09).</summary>
+    public int LogLength
+    {
+        get => Volatile.Read(ref _logLength);
+        internal set => Volatile.Write(ref _logLength, value);
+    }
+
+    private int _logLength = BoardService.LogLength;
+
+    /// <summary>The history shows every local and remote branch, not only HEAD (WP-09).</summary>
+    public bool LogAll
+    {
+        get => Volatile.Read(ref _logAll);
+        internal set => Volatile.Write(ref _logAll, value);
+    }
+
+    private bool _logAll;
+
     /// <summary>What runs right now (the operation's name), null when idle.</summary>
     public string? Busy { get; internal set; }
 

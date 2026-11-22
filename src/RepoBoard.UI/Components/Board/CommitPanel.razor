@@ -1,0 +1,259 @@
+@* One commit of the history in the opened row (WP-09): message, author, parents, refs, the files it changed and the diff of
+   the chosen one; revert and cherry-pick. In place of branches and history, like a file's diff (WP-05). *@
+@inherits BoardComponent
+
+<section class="pane diff-pane commit-pane" tabindex="-1" @ref="_pane" @onkeydown="OnKeyDown">
+    <header>
+        <h3 class="diff-title" title="@_commit?.Subject">
+            <code>@(_commit?.ShortId ?? Id[..Math.Min(Id.Length, 7)])</code> @_commit?.Subject
+        </h3>
+        @if (_commit is { } actions)
+        {
+            var revertBlocker = CommitTools.PickBlocker(Repo, actions, revert: true);
+            var pickBlocker = CommitTools.PickBlocker(Repo, actions, revert: false);
+            @if (actions.InHead)
+            {
+                <button class="btn small" disabled="@(revertBlocker is not null || Repo.Busy is not null)"
+                        title="@(revertBlocker ?? BoardText.Commit_Revert_Hint)"
+                        @onclick="() => PickAsync(actions, revert: true)">@BoardText.Commit_Revert</button>
+            }
+            else
+            {
+                <button class="btn small" disabled="@(pickBlocker is not null || Repo.Busy is not null)"
+                        title="@(pickBlocker ?? TextFormat.Format(BoardText.Commit_CherryPick_Hint, Repo.Status?.Branch ?? "HEAD"))"
+                        @onclick="() => PickAsync(actions, revert: false)">@BoardText.Commit_CherryPick</button>
+            }
+        }
+        <button class="btn small ghost icon-only" title="@BoardText.Commit_Close_Hint" @onclick="OnClose">@Icons.Close</button>
+    </header>
+
+    @if (_error is { } error)
+    {
+        <p class="diff-error">@error</p>
+    }
+    else if (_commit is not { } commit)
+    {
+        <p class="muted">@BoardText.Loading</p>
+    }
+    else
+    {
+        <div class="commit-meta">
+            <span>@BoardText.Commit_Author <b>@commit.Author</b> &lt;@commit.AuthorEmail&gt; · @Date(commit.AuthorDate)</span>
+            @if (commit.Committer != commit.Author || commit.CommitDate != commit.AuthorDate)
+            {
+                <span>@BoardText.Commit_Committer <b>@commit.Committer</b> · @Date(commit.CommitDate)</span>
+            }
+            <span>
+                @(commit.IsRoot ? BoardText.Commit_Root : BoardText.Commit_Parents)
+                @foreach (var parent in commit.Parents)
+                {
+                    <button class="link" title="@BoardText.Commit_Parent_Hint" @onclick="() => OnOpen.InvokeAsync(parent)"><code>@parent[..7]</code></button>
+                }
+                @foreach (var r in commit.Refs.Split(", ", StringSplitOptions.RemoveEmptyEntries))
+                {
+                    <span class="ref">@r.Replace("HEAD -> ", "", StringComparison.Ordinal)</span>
+                }
+            </span>
+        </div>
+        @if (Body(commit) is { Length: > 0 } body)
+        {
+            <pre class="commit-body">@body</pre>
+        }
+        @if (commit.IsMerge)
+        {
+            <p class="muted diff-note">@BoardText.Commit_MergeNote</p>
+        }
+
+        <div class="commit-split">
+            <div class="files">
+                @if (commit.Files.Count == 0)
+                {
+                    <p class="muted">@BoardText.Commit_NoFiles</p>
+                }
+                @foreach (var file in commit.Files)
+                {
+                    <div class="file @(file == _file ? "selected" : "")" @key="file">
+                        <span class="letter l-@file.Status">@file.Status</span>
+                        <button class="path" title="@(file.OriginalPath is { } from ? $"{from} → {file.Path}" : file.Path)"
+                                @onclick="() => SelectFile(file)"><span>@file.Path</span></button>
+                    </div>
+                }
+            </div>
+            <div class="commit-diff">
+                @if (_file is null)
+                {
+                }
+                else if (_diffError is { } diffError)
+                {
+                    <p class="diff-error">@diffError</p>
+                }
+                else if (_diff is not { } diff)
+                {
+                    <p class="muted">@BoardText.Loading</p>
+                }
+                else if (diff.IsBinary)
+                {
+                    <p class="muted">@BoardText.Diff_Binary</p>
+                }
+                else if (diff.IsTooLarge)
+                {
+                    <p class="muted">@TextFormat.Format(BoardText.Diff_TooLarge, FileDiff.MaxFileBytes / (1024 * 1024))</p>
+                }
+                else if (diff.HasNoTextChanges)
+                {
+                    <p class="muted">@BoardText.Diff_NoTextChanges</p>
+                }
+                else
+                {
+                    <div class="diff">
+                        @foreach (var hunk in diff.Hunks)
+                        {
+                            <div class="diff-hunk">
+                                <span class="range">@($"@@ -{hunk.OldStart},{hunk.OldCount} +{hunk.NewStart},{hunk.NewCount} @@") <span class="section">@hunk.Section</span></span>
+                            </div>
+                            @foreach (var line in hunk.Lines)
+                            {
+                                <DiffLineView Line="line" Pickable="false" />
+                            }
+                        }
+                    </div>
+                    @if (diff.IsTruncated)
+                    {
+                        <p class="muted diff-note">@TextFormat.Format(BoardText.Diff_Truncated, FileDiff.MaxLines)</p>
+                    }
+                }
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public RepoState Repo { get; set; } = null!;
+
+    /// <summary>The full id of the commit to show.</summary>
+    [Parameter, EditorRequired] public string Id { get; set; } = null!;
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    /// <summary>A click on a parent: show that commit instead.</summary>
+    [Parameter] public EventCallback<string> OnOpen { get; set; }
+
+    private ElementReference _pane;
+    private CommitDetails? _commit;
+    private string? _error;
+    private CommitFile? _file;
+    private FileDiff? _diff;
+    private string? _diffError;
+
+    // The commit is read again for another id or a new HEAD (after a revert or cherry-pick, it may now be in HEAD).
+    private (string Id, string? Head)? _readFor;
+    private int _reads;
+    private int _diffReads;
+
+    // What the markup last showed: the page renders on every change of any repository (as DiffPanel).
+    private (CommitDetails?, string?, CommitFile?, FileDiff?, string?, string?, string?, GitOperation?, int)? _shown;
+
+    protected override bool ShouldRender()
+    {
+        var now = (_commit, _error, _file, _diff, _diffError, Repo.Busy, Repo.Status?.Branch, Repo.Operation, Repo.Status?.Changes.Count(c => !c.Untracked) ?? -1);
+        if (_shown == now)
+        {
+            return false;
+        }
+
+        _shown = now;
+        return true;
+    }
+
+    protected override void OnParametersSet()
+    {
+        var key = (Id, Repo.Status?.Head);
+        if (_readFor == key)
+        {
+            return;
+        }
+
+        var otherCommit = _readFor?.Id != Id;
+        _readFor = key;
+        if (otherCommit)
+        {
+            (_commit, _error, _file, _diff, _diffError) = (null, null, null, null, null);
+        }
+
+        var read = ++_reads;
+        var id = Id;
+        Fire(async () =>
+        {
+            var (commit, error) = await Board.CommitDetailsAsync(Repo, id, default);
+            if (read != _reads)
+            {
+                return;
+            }
+
+            (_commit, _error) = (commit, error);
+            // The same file again after a new HEAD; the first one for a new commit.
+            var file = commit?.Files.FirstOrDefault(f => f == _file) ?? commit?.Files.FirstOrDefault();
+            if (file != _file || otherCommit)
+            {
+                SelectFile(file);
+            }
+
+            StateHasChanged();
+
+            // Only then whether the branch has its change already: that can take a while (review WP-09). Until it is known
+            // the button stays open; the board checks again before git runs.
+            if (commit is { InHead: false, IsMerge: false } && await Board.IsAppliedAsync(Repo, commit, default)
+                && read == _reads && _commit is { } shown)
+            {
+                _commit = shown with { Applied = true };
+                StateHasChanged();
+            }
+        });
+    }
+
+    private void SelectFile(CommitFile? file)
+    {
+        _file = file;
+        (_diff, _diffError) = (null, null);
+        if (file is null || _commit is not { } commit)
+        {
+            return;
+        }
+
+        var read = ++_diffReads;
+        Fire(async () =>
+        {
+            var (diff, error) = await Board.CommitDiffAsync(Repo, commit, file, default);
+            if (read == _diffReads)
+            {
+                (_diff, _diffError) = (diff, error);
+                StateHasChanged();
+            }
+        });
+    }
+
+    /// <summary>Revert or cherry-pick; on success the pane closes – the new commit is on top of the history.</summary>
+    private Task PickAsync(CommitDetails commit, bool revert) => GuardAsync(async () =>
+    {
+        if (revert ? await Board.RevertAsync(Repo, commit, default) : await Board.CherryPickAsync(Repo, commit, default))
+        {
+            await OnClose.InvokeAsync();
+        }
+    });
+
+    private static string Date(DateTimeOffset date) => date.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+
+    /// <summary>The message after its subject line.</summary>
+    private static string Body(CommitDetails commit) => commit.Message.Split('\n', 2) is [_, var rest] ? rest.Trim('\n', '\r') : "";
+
+    /// <summary>Esc closes the commit; called after a click on one.</summary>
+    public ValueTask FocusAsync() => _pane.FocusAsync(preventScroll: true);
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+}

@@ -1,3 +1,6 @@
+using System.Globalization;
+using RepoBoard.Core.Resources;
+
 namespace RepoBoard.Core.Git;
 
 /// <summary>A merge, rebase, cherry-pick or revert left unfinished in a repository (read from its git folder).</summary>
@@ -228,19 +231,232 @@ public sealed class GitClient(GitRunner runner)
         return result.Success && int.TryParse(result.Output.Trim(), out var n) ? n : null;
     }
 
-    public async Task<IReadOnlyList<CommitInfo>> LogAsync(string repo, int count, CancellationToken ct)
+    /// <summary>
+    /// The history of HEAD – with <paramref name="all"/> of every local and remote branch too –, children before their
+    /// parents (<c>--topo-order</c>, which <see cref="CommitGraph"/> needs; WP-09). One more than <paramref name="count"/> is
+    /// read to tell whether there are more. A signature check (<c>log.showSignature</c>) would write into the output.
+    /// </summary>
+    public async Task<(IReadOnlyList<CommitInfo> Log, bool HasMore)> LogAsync(string repo, int count, bool all, CancellationToken ct)
     {
-        var result = await Local(repo, ct, "log", $"-n{count}", "--format=%h%x1f%an%x1f%cr%x1f%D%x1f%s%x1e");
-        return result.Success ? ParseLog(result.Output) : [];
+        List<string> args = ["log", $"-n{count + 1}", "--topo-order", "--no-show-signature", "--format=%H%x1f%h%x1f%P%x1f%an%x1f%cr%x1f%D%x1f%s%x1e"];
+        if (all)
+        {
+            args.AddRange(["HEAD", "--branches", "--remotes"]);
+        }
+
+        // A file named like a ref ("HEAD") would make the revision ambiguous.
+        args.Add("--");
+        var result = await Local(repo, ct, [.. args]);
+        if (!result.Success)
+        {
+            return ([], false);
+        }
+
+        var log = ParseLog(result.Output);
+        return log.Count > count ? (log.Take(count).ToList(), true) : (log, false);
     }
 
     internal static IReadOnlyList<CommitInfo> ParseLog(string output) =>
     [
         .. output.Split('\x1e', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(r => r.Split('\x1f'))
-            .Where(p => p.Length >= 5)
-            .Select(p => new CommitInfo(p[0], p[1], p[2], p[3], p[4])),
+            .Where(p => p.Length >= 7)
+            .Select(p => new CommitInfo(p[0], p[1], p[2].Split(' ', StringSplitOptions.RemoveEmptyEntries), p[3], p[4], p[5], p[6])),
     ];
+
+    /// <summary>
+    /// A full commit id as the history gives it (<c>%H</c>: 40 hex digits, 64 with SHA-256). Checked before a command takes
+    /// it, so it can never be an option or a range (WP-09) – nor a ref: git resolves a short id to a branch of that name
+    /// first (review WP-09).
+    /// </summary>
+    public static bool IsCommitId(string id) =>
+        id.Length is 40 or 64 && id.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f');
+
+    /// <summary>One commit with its whole message and changed files (WP-09); a merge against its first parent. Null if git fails.</summary>
+    public async Task<(CommitDetails? Commit, GitResult Result)> CommitDetailsAsync(string repo, string id, CancellationToken ct)
+    {
+        if (!IsCommitId(id))
+        {
+            return (null, GitResult.Failed(TextFormat.Format(SyncText.InvalidCommit, id)));
+        }
+
+        var header = await Local(repo, ct, "show", "-s", "--no-show-signature", CommitDetails.Format, id, "--");
+        if (!header.Success)
+        {
+            return (null, header);
+        }
+
+        var files = await Local(repo, ct, "show", "--format=", "--name-status", "-z", "-M", "--diff-merges=first-parent",
+            "--no-show-signature", id, "--");
+        if (!files.Success)
+        {
+            return (null, files);
+        }
+
+        var commit = CommitDetails.Parse(header.Output, files.Output);
+        return (commit, commit is null ? GitResult.Failed(TextFormat.Format(SyncText.InvalidCommit, id)) : header);
+    }
+
+    /// <summary>
+    /// The diff of one file of a commit (WP-09, as ADR 0008): against the first parent, a rename with its original path.
+    /// A side above <see cref="FileDiff.MaxFileBytes"/> is not read – git would read it whole.
+    /// </summary>
+    public async Task<(FileDiff? Diff, GitResult Result)> CommitDiffAsync(string repo, CommitDetails commit, CommitFile file, CancellationToken ct)
+    {
+        if (!IsCommitId(commit.Id) || commit.Parents.Any(p => !IsCommitId(p)))
+        {
+            return (null, GitResult.Failed(TextFormat.Format(SyncText.InvalidCommit, commit.Id)));
+        }
+
+        if (await LargestSideAsync(repo, commit, file, ct) > FileDiff.MaxFileBytes)
+        {
+            return (FileDiff.TooLarge, new GitResult(0, "", ""));
+        }
+
+        string[] paths = file.OriginalPath is { } from ? [from, file.Path] : [file.Path];
+        var result = await Local(repo, ct, [LiteralPaths, "show", "--format=", "--no-color", "--no-ext-diff", "--no-show-signature", "-M",
+            "--diff-merges=first-parent", commit.Id, "--", .. paths]);
+        return (result.Success ? FileDiff.Parse(result.Output) : null, result);
+    }
+
+    /// <summary>The size of the larger side of a file in a commit, from <c>cat-file --batch-check</c>; 0 if git cannot tell.</summary>
+    private async Task<long> LargestSideAsync(string repo, CommitDetails commit, CommitFile file, CancellationToken ct)
+    {
+        List<string> objects = [];
+        if (file.Status != 'D')
+        {
+            objects.Add($"{commit.Id}:{file.Path}");
+        }
+
+        if (file.Status != 'A' && commit.Parents.Count > 0)
+        {
+            objects.Add($"{commit.Parents[0]}:{file.OriginalPath ?? file.Path}");
+        }
+
+        // One object per line: a path with a line break cannot be asked for (its diff is read without the check).
+        if (objects.Count == 0 || objects.Any(o => o.Contains('\n') || o.Contains('\r')))
+        {
+            return 0;
+        }
+
+        var result = await runner.RunAsync(repo, ["cat-file", "--batch-check=%(objectsize)"], GitCallMode.Interactive,
+            GitRunner.LocalTimeout, string.Join('\n', objects) + "\n", ct);
+        return result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(l => long.TryParse(l, NumberStyles.None, CultureInfo.InvariantCulture, out var size) ? size : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+    }
+
+    /// <summary>The whole message of a commit (for an amend; WP-09); null if git fails.</summary>
+    public async Task<string?> MessageAsync(string repo, string rev, CancellationToken ct)
+    {
+        if (rev.StartsWith('-'))
+        {
+            return null;
+        }
+
+        var result = await Local(repo, ct, "log", "-1", "--no-show-signature", "--format=%B", rev, "--");
+        return result.Success ? result.Output.TrimEnd() : null;
+    }
+
+    /// <summary>
+    /// True if a remote branch contains <paramref name="rev"/> – it was pushed, an amend would need a force push (WP-09).
+    /// Null if git cannot tell. One walk from <paramref name="rev"/> that stops at the remotes – read with every status of an
+    /// opened row, where <c>for-each-ref --contains</c> would test each remote ref on its own (review WP-09).
+    /// </summary>
+    public async Task<bool?> IsOnRemoteAsync(string repo, string rev, CancellationToken ct)
+    {
+        if (rev.StartsWith('-'))
+        {
+            return null;
+        }
+
+        var result = await Local(repo, ct, "rev-list", "-n1", rev, "--not", "--remotes", "--");
+        return result.Success ? result.Output.Trim().Length == 0 : null;
+    }
+
+    /// <summary>
+    /// Which of <paramref name="paths"/> are untracked and ignored in the worktree. git counts such files as expendable: a
+    /// revert, cherry-pick or merge that brings a file there overwrites it without a word (review WP-09). Null if git fails.
+    /// </summary>
+    public async Task<IReadOnlyList<string>?> IgnoredAmongAsync(string repo, IReadOnlyList<string> paths, CancellationToken ct)
+    {
+        // In batches: a commit with thousands of files would pass the command line's limit on Windows (32,767 characters).
+        var ignored = new List<string>();
+        foreach (var batch in Batches(paths, 16_000))
+        {
+            var result = await Local(repo, ct, [LiteralPaths, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--", .. batch]);
+            if (!result.Success)
+            {
+                return null;
+            }
+
+            ignored.AddRange(result.Output.Split('\0', StringSplitOptions.RemoveEmptyEntries));
+        }
+
+        return ignored;
+    }
+
+    /// <summary>Consecutive parts of <paramref name="paths"/>, each together at most <paramref name="chars"/> long (at least one path).</summary>
+    internal static IEnumerable<List<string>> Batches(IReadOnlyList<string> paths, int chars)
+    {
+        var batch = new List<string>();
+        var length = 0;
+        foreach (var path in paths)
+        {
+            if (batch.Count > 0 && length + path.Length + 1 > chars)
+            {
+                yield return batch;
+                (batch, length) = ([], 0);
+            }
+
+            batch.Add(path);
+            length += path.Length + 1;
+        }
+
+        if (batch.Count > 0)
+        {
+            yield return batch;
+        }
+    }
+
+    /// <summary>
+    /// Replaces the last commit with one of the staged changes and <paramref name="message"/> (WP-09). The old commit stays
+    /// in the reflog; the caller makes sure it was not pushed (<see cref="IsOnRemoteAsync"/>, never a force push).
+    /// </summary>
+    public Task<GitResult> AmendAsync(string repo, string message, CancellationToken ct) =>
+        Local(repo, ct, "commit", "--amend", "-m", message);
+
+    /// <summary>
+    /// A new commit that undoes <paramref name="id"/> (WP-09). On a conflict git stops and leaves the revert unfinished
+    /// (<c>REVERT_HEAD</c>) for the IDE or terminal.
+    /// </summary>
+    public Task<GitResult> RevertAsync(string repo, string id, CancellationToken ct) =>
+        IsCommitId(id)
+            ? Local(repo, ct, "revert", "--no-edit", id)
+            : Task.FromResult(GitResult.Failed(TextFormat.Format(SyncText.InvalidCommit, id)));
+
+    /// <summary>
+    /// True if HEAD already has a commit with the same change as <paramref name="id"/> (same patch id, <c>git cherry</c>): a
+    /// cherry-pick of it would come out empty, and git would stop and leave it unfinished (E2E WP-09). Null if git cannot
+    /// tell – for a root commit, or one with several parents.
+    /// </summary>
+    public async Task<bool?> IsAppliedAsync(string repo, CommitDetails commit, CancellationToken ct)
+    {
+        if (commit.Parents is not [var parent] || !IsCommitId(commit.Id) || !IsCommitId(parent))
+        {
+            return null;
+        }
+
+        var result = await Local(repo, ct, "cherry", "HEAD", commit.Id, parent);
+        return result.Success ? result.Output.TrimStart().StartsWith('-') : null;
+    }
+
+    /// <summary>Applies <paramref name="id"/> onto HEAD as a new commit (WP-09); on a conflict git stops as in <see cref="RevertAsync"/>.</summary>
+    public Task<GitResult> CherryPickAsync(string repo, string id, CancellationToken ct) =>
+        IsCommitId(id)
+            ? Local(repo, ct, "cherry-pick", id)
+            : Task.FromResult(GitResult.Failed(TextFormat.Format(SyncText.InvalidCommit, id)));
 
     // ---------- worktrees (WP-04, ADR 0010) ----------
 
