@@ -244,6 +244,24 @@ public sealed class RepoWatchTests : IDisposable
     }
 
     [Fact]
+    public async Task The_tick_leaves_a_status_just_read_by_someone_else()
+    {
+        var time = new FakeTimeProvider();
+        var board = NewBoard(time);
+        await board.AddAsync([_git.Mine], Ct); // reads the status
+        var repo = board.Repos.Single();
+        var read = repo.StatusReadAt;
+
+        time.Advance(BoardService.UnwatchedRefresh - TimeSpan.FromSeconds(1));
+        await board.RefreshStaleAsync(Ct);
+        Assert.Equal(read, repo.StatusReadAt); // at the start: the activation's read, then the tick (review 0.4.0, A14)
+
+        time.Advance(TimeSpan.FromSeconds(1));
+        await board.RefreshStaleAsync(Ct);
+        Assert.Equal(time.GetTimestamp(), repo.StatusReadAt);
+    }
+
+    [Fact]
     public async Task The_tick_reads_a_watched_repository_only_as_a_fallback()
     {
         var time = new FakeTimeProvider(DateTimeOffset.Parse("2026-11-21T08:00:00Z", System.Globalization.CultureInfo.InvariantCulture));

@@ -43,6 +43,26 @@ public sealed class AutoSyncQueueTests : IDisposable
         Assert.True(git.MostBusy <= BoardService.MaxParallelNetwork, $"{git.MostBusy} repositories were busy at once");
     }
 
+    /// <summary>Review 0.4.0, A15 (reproduced): a fetch of the repository beside a pull in its worktree – "cannot lock ref".</summary>
+    [Fact]
+    public async Task A_repository_and_its_worktrees_reach_the_network_one_after_the_other()
+    {
+        var (board, git) = await BoardAsync(repos: 1);
+        var repo = board.Repos[0];
+        var worktreePath = _folder.Combine("worktree");
+        Directory.CreateDirectory(worktreePath);
+        File.WriteAllText(Path.Combine(worktreePath, ".git"), "gitdir: elsewhere");
+        git.Worktrees = $"worktree {repo.Path}\0HEAD {new string('a', 40)}\0branch refs/heads/main\0\0"
+            + $"worktree {worktreePath}\0HEAD {new string('b', 40)}\0branch refs/heads/side\0\0";
+        await board.RefreshAsync(repo, Ct);
+        var worktree = Assert.Single(repo.Worktrees);
+
+        await Task.WhenAll(board.FetchAsync(repo, Ct), board.PullAsync(worktree, Ct), board.FetchAsync(worktree, Ct));
+
+        Assert.Equal(3, git.Fetches);
+        Assert.Equal(1, git.MostAtOnce);
+    }
+
     private async Task<(BoardService Board, CountingGit Git)> BoardAsync(int repos)
     {
         var entries = Enumerable.Range(0, repos).Select(i =>
@@ -60,13 +80,16 @@ public sealed class AutoSyncQueueTests : IDisposable
         return (board, git);
     }
 
-    /// <summary>Answers every call at once, except a fetch, which takes a moment and is counted.</summary>
+    /// <summary>Answers every call at once, except a fetch or pull, which takes a moment and is counted.</summary>
     private sealed class CountingGit : GitRunner
     {
         private readonly Lock _lock = new();
         private int _running;
 
         public BoardService Board { get; set; } = null!;
+
+        /// <summary>What <c>git worktree list --porcelain -z</c> answers.</summary>
+        public string Worktrees { get; set; } = "";
         public int Fetches { get; private set; }
         public int MostAtOnce { get; private set; }
         public int MostBusy { get; private set; }
@@ -79,7 +102,12 @@ public sealed class AutoSyncQueueTests : IDisposable
                 return new GitResult(0, Path.Combine(workingDirectory, ".git"), "");
             }
 
-            if (args[0] != "fetch")
+            if (args[0] == "worktree")
+            {
+                return new GitResult(0, Worktrees, "");
+            }
+
+            if (args[0] is not ("fetch" or "pull"))
             {
                 return new GitResult(0, "", "");
             }

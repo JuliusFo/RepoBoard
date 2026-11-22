@@ -366,7 +366,7 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
             {
                 lock (_lock)
                 {
-                    _pending.Add(state, time.GetTimestamp());
+                    _pending.Retry(state, last, time.GetTimestamp() + Ticks(Quiet, time));
                 }
 
                 Wake();

@@ -146,4 +146,12 @@ public sealed class RepoState(RepoEntry entry, RepoState? mainRepo = null)
 
     /// <summary>One git operation per repository (or worktree) at a time.</summary>
     internal SemaphoreSlim Gate { get; } = new(1, 1);
+
+    /// <summary>
+    /// One network operation per repository and its worktrees at a time: they write the same remote refs, and a fetch of the
+    /// repository beside a pull in a worktree failed with "cannot lock ref" (review 0.4.0, A15 – reproduced).
+    /// </summary>
+    internal SemaphoreSlim FamilyNetwork => MainRepo?.FamilyNetwork ?? _familyNetwork;
+
+    private readonly SemaphoreSlim _familyNetwork = new(1, 1);
 }

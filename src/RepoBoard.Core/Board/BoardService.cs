@@ -284,9 +284,16 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     /// <summary>How often the tick reads a repository a file watcher sees (decision of the user, 2026-11-21).</summary>
     public static readonly TimeSpan WatchedRefresh = TimeSpan.FromMinutes(2);
 
+    /// <summary>
+    /// How old a status of a repository no watcher sees must be for the tick to read it again: half a tick, so a status just
+    /// read by someone else – at the start the window's activation and the watchers' first reads – is not read a second
+    /// time right after (review 0.4.0, A14).
+    /// </summary>
+    public static readonly TimeSpan UnwatchedRefresh = TimeSpan.FromSeconds(10);
+
     /// <summary>A repository whose last status failed is read on every tick, as without a watcher.</summary>
     private bool IsStale(RepoState repo) =>
-        !repo.Watched || repo.StatusFailed || repo.StatusReadAt is not { } read || time.GetElapsedTime(read) >= WatchedRefresh;
+        repo.StatusFailed || repo.StatusReadAt is not { } read || time.GetElapsedTime(read) >= (repo.Watched ? WatchedRefresh : UnwatchedRefresh);
 
     /// <summary>After a fetch or pull in a repository: its worktrees share the refs, their ahead and behind changed too.</summary>
     private Task RefreshWorktreesAsync(RepoState repo, CancellationToken ct, RepoState? except = null) =>
@@ -1216,7 +1223,17 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             {
                 if (network)
                 {
-                    await _network.WaitAsync(ct);
+                    // Always the family first, then a slot of the network: one order, no two waiting for each other.
+                    await repo.FamilyNetwork.WaitAsync(ct);
+                    try
+                    {
+                        await _network.WaitAsync(ct);
+                    }
+                    catch
+                    {
+                        repo.FamilyNetwork.Release();
+                        throw;
+                    }
                 }
 
                 try
@@ -1228,6 +1245,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
                     if (network)
                     {
                         _network.Release();
+                        repo.FamilyNetwork.Release();
                     }
                 }
             }
