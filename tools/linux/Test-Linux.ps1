@@ -37,7 +37,8 @@ $image = 'repoboard-linux-test'
 docker info --format '{{.ServerVersion}}' *> $null
 if ($LASTEXITCODE -ne 0) { throw 'Docker is not running.' }
 
-docker build --quiet --tag $image $PSScriptRoot | Out-Null
+# --pull: the SDK image follows global.json's feature band, a cached one may be too old (review 0.4.0, B12).
+docker build --pull --quiet --tag $image $PSScriptRoot | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Building the image $image failed." }
 
 # git writes file names as UTF-8; a tracked file deleted in the working tree is left out.
