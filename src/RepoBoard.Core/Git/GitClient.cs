@@ -201,8 +201,10 @@ public sealed class GitClient(GitRunner runner)
 
     public async Task<IReadOnlyList<BranchInfo>> BranchesAsync(string repo, string? current, CancellationToken ct)
     {
+        // for-each-ref writes "ahead 1, behind 2" and "gone" untranslated; the date as a number, shown in the UI's language
+        // (review 0.4.0, A19).
         var result = await Local(repo, ct, "for-each-ref",
-            "--format=%(refname)%09%(upstream:short)%09%(upstream:track,nobracket)%09%(committerdate:relative)",
+            "--format=%(refname)%09%(upstream:short)%09%(upstream:track,nobracket)%09%(committerdate:unix)",
             "refs/heads", "refs/remotes");
         return result.Success ? ParseBranches(result.Output, current) : [];
     }
@@ -219,12 +221,13 @@ public sealed class GitClient(GitRunner runner)
             if (name.StartsWith("refs/heads/", StringComparison.Ordinal))
             {
                 var shortName = name["refs/heads/".Length..];
-                local.Add(new BranchInfo(shortName, shortName == current, false, Part(1), Part(2), Part(3)));
+                var (ahead, behind, gone) = Track(Part(2));
+                local.Add(new BranchInfo(shortName, shortName == current, false, Part(1), ahead, behind, gone, Date(Part(3))));
             }
             else if (name.StartsWith("refs/remotes/", StringComparison.Ordinal) && !name.EndsWith("/HEAD", StringComparison.Ordinal))
             {
                 var shortName = name["refs/remotes/".Length..];
-                remote.Add(new BranchInfo(shortName, false, true, null, null, Part(3)));
+                remote.Add(new BranchInfo(shortName, false, true, null, 0, 0, false, Date(Part(3))));
             }
         }
 
@@ -232,7 +235,38 @@ public sealed class GitClient(GitRunner runner)
         var tracked = local.Select(b => b.Upstream).OfType<string>().ToHashSet(StringComparer.Ordinal);
         return [.. local.OrderByDescending(b => b.IsCurrent).ThenBy(b => b.Name, StringComparer.OrdinalIgnoreCase),
             .. remote.Where(b => !tracked.Contains(b.Name)).OrderBy(b => b.Name, StringComparer.OrdinalIgnoreCase)];
+
+        // "ahead 1", "behind 2", "ahead 1, behind 2", "gone" – nothing when in step.
+        static (int Ahead, int Behind, bool Gone) Track(string? track)
+        {
+            if (track == "gone")
+            {
+                return (0, 0, true);
+            }
+
+            int ahead = 0, behind = 0;
+            foreach (var part in (track ?? "").Split(", ", StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (part.Split(' ') is [var word, var number] && int.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out var n))
+                {
+                    if (word == "ahead")
+                    {
+                        ahead = n;
+                    }
+                    else if (word == "behind")
+                    {
+                        behind = n;
+                    }
+                }
+            }
+
+            return (ahead, behind, false);
+        }
     }
+
+    /// <summary>A date git wrote as seconds since 1970 (<c>%ct</c>, <c>:unix</c>); null if it is none.</summary>
+    internal static DateTimeOffset? Date(string? seconds) =>
+        long.TryParse(seconds, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var s) ? DateTimeOffset.FromUnixTimeSeconds(s) : null;
 
     public async Task<int?> CountAsync(string repo, string range, CancellationToken ct)
     {
@@ -247,7 +281,9 @@ public sealed class GitClient(GitRunner runner)
     /// </summary>
     public async Task<(IReadOnlyList<CommitInfo> Log, bool HasMore)> LogAsync(string repo, int count, bool all, CancellationToken ct)
     {
-        List<string> args = ["log", $"-n{count + 1}", "--topo-order", "--no-show-signature", "--format=%H%x1f%h%x1f%P%x1f%an%x1f%cr%x1f%D%x1f%s%x1e"];
+        // Fields and commits end with NUL (-z): a subject or author may hold any other character, and with %x1f/%x1e a
+        // stranger's commit added entries of its own to the history (review 0.4.0, A7). git cuts a message at NUL.
+        List<string> args = ["log", $"-n{count + 1}", "-z", "--topo-order", "--no-show-signature", $"--format={LogFormat}"];
         if (all)
         {
             args.AddRange(["HEAD", "--branches", "--remotes"]);
@@ -265,13 +301,28 @@ public sealed class GitClient(GitRunner runner)
         return log.Count > count ? (log.Take(count).ToList(), true) : (log, false);
     }
 
-    internal static IReadOnlyList<CommitInfo> ParseLog(string output) =>
-    [
-        .. output.Split('\x1e', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(r => r.Split('\x1f'))
-            .Where(p => p.Length >= 7)
-            .Select(p => new CommitInfo(p[0], p[1], p[2].Split(' ', StringSplitOptions.RemoveEmptyEntries), p[3], p[4], p[5], p[6])),
-    ];
+    private const string LogFormat = "%H%x00%h%x00%P%x00%an%x00%ct%x00%D%x00%s";
+    private const int LogFields = 7;
+
+    /// <summary>The output of <see cref="LogFormat"/> with <c>-z</c>: seven NUL-ended fields per commit, nothing else.</summary>
+    internal static IReadOnlyList<CommitInfo> ParseLog(string output)
+    {
+        var fields = output.Split('\0');
+        var log = new List<CommitInfo>();
+        for (var i = 0; i + LogFields <= fields.Length; i += LogFields)
+        {
+            var id = fields[i].Trim('\n', '\r');
+            if (!IsCommitId(id) || Date(fields[i + 4]) is not { } when)
+            {
+                break; // out of step: nothing after this can be trusted
+            }
+
+            log.Add(new CommitInfo(id, fields[i + 1], fields[i + 2].Split(' ', StringSplitOptions.RemoveEmptyEntries), fields[i + 3], when,
+                fields[i + 5], fields[i + 6]));
+        }
+
+        return log;
+    }
 
     /// <summary>
     /// A full commit id as the history gives it (<c>%H</c>: 40 hex digits, 64 with SHA-256). Checked before a command takes

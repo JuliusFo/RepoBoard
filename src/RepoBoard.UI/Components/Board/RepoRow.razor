@@ -63,11 +63,11 @@
             {
                 if (s.Ahead > 0)
                 {
-                    <span class="ahead" title="@TextFormat.Format(BoardText.Ahead_Hint, s.Ahead, s.Upstream)">@Icons.Push@s.Ahead</span>
+                    <span class="ahead" title="@TextFormat.Plural(s.Ahead, BoardText.Ahead_HintOne, BoardText.Ahead_HintOther, s.Upstream)">@Icons.Push@s.Ahead</span>
                 }
                 if (s.Behind > 0)
                 {
-                    <span class="behind" title="@TextFormat.Format(BoardText.Behind_Hint, s.Behind, s.Upstream)">@Icons.Pull@s.Behind</span>
+                    <span class="behind" title="@TextFormat.Plural(s.Behind, BoardText.Behind_HintOne, BoardText.Behind_HintOther, s.Upstream)">@Icons.Pull@s.Behind</span>
                 }
                 if (s is { Ahead: 0, Behind: 0 })
                 {
@@ -163,7 +163,7 @@
 
 @if (Expanded)
 {
-    <RepoDetailsPanel Repo="Repo" />
+    <RepoDetailsPanel Repo="Repo" Now="Now" />
 }
 
 @code {

@@ -138,12 +138,6 @@
   <data name="NoUpstream_Hint" xml:space="preserve">
     <value>Noch nie gepusht – Push setzt den Upstream</value>
   </data>
-  <data name="Ahead_Hint" xml:space="preserve">
-    <value>{0} lokale Commits noch nicht auf {1}</value>
-  </data>
-  <data name="Behind_Hint" xml:space="preserve">
-    <value>{0} Commits auf {1} noch nicht gepullt</value>
-  </data>
   <data name="UpToDate" xml:space="preserve">
     <value>aktuell</value>
   </data>
@@ -524,5 +518,29 @@ Log: {1}</value>
   </data>
   <data name="Amend_CommitPush" xml:space="preserve">
     <value>Ändern und pushen</value>
+  </data>
+  <data name="Ahead_HintOne" xml:space="preserve">
+    <value>{0} lokaler Commit noch nicht auf {1}</value>
+  </data>
+  <data name="Ahead_HintOther" xml:space="preserve">
+    <value>{0} lokale Commits noch nicht auf {1}</value>
+  </data>
+  <data name="Behind_HintOne" xml:space="preserve">
+    <value>{0} Commit auf {1} noch nicht gepullt</value>
+  </data>
+  <data name="Behind_HintOther" xml:space="preserve">
+    <value>{0} Commits auf {1} noch nicht gepullt</value>
+  </data>
+  <data name="Branch_Ahead" xml:space="preserve">
+    <value>{0} voraus</value>
+  </data>
+  <data name="Branch_Behind" xml:space="preserve">
+    <value>{0} hinterher</value>
+  </data>
+  <data name="Ago_Months" xml:space="preserve">
+    <value>vor {0} Monaten</value>
+  </data>
+  <data name="Ago_Years" xml:space="preserve">
+    <value>vor {0} Jahren</value>
   </data>
 </root>

@@ -594,7 +594,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             }
 
             return !committed.Success || !push ? committed : await git.PushAsync(repo.Path, setUpstream, c);
-        }, () => Info(TextFormat.Format(note, FirstLine(message))), ct);
+        }, () => Info(TextFormat.Format(note, CommitMessage.Subject(message))), ct);
     }
 
     /// <summary>Why the last commit must not be amended right now (inside the gate); null if it may.</summary>
@@ -904,7 +904,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             {
                 reason = WorktreeReason.FolderMissing;
             }
-            else if (info is { Track: "gone" })
+            else if (info is { Gone: true })
             {
                 reason = WorktreeReason.UpstreamGone;
             }
@@ -1204,8 +1204,6 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     private void Notify() => Changed?.Invoke();
 
     private static string Commits(int n) => TextFormat.Plural(n, SyncText.CommitsOne, SyncText.CommitsOther);
-
-    private static string FirstLine(string text) => text.Split('\n', 2)[0].Trim();
 
     /// <summary>What a successful operation tells the activity log.</summary>
     private readonly record struct ActivityNote(string Text, ActivityKind Kind);

@@ -143,14 +143,6 @@
   <data name="NoUpstream_Hint" xml:space="preserve">
     <value>Never pushed – a push sets the upstream</value>
   </data>
-  <data name="Ahead_Hint" xml:space="preserve">
-    <value>{0} local commits not on {1} yet</value>
-    <comment>{0} = number of commits, {1} = upstream branch</comment>
-  </data>
-  <data name="Behind_Hint" xml:space="preserve">
-    <value>{0} commits on {1} not pulled yet</value>
-    <comment>{0} = number of commits, {1} = upstream branch</comment>
-  </data>
   <data name="UpToDate" xml:space="preserve">
     <value>up to date</value>
   </data>
@@ -574,5 +566,37 @@ Log: {1}</value>
   </data>
   <data name="Amend_CommitPush" xml:space="preserve">
     <value>Amend and push</value>
+  </data>
+  <data name="Ahead_HintOne" xml:space="preserve">
+    <value>{0} local commit not on {1} yet</value>
+    <comment>{0} = 1, {1} = upstream branch</comment>
+  </data>
+  <data name="Ahead_HintOther" xml:space="preserve">
+    <value>{0} local commits not on {1} yet</value>
+    <comment>{0} = number of commits, {1} = upstream branch</comment>
+  </data>
+  <data name="Behind_HintOne" xml:space="preserve">
+    <value>{0} commit on {1} not pulled yet</value>
+    <comment>{0} = 1, {1} = upstream branch</comment>
+  </data>
+  <data name="Behind_HintOther" xml:space="preserve">
+    <value>{0} commits on {1} not pulled yet</value>
+    <comment>{0} = number of commits, {1} = upstream branch</comment>
+  </data>
+  <data name="Branch_Ahead" xml:space="preserve">
+    <value>{0} ahead</value>
+    <comment>{0} = number of commits the branch has that its upstream lacks (branch list)</comment>
+  </data>
+  <data name="Branch_Behind" xml:space="preserve">
+    <value>{0} behind</value>
+    <comment>{0} = number of commits of the upstream the branch lacks (branch list)</comment>
+  </data>
+  <data name="Ago_Months" xml:space="preserve">
+    <value>{0} months ago</value>
+    <comment>{0} = number of months, at least 2</comment>
+  </data>
+  <data name="Ago_Years" xml:space="preserve">
+    <value>{0} years ago</value>
+    <comment>{0} = number of years, at least 2</comment>
   </data>
 </root>

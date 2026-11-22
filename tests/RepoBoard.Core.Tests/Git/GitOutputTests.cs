@@ -52,33 +52,62 @@ public sealed class GitOutputTests
     public void Branches_list_locals_first_and_only_untracked_remotes()
     {
         var output = string.Join('\n',
-            "refs/heads/main\torigin/main\t\t2 days ago",
-            "refs/heads/feature\torigin/feature\tahead 1\t3 hours ago",
-            "refs/remotes/origin/HEAD\t\t\t2 days ago",
-            "refs/remotes/origin/main\t\t\t2 days ago",
-            "refs/remotes/origin/feature\t\t\t3 hours ago",
-            "refs/remotes/origin/other\t\t\t1 week ago");
+            "refs/heads/main\torigin/main\t\t1795368460",
+            "refs/heads/feature\torigin/feature\tahead 1\t1795368400",
+            "refs/heads/both\torigin/both\tahead 2, behind 3\t1795368400",
+            "refs/heads/merged\torigin/merged\tgone\t1795368400",
+            "refs/remotes/origin/HEAD\t\t\t1795368460",
+            "refs/remotes/origin/main\t\t\t1795368460",
+            "refs/remotes/origin/feature\t\t\t1795368400",
+            "refs/remotes/origin/other\t\t\t1795000000");
 
         var branches = GitClient.ParseBranches(output, "feature");
 
-        Assert.Equal(["feature", "main", "origin/other"], branches.Select(b => b.Name));
+        Assert.Equal(["feature", "both", "main", "merged", "origin/other"], branches.Select(b => b.Name));
         Assert.True(branches[0].IsCurrent);
-        Assert.Equal("ahead 1", branches[0].Track);
-        Assert.True(branches[2].IsRemote);
+        Assert.Equal((1, 0, false), (branches[0].Ahead, branches[0].Behind, branches[0].Gone));
+        Assert.Equal((2, 3, false), (branches[1].Ahead, branches[1].Behind, branches[1].Gone));
+        Assert.Equal((0, 0, false), (branches[2].Ahead, branches[2].Behind, branches[2].Gone));
+        Assert.True(branches[3].Gone);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1795368460), branches[2].LastCommit);
+        Assert.True(branches[4].IsRemote);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1795000000), branches[4].LastCommit);
     }
 
+    private const string A = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    private const string B = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    private const string C = "cccccccccccccccccccccccccccccccccccccccc";
+
     [Fact]
-    public void Log_splits_records_and_fields()
+    public void Log_reads_seven_fields_per_commit()
     {
         var log = GitClient.ParseLog(
-            "abc1234full\u001fabc1234\u001fdef5678full 9999999full\u001fJo\u001f2 hours ago\u001fHEAD -> main, origin/main\u001fFix it\u001e\n" +
-            "def5678full\u001fdef5678\u001f\u001fJo\u001f3 days ago\u001f\u001fStart\u001e\n");
+            $"{A}\0aaaaaaa\0{B} {C}\0Jo\01795368460\0HEAD -> main, origin/main\0Fix it\0" +
+            $"{B}\0bbbbbbb\0\0Jo\01795000000\0\0Start\0");
 
         Assert.Equal(2, log.Count);
-        Assert.Equal(("abc1234full", "abc1234", "Fix it"), (log[0].Id, log[0].ShortId, log[0].Subject));
-        Assert.Equal(["def5678full", "9999999full"], log[0].Parents);
+        Assert.Equal((A, "aaaaaaa", "Fix it"), (log[0].Id, log[0].ShortId, log[0].Subject));
+        Assert.Equal([B, C], log[0].Parents);
         Assert.True(log[0].IsMerge);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1795368460), log[0].When);
         Assert.Empty(log[1].Parents);
         Assert.Equal("", log[1].Refs);
     }
+
+    /// <summary>Review 0.4.0, A7: a stranger's commit must not add an entry of its own or shift the fields of its row.</summary>
+    [Fact]
+    public void Log_stops_at_output_that_is_out_of_step()
+    {
+        var log = GitClient.ParseLog($"{A}\0aaaaaaa\0\0Jo\01795368460\0\0Fix it\0not-a-commit\0x\0\0Jo\01\0\0more\0");
+
+        Assert.Equal(A, Assert.Single(log).Id);
+    }
+
+    [Theory]
+    [InlineData("Fix it", "Fix it", "")]
+    [InlineData("Fix crash when\nthe repo is gone\n\nDetails\nmore", "Fix crash when the repo is gone", "Details\nmore")]
+    [InlineData("\n\nSubject\r\n\r\nBody\r\n", "Subject", "Body")]
+    [InlineData("Subject\n\n\nBody\n\nSecond paragraph\n", "Subject", "Body\n\nSecond paragraph")]
+    public void A_message_splits_into_subject_and_body_as_git_does(string message, string subject, string body) =>
+        Assert.Equal((subject, body), (CommitMessage.Subject(message), CommitMessage.Body(message)));
 }

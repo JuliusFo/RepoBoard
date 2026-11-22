@@ -55,7 +55,7 @@
                 }
             </span>
         </div>
-        @if (Body(commit) is { Length: > 0 } body)
+        @if (commit.Body is { Length: > 0 } body)
         {
             <pre class="commit-body">@body</pre>
         }
@@ -244,7 +244,6 @@
     private static string Date(DateTimeOffset date) => date.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
 
     /// <summary>The message after its subject line.</summary>
-    private static string Body(CommitDetails commit) => commit.Message.Split('\n', 2) is [_, var rest] ? rest.Trim('\n', '\r') : "";
 
     /// <summary>Esc closes the commit; called after a click on one.</summary>
     public ValueTask FocusAsync() => _pane.FocusAsync(preventScroll: true);

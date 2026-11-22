@@ -48,6 +48,26 @@ public sealed class HistoryTests : IDisposable
         return id;
     }
 
+    /// <summary>
+    /// Review 0.4.0, A7: git writes the old separators (0x1E, 0x1F) in a subject and an author's name as they are – a
+    /// stranger's commit added a made-up commit to the history and shifted its own fields, and its details did not open.
+    /// </summary>
+    [Fact]
+    public async Task Separators_in_a_commit_s_text_neither_add_entries_nor_shift_fields()
+    {
+        var fake = new string('f', 40);
+        GitSandbox.Git(_git.Mine, "commit", "--allow-empty", "--author=Ev\u001fil <e@x.invalid>",
+            "-m", $"harmless\u001e{fake}\u001ffffffff\u001f\u001fMallory\u001f1 second ago\u001fHEAD -> main, tag: v9.9.9\u001fspoofed");
+        var repo = await OpenMineAsync();
+
+        var log = repo.Details!.Log;
+        Assert.Equal(2, log.Count); // the sandbox's first commit and this one
+        Assert.DoesNotContain(log, c => c.Id == fake || c.Author == "Mallory");
+        Assert.Equal(("Ev\u001fil", Head()), (log[0].Author, log[0].Id));
+        Assert.StartsWith("harmless", log[0].Subject, StringComparison.Ordinal);
+        Assert.Equal("Ev\u001fil", (await DetailsAsync(repo, "HEAD")).Author);
+    }
+
     [Theory]
     [InlineData("0123456789abcdef0123456789abcdef01234567", true)]
     [InlineData("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", true)] // SHA-256

@@ -1,3 +1,4 @@
+using RepoBoard.Core.Git;
 using RepoBoard.UI.State;
 
 namespace RepoBoard.UI.Tests.State;
@@ -13,8 +14,19 @@ public sealed class RelativeTimeTests
     [InlineData(3 * 3600, "vor 3 h")]
     [InlineData(30 * 3600, "gestern")]
     [InlineData(4 * 86400, "vor 4 Tagen")]
-    public void The_last_fetch_reads_as_its_age(int? secondsAgo, string expected) =>
+    [InlineData(59 * 86400, "vor 59 Tagen")]
+    [InlineData(100 * 86400, "vor 3 Monaten")]
+    [InlineData(800 * 86400, "vor 2 Jahren")]
+    public void A_time_reads_as_its_age(int? secondsAgo, string expected) =>
         Assert.Equal(expected, RelativeTime.Text(secondsAgo is { } s ? Now.AddSeconds(-s) : null, Now));
+
+    [Theory]
+    [InlineData(0, 0, false, "")]
+    [InlineData(1, 0, false, "1 voraus")]
+    [InlineData(2, 3, false, "2 voraus, 3 hinterher")]
+    [InlineData(0, 0, true, "Upstream gelöscht")]
+    public void A_branch_reads_how_it_stands_to_its_upstream(int ahead, int behind, bool gone, string expected) =>
+        Assert.Equal(expected, RelativeTime.Track(new BranchInfo("b", false, false, "origin/b", ahead, behind, gone, null)));
 
     [Fact]
     public void A_fetch_older_than_a_day_or_none_is_stale()

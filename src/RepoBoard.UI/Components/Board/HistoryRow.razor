@@ -22,7 +22,7 @@
             <span class="c-subject" title="@Commit.Subject">@Commit.Subject</span>
         </span>
         <span class="c-meta">
-            @Commit.Author · @Commit.When
+            <span title="@RelativeTime.Exact(Commit.When)">@Commit.Author · @RelativeTime.Text(Commit.When, Now)</span>
             @foreach (var r in Refs(Commit))
             {
                 <span class="ref">@r</span>
@@ -40,12 +40,15 @@
 
     [Parameter] public EventCallback OnSelect { get; set; }
 
+    /// <summary>The shell's clock: the date reads "3 min ago" and moves on with it.</summary>
+    [Parameter] public DateTimeOffset Now { get; set; }
+
     // The board reads the history anew with each status: new objects, mostly the same content.
     private string? _shown;
 
     protected override bool ShouldRender()
     {
-        var now = string.Join('\u001f', Commit.Id, Commit.When, Commit.Refs, Commit.Subject, Commit.Author, Lanes, Graph.Column,
+        var now = string.Join('\u001f', Commit.Id, RelativeTime.Text(Commit.When, Now), Commit.Refs, Commit.Subject, Commit.Author, Lanes, Graph.Column,
             string.Join(',', Graph.Lines));
         if (_shown == now)
         {
