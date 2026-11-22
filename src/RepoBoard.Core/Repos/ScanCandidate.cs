@@ -17,6 +17,15 @@ public enum RepoRuns
 
     /// <summary><c>include.path</c>/<c>includeIf</c>: more configuration from another file, which may set any of the above.</summary>
     Includes,
+
+    /// <summary>
+    /// Settings the scan does not know as harmless: a filter (runs on <c>git status</c>), a diff driver, a credential helper,
+    /// a remote run through a command (second review pass R1).
+    /// </summary>
+    OtherSettings,
+
+    /// <summary>Its git folder lies on another computer's share: not read before the user ticks it (second review pass R1).</summary>
+    GitDirOnShare,
 }
 
 /// <summary>

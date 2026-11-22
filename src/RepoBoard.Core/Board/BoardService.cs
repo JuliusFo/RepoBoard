@@ -1164,7 +1164,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
 
         // A worktree on a network share of another host only for a repository on a share itself: every status there would
         // send a sign-in to that host, and the entry came from a file in the repository, not from the user (review 0.4.0, A9).
-        ImmutableList<RepoState> next = [.. list.Skip(1).Where(w => !w.IsBare && (!IsShare(w.Path) || IsShare(repo.Path))).Select(info =>
+        ImmutableList<RepoState> next = [.. list.Skip(1).Where(w => !w.IsBare && (!Paths.IsShare(w.Path) || Paths.IsShare(repo.Path))).Select(info =>
         {
             var worktree = known.FirstOrDefault(w => SamePath(w.Path, info.Path)) ?? new RepoState(new RepoEntry(info.Path), repo);
             worktree.Worktree = info;
@@ -1183,7 +1183,6 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
 
     private static bool SamePath(string a, string b) => Paths.Same(a, b);
 
-    private static bool IsShare(string path) => path.StartsWith(@"\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal);
 
     // ---------- plumbing ----------
 

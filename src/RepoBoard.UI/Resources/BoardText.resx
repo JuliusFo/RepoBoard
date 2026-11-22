@@ -645,4 +645,10 @@ Log: {1}</value>
   <data name="Error_Reload" xml:space="preserve">
     <value>Reload</value>
   </data>
+  <data name="Scan_Runs_OtherSettings" xml:space="preserve">
+    <value>has further settings of its own that can start programs (a filter, a diff driver, a credential helper …)</value>
+  </data>
+  <data name="Scan_Runs_GitDirOnShare" xml:space="preserve">
+    <value>its git folder lies on another computer’s share – not read before you tick it</value>
+  </data>
 </root>

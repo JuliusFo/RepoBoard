@@ -34,6 +34,8 @@ public sealed class ScanSelection(IReadOnlyList<ScanCandidate> candidates)
         RepoRuns.HooksPath => BoardText.Scan_Runs_HooksPath,
         RepoRuns.SshCommand => BoardText.Scan_Runs_SshCommand,
         RepoRuns.Hooks => BoardText.Scan_Runs_Hooks,
-        _ => BoardText.Scan_Runs_Includes,
+        RepoRuns.Includes => BoardText.Scan_Runs_Includes,
+        RepoRuns.GitDirOnShare => BoardText.Scan_Runs_GitDirOnShare,
+        _ => BoardText.Scan_Runs_OtherSettings,
     };
 }

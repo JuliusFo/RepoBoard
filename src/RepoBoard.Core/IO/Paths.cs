@@ -18,6 +18,9 @@ public static class Paths
     /// <summary>The same folder or file, however written (<c>C:/x</c>, <c>C:\a\..\x\</c>).</summary>
     public static bool Same(string a, string b) => string.Equals(Full(a), Full(b), Comparison);
 
+    /// <summary>A path on another computer's share (<c>\\host\share</c>, also written with forward slashes).</summary>
+    public static bool IsShare(string path) => path.StartsWith(@"\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal);
+
     /// <summary>
     /// <paramref name="path"/> is <paramref name="folder"/> or lies below it. Both already full and normalized – this only
     /// compares (the file watcher asks it for every event).

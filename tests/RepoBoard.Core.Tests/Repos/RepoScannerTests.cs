@@ -46,6 +46,14 @@ public sealed class RepoScannerTests : IDisposable
     [InlineData("[core]\n\tsshCommand = ssh -i key\n", RepoRuns.SshCommand)]
     [InlineData("[include]\n\tpath = ../more.config\n", RepoRuns.Includes)]
     [InlineData("[includeIf \"gitdir:~/\"]\n\tpath = x\n", RepoRuns.Includes)]
+    // Second review pass R1: a positive list – a filter runs on git status, a diff driver on a click, a helper on fetch.
+    [InlineData("[filter \"x\"]\n\tclean = calc\n", RepoRuns.OtherSettings)]
+    [InlineData("[diff \"x\"]\n\ttextconv = calc\n", RepoRuns.OtherSettings)]
+    [InlineData("[credential]\n\thelper = !calc\n", RepoRuns.OtherSettings)]
+    [InlineData("[remote \"origin\"]\n\turl = ext::calc %G\n", RepoRuns.OtherSettings)]
+    [InlineData("[remote \"origin\"]\n\tuploadpack = calc\n", RepoRuns.OtherSettings)]
+    [InlineData("[core]\n\taskPass = calc\n", RepoRuns.OtherSettings)]
+    [InlineData("[submodule \"s\"]\n\tupdate = !calc\n", RepoRuns.OtherSettings)]
     public void What_the_configuration_makes_git_run_is_named(string config, RepoRuns runs)
     {
         var candidate = Inspect(Repo("r", config));
@@ -57,10 +65,42 @@ public sealed class RepoScannerTests : IDisposable
     [Theory]
     [InlineData("[core]\n\tfsmonitor = false\n")]
     [InlineData("[core]\n\tfsmonitor = true\n")] // git's own daemon, nothing of the repository's
-    [InlineData("[remote \"origin\"]\n\tsshCommand = x\n")] // not in [core]
     [InlineData("[core]\n\t# fsmonitor = calc\n")]
+    // What a clone, a branch, LFS and a configured merge tool write: no hint, ticked at first.
+    [InlineData("[core]\n\trepositoryformatversion = 0\n\tfilemode = false\n\tbare = false\n\tlogallrefupdates = true\n\tsymlinks = false\n\tignorecase = true\n"
+        + "[remote \"origin\"]\n\turl = https://example.invalid/r.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n"
+        + "[branch \"main\"]\n\tremote = origin\n\tmerge = refs/heads/main\n[lfs]\n\trepositoryformatversion = 0\n"
+        + "[extensions]\n\tworktreeConfig = true\n[submodule \"s\"]\n\tactive = true\n[mergetool]\n\tcmd = tool\n[diff]\n\ttool = x\n")]
     public void Settings_that_run_nothing_of_the_repository_s_are_not_named(string config) =>
         Assert.Empty(Inspect(Repo("r", config)).Runs);
+
+    /// <summary>With <c>extensions.worktreeConfig</c> git reads <c>config.worktree</c> on top – so does the scan (second review pass R1).</summary>
+    [Fact]
+    public void Config_worktree_is_read_too()
+    {
+        var repo = Repo("r", "[extensions]\n\tworktreeConfig = true\n");
+        File.WriteAllText(Path.Combine(repo, ".git", "config.worktree"), "[core]\n\tfsmonitor = calc\n");
+
+        Assert.Equal([RepoRuns.FsMonitor], Inspect(repo).Runs);
+    }
+
+    /// <summary>
+    /// A .git file naming a git folder on another computer's share: not read before the user ticks it, never ticked at first
+    /// (second review pass R1).
+    /// </summary>
+    [Fact]
+    public void A_git_folder_on_a_share_is_named_and_not_read()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Shares are written as \\\\host\\share on Windows.");
+        var repo = _folder.Combine("scan", "elsewhere");
+        Directory.CreateDirectory(repo);
+        File.WriteAllText(Path.Combine(repo, ".git"), "gitdir: \\\\host.invalid\\share\\x\n");
+
+        var candidate = Inspect(repo);
+
+        Assert.Equal([RepoRuns.GitDirOnShare], candidate.Runs);
+        Assert.False(candidate.Plain);
+    }
 
     [Fact]
     public void Hooks_of_its_own_are_named_git_s_samples_are_not()
