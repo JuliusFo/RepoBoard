@@ -36,7 +36,8 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - Kodierungen außer UTF-8 (Windows-1252, UTF-16): `GitRunner` liest UTF-8, solche Dateien erscheinen mit Ersatzzeichen.
 - Diff im externen Werkzeug öffnen (`git difftool`, VS Code `--diff`).
 - Mit Tastatur durch die Dateiliste (↑/↓ wechselt den Diff).
-- Hunks und Zeilen stagen: WP-25 (Roadmap).
+- Hunks und Zeilen stagen (Fortsetzung von WP-25): Zeilen per Ziehen am Rand wählen; mit der Tastatur (↑/↓, Leertaste, „s“ für stagen); Auswahl über mehrere Hunks auf einmal (heute ein Hunk je Patch).
+- Teile eines Hunks stagen, dessen letzte Zeile keinen Zeilenumbruch hat und mit anderen Zeilen getauscht wird: manche Auswahl lehnt RepoBoard ab („mit den Zeilen daneben auswählen“, ADR 0012) – `git add -p` kann hier mehr.
 - Größengrenze bei gelöschten Dateien (Review WP-05, Punkt 11): gemessen wird die Datei im Worktree – eine gelöschte große Datei hat keine, git liest ihren Diff bei offenem Diff alle 20 s ganz ein (geparst wird höchstens bis 5 000 Zeilen, nicht auf dem UI-Thread). Abhilfe: Größe aus Index bzw. HEAD (`git cat-file -s :<pfad>` / `HEAD:<pfad>`).
 - Scheitert ein Stagen per Häkchen, bleibt das vom Klick gesetzte Häkchen in der Liste „Nicht gestaged“ stehen (`checked` dort nicht gebunden; vorher schon da, Review WP-05).
 

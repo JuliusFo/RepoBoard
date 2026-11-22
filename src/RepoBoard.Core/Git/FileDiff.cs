@@ -22,7 +22,15 @@ public sealed record DiffLine(DiffLineKind Kind, int? OldNumber, int? NewNumber,
     IReadOnlyList<DiffSpan> Changed);
 
 /// <param name="Section">What git writes after the second <c>@@</c>: the function or heading the hunk is in.</param>
-public sealed record DiffHunk(int OldStart, int OldCount, int NewStart, int NewCount, string Section, IReadOnlyList<DiffLine> Lines);
+public sealed record DiffHunk(int OldStart, int OldCount, int NewStart, int NewCount, string Section, IReadOnlyList<DiffLine> Lines)
+{
+    /// <summary>The same place and the same lines (word highlighting aside): records compare their lists by reference.</summary>
+    public bool SameAs(DiffHunk other) =>
+        (OldStart, OldCount, NewStart, NewCount) == (other.OldStart, other.OldCount, other.NewStart, other.NewCount)
+        && Lines.Select(Key).SequenceEqual(other.Lines.Select(Key));
+
+    private static (DiffLineKind, string, bool, bool) Key(DiffLine line) => (line.Kind, line.Text, line.EndsWithCr, line.NoNewlineAtEnd);
+}
 
 /// <summary>
 /// The diff of one file as git sees it (ADR 0008): parsed from <c>git diff</c>, so line endings, <c>.gitattributes</c>,
@@ -30,8 +38,20 @@ public sealed record DiffHunk(int OldStart, int OldCount, int NewStart, int NewC
 /// </summary>
 /// <param name="IsTruncated">Only the first <c>maxLines</c> lines were kept.</param>
 /// <param name="IsTooLarge">Not read at all: the file is above <see cref="MaxFileBytes"/>.</param>
-public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBinary, bool IsTruncated, bool IsTooLarge = false)
+/// <param name="NewFileMode">The file is new on the diff's new side, with this mode (<c>100644</c>); a staging patch creates it (WP-25).</param>
+/// <param name="DeletedFileMode">The file is gone on the diff's new side; it had this mode.</param>
+/// <param name="IsSpecialFile">A symbolic link or submodule on either side, also when a file became one: its "lines" are a
+/// link target or commit, not text to stage in parts (review WP-25).</param>
+/// <param name="IsTwoFiles">git shows the change as one file deleted and one added (a change of type, or a rename that
+/// <c>diff -M</c> does not pair): its hunks belong to two files, no single patch (second review pass WP-25).</param>
+public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBinary, bool IsTruncated, bool IsTooLarge = false,
+    string? NewFileMode = null, string? DeletedFileMode = null, bool IsSpecialFile = false, bool IsTwoFiles = false)
 {
+    /// <summary>The same hunks with the same lines (<see cref="DiffHunk.SameAs"/>).</summary>
+    public bool SameAs(FileDiff other) =>
+        (IsBinary, IsTruncated, IsTooLarge, IsSpecialFile, IsTwoFiles) == (other.IsBinary, other.IsTruncated, other.IsTooLarge, other.IsSpecialFile, other.IsTwoFiles)
+        && Hunks.Count == other.Hunks.Count && Hunks.Zip(other.Hunks).All(p => p.First.SameAs(p.Second));
+
     public const int MaxLines = 5000;
 
     /// <summary>git reads a file as a whole for its diff; above this size (in the worktree) the diff is not read.</summary>
@@ -51,6 +71,13 @@ public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBina
     [GeneratedRegex(@"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@ ?(.*)$", RegexOptions.CultureInvariant)]
     private static partial Regex HunkHeader();
 
+    // "new file mode 100644", "deleted file mode …", "old mode …"/"new mode …", "index 1a2b..3c4d 100644".
+    [GeneratedRegex(@"^(?:(new|deleted) file mode|(?:old|new) mode|index [0-9a-f]+\.\.[0-9a-f]+) ([0-7]+)$", RegexOptions.CultureInvariant)]
+    private static partial Regex FileMode();
+
+    private const string SymlinkMode = "120000";
+    private const string SubmoduleMode = "160000";
+
     /// <summary>
     /// Parses the output of <c>git diff</c> for one file. The lines of a hunk are counted by its header, so an empty context
     /// line (<c>diff.suppressBlankEmpty</c>) is read as one; a removed block followed by an added block is paired line by
@@ -62,6 +89,8 @@ public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBina
         var hunks = new List<DiffHunk>();
         var wordCells = MaxWordCells;
         var binary = false;
+        string? newMode = null, deletedMode = null;
+        var special = false;
         var kept = 0;
         var truncated = false;
         while (!truncated && lines.Next() is { } line)
@@ -69,7 +98,23 @@ public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBina
             var header = HunkHeader().Match(line.TrimEnd('\r'));
             if (!header.Success)
             {
+                // Outside a hunk: the lines of git's file header.
                 binary |= line.StartsWith("Binary files ", StringComparison.Ordinal) || line.StartsWith("GIT binary patch", StringComparison.Ordinal);
+                if (FileMode().Match(line.TrimEnd('\r')) is { Success: true } mode)
+                {
+                    var value = mode.Groups[2].Value;
+                    special |= value is SymlinkMode or SubmoduleMode;
+                    switch (mode.Groups[1].Value)
+                    {
+                        case "new":
+                            newMode = value;
+                            break;
+                        case "deleted":
+                            deletedMode = value;
+                            break;
+                    }
+                }
+
                 continue;
             }
 
@@ -131,7 +176,8 @@ public sealed partial record FileDiff(IReadOnlyList<DiffHunk> Hunks, bool IsBina
             }
         }
 
-        return new FileDiff(hunks, binary, truncated);
+        return new FileDiff(hunks, binary, truncated, NewFileMode: newMode, DeletedFileMode: deletedMode, IsSpecialFile: special,
+            IsTwoFiles: newMode is not null && deletedMode is not null);
     }
 
     /// <summary>Removed lines followed by added lines replace each other: the n-th removed one pairs with the n-th added one.</summary>

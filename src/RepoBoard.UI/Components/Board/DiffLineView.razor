@@ -1,0 +1,87 @@
+@* One line of the diff (WP-05) with its pickable edge (WP-25). A component of its own so a pick renders the line it
+   changes, not up to 5,000 lines (review WP-25: ~110 ms per click before). *@
+@inherits BoardComponent
+
+<div class="diff-line @KindClass(Line.Kind) @(Picked ? "picked" : "")">
+    <span class="gutter @(_pickable ? "pick" : "")" title="@(_pickable ? BoardText.Diff_PickLine_Hint : null)"
+          @onclick="OnGutterClick"><span class="no">@Line.OldNumber</span><span class="no">@Line.NewNumber</span><span class="sign">@Sign(Line.Kind)</span></span><span class="text">@foreach (var (text, changed) in Segments(Line))
+        {
+            @if (changed)
+            {
+                <mark>@text</mark>
+            }
+            else
+            {
+                @text
+            }
+        }@if (Line.EndsWithCr)
+        {
+            <span class="eol" title="@BoardText.Diff_Cr">␍</span>
+        }@if (Line.NoNewlineAtEnd)
+        {
+            <span class="eol" title="@BoardText.Diff_NoNewline">⊘</span>
+        }</span>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DiffLine Line { get; set; } = null!;
+    [Parameter] public bool Picked { get; set; }
+
+    /// <summary>A click on the edge; true with Shift held.</summary>
+    [Parameter] public EventCallback<bool> OnPick { get; set; }
+
+    private bool _pickable;
+    private (DiffLine Line, bool Picked)? _shown;
+
+    protected override void OnParametersSet() => _pickable = LineSelection.CanPick(Line);
+
+    // The panel renders all its lines with every pick and every new status; a line only when it changed.
+    protected override bool ShouldRender()
+    {
+        var now = (Line, Picked);
+        if (_shown == now)
+        {
+            return false;
+        }
+
+        _shown = now;
+        return true;
+    }
+
+    private Task OnGutterClick(MouseEventArgs e) => _pickable ? OnPick.InvokeAsync(e.ShiftKey) : Task.CompletedTask;
+
+    private static string KindClass(DiffLineKind kind) => kind switch
+    {
+        DiffLineKind.Added => "add",
+        DiffLineKind.Removed => "del",
+        _ => "",
+    };
+
+    private static string Sign(DiffLineKind kind) => kind switch
+    {
+        DiffLineKind.Added => "+",
+        DiffLineKind.Removed => "−",
+        _ => " ",
+    };
+
+    /// <summary>The line's text cut at its changed spans (word highlighting).</summary>
+    private static IEnumerable<(string Text, bool Changed)> Segments(DiffLine line)
+    {
+        var at = 0;
+        foreach (var span in line.Changed)
+        {
+            if (span.Start > at)
+            {
+                yield return (line.Text[at..span.Start], false);
+            }
+
+            yield return (line.Text.Substring(span.Start, span.Length), true);
+            at = span.Start + span.Length;
+        }
+
+        if (at < line.Text.Length)
+        {
+            yield return (line.Text[at..], false);
+        }
+    }
+}

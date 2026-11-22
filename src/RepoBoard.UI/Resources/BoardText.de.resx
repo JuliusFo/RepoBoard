@@ -372,6 +372,27 @@ Log: {1}</value>
   <data name="Diff_Cr" xml:space="preserve">
     <value>Windows-Zeilenende (CR LF)</value>
   </data>
+  <data name="Diff_StageHunk" xml:space="preserve">
+    <value>Hunk stagen</value>
+  </data>
+  <data name="Diff_UnstageHunk" xml:space="preserve">
+    <value>Hunk unstagen</value>
+  </data>
+  <data name="Diff_StageLines" xml:space="preserve">
+    <value>Zeilen stagen ({0})</value>
+  </data>
+  <data name="Diff_UnstageLines" xml:space="preserve">
+    <value>Zeilen unstagen ({0})</value>
+  </data>
+  <data name="Diff_StageHunk_Hint" xml:space="preserve">
+    <value>Alle Änderungen dieses Hunks. Für einzelne Zeilen klicke sie am linken Rand an – Shift+Klick wählt einen Bereich.</value>
+  </data>
+  <data name="Diff_StageLines_Hint" xml:space="preserve">
+    <value>Nur die ausgewählten Zeilen dieses Hunks</value>
+  </data>
+  <data name="Diff_PickLine_Hint" xml:space="preserve">
+    <value>Diese Zeile auswählen – Shift+Klick wählt einen Bereich</value>
+  </data>
   <data name="Worktrees_Hint" xml:space="preserve">
     <value>Worktrees: {0} – zeigen oder ausblenden</value>
   </data>

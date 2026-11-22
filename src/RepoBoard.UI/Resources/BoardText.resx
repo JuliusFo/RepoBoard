@@ -404,6 +404,31 @@ Log: {1}</value>
   <data name="Diff_Cr" xml:space="preserve">
     <value>Windows line ending (CR LF)</value>
   </data>
+  <data name="Diff_StageHunk" xml:space="preserve">
+    <value>Stage hunk</value>
+    <comment>Button at a block of changes in the diff</comment>
+  </data>
+  <data name="Diff_UnstageHunk" xml:space="preserve">
+    <value>Unstage hunk</value>
+    <comment>Button at a block of changes in the diff of the staged side</comment>
+  </data>
+  <data name="Diff_StageLines" xml:space="preserve">
+    <value>Stage lines ({0})</value>
+    <comment>Button at a block of changes in the diff. {0} = number of selected lines</comment>
+  </data>
+  <data name="Diff_UnstageLines" xml:space="preserve">
+    <value>Unstage lines ({0})</value>
+    <comment>{0} = number of selected lines</comment>
+  </data>
+  <data name="Diff_StageHunk_Hint" xml:space="preserve">
+    <value>All changes of this hunk. To take single lines, click them at the left edge – Shift+click selects a range.</value>
+  </data>
+  <data name="Diff_StageLines_Hint" xml:space="preserve">
+    <value>Only the selected lines of this hunk</value>
+  </data>
+  <data name="Diff_PickLine_Hint" xml:space="preserve">
+    <value>Select this line – Shift+click selects a range</value>
+  </data>
   <data name="Worktrees_Hint" xml:space="preserve">
     <value>Worktrees: {0} – show or hide</value>
     <comment>Tooltip of the count badge in a repository's row. {0} = number of linked worktrees</comment>

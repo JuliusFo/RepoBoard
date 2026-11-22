@@ -41,7 +41,8 @@ public enum GitCallMode
 /// <summary>
 /// The only place RepoBoard starts git (ADR 0002, <c>ArchitectureTests</c>): the installed CLI, so the user's credential
 /// helper, SSH config, hooks, LFS and includes behave exactly as in their terminal and IDE. Arguments only through
-/// <see cref="ProcessStartInfo.ArgumentList"/>, never a shell; every call has a time limit.
+/// <see cref="ProcessStartInfo.ArgumentList"/>, never a shell; every call has a time limit. Standard input is empty unless a
+/// call passes <c>input</c> (a patch for <c>git apply</c>, WP-25).
 /// </summary>
 public class GitRunner(string executable = "git")
 {
@@ -49,7 +50,7 @@ public class GitRunner(string executable = "git")
     public static readonly TimeSpan NetworkTimeout = TimeSpan.FromMinutes(3);
 
     public virtual async Task<GitResult> RunAsync(string workingDirectory, IReadOnlyList<string> args, GitCallMode mode,
-        TimeSpan timeout, CancellationToken cancellationToken)
+        TimeSpan timeout, string? input, CancellationToken cancellationToken)
     {
         var start = new ProcessStartInfo(executable)
         {
@@ -61,6 +62,8 @@ public class GitRunner(string executable = "git")
             CreateNoWindow = true,
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
+            // git reads a patch as bytes: a BOM would be part of its first line.
+            StandardInputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
         };
         // Paths unquoted (umlauts), no colour codes in the output.
         start.ArgumentList.Add("-c");
@@ -97,11 +100,12 @@ public class GitRunner(string executable = "git")
         }
 
         using var process = started ?? throw new InvalidOperationException("git could not be started.");
-        process.StandardInput.Close();
+        // Read before writing: git may answer while it still reads, and full pipes on both sides would wait for each other.
         var output = process.StandardOutput.ReadToEndAsync(token);
         var error = process.StandardError.ReadToEndAsync(token);
         try
         {
+            await WriteInputAsync(process, input, token);
             await process.WaitForExitAsync(token);
             return new GitResult(process.ExitCode, await output, await error);
         }
@@ -122,6 +126,23 @@ public class GitRunner(string executable = "git")
             }
 
             return GitResult.Failed(TextFormat.Format(SyncText.GitTimedOut, string.Join(' ', args), (int)timeout.TotalSeconds));
+        }
+    }
+
+    private static async Task WriteInputAsync(Process process, string? input, CancellationToken token)
+    {
+        try
+        {
+            if (input is not null)
+            {
+                await process.StandardInput.WriteAsync(input.AsMemory(), token);
+            }
+
+            process.StandardInput.Close();
+        }
+        catch (IOException)
+        {
+            // git ended before it read everything (it refused the call): its exit code and stderr say why.
         }
     }
 }

@@ -45,30 +45,22 @@
     else
     {
         <div class="diff">
-            @foreach (var hunk in _diff.Hunks)
+            @for (var h = 0; h < _diff.Hunks.Count; h++)
             {
-                <div class="diff-hunk">@($"@@ -{hunk.OldStart},{hunk.OldCount} +{hunk.NewStart},{hunk.NewCount} @@") <span>@hunk.Section</span></div>
-                @foreach (var line in hunk.Lines)
+                var hunkIndex = h;
+                var hunk = _diff.Hunks[h];
+                var picked = _selection.CountIn(hunkIndex);
+                <div class="diff-hunk">
+                    <span class="range">@($"@@ -{hunk.OldStart},{hunk.OldCount} +{hunk.NewStart},{hunk.NewCount} @@") <span class="section">@hunk.Section</span></span>
+                    <button class="btn small hunk-stage" disabled="@(_staging || !_current || IsCutOff(hunkIndex))"
+                            title="@(IsCutOff(hunkIndex) ? SyncText.Hunk_Incomplete : picked > 0 ? BoardText.Diff_StageLines_Hint : BoardText.Diff_StageHunk_Hint)"
+                            @onclick="() => GuardAsync(() => StageAsync(hunkIndex))">@HunkLabel(picked)</button>
+                </div>
+                @for (var i = 0; i < hunk.Lines.Count; i++)
                 {
-                    <div class="diff-line @KindClass(line.Kind)">
-                        <span class="no">@line.OldNumber</span><span class="no">@line.NewNumber</span><span class="sign">@Sign(line.Kind)</span><span class="text">@foreach (var (text, changed) in Segments(line))
-                            {
-                                @if (changed)
-                                {
-                                    <mark>@text</mark>
-                                }
-                                else
-                                {
-                                    @text
-                                }
-                            }@if (line.EndsWithCr)
-                            {
-                                <span class="eol" title="@BoardText.Diff_Cr">␍</span>
-                            }@if (line.NoNewlineAtEnd)
-                            {
-                                <span class="eol" title="@BoardText.Diff_NoNewline">⊘</span>
-                            }</span>
-                    </div>
+                    var lineIndex = i;
+                    <DiffLineView Line="hunk.Lines[i]" Picked="_selection.IsPicked(hunkIndex, lineIndex)"
+                                  OnPick="shift => Pick(hunk, hunkIndex, lineIndex, shift)" />
                 }
             }
         </div>
@@ -94,13 +86,21 @@
     private (RepoStatus? Status, string Path, bool Staged)? _readFor;
     private int _reads;
 
+    // The lines picked for staging (WP-25) and whether a hunk is being staged right now.
+    private readonly LineSelection _selection = new();
+    private bool _staging;
+
+    // The shown diff belongs to the latest status. Not while the next one loads: a hunk staged from it right after another
+    // one would only meet "the file changed" (second review pass WP-25).
+    private bool _current;
+
     // What the markup last showed: the page renders on every change of any repository, the lines only when this changes
     // (review WP-05 – up to 5,000 lines).
-    private (FileDiff? Diff, string? Error, FileChange Change, bool Staged)? _shown;
+    private (FileDiff? Diff, string? Error, FileChange Change, bool Staged, int Picks, bool Staging, bool Current)? _shown;
 
     protected override bool ShouldRender()
     {
-        var now = (_diff, _error, Change, Staged);
+        var now = (_diff, _error, Change, Staged, _selection.Version, _staging, _current);
         if (_shown == now)
         {
             return false;
@@ -125,20 +125,91 @@
             // Another file: no stale diff while the new one loads. The same file keeps its diff until the new one is there.
             _diff = null;
             _error = null;
+            _selection.Clear();
         }
 
         var read = ++_reads;
+        _current = false;
         var change = Change;
         var staged = Staged;
         Fire(async () =>
         {
-            var (diff, error) = await Board.DiffAsync(Repo, change, staged, default);
-            if (read == _reads)
+            try
             {
-                (_diff, _error) = (diff, error);
-                StateHasChanged();
+                var (diff, error) = await Board.DiffAsync(Repo, change, staged, default);
+                if (read == _reads)
+                {
+                    if (diff is not null)
+                    {
+                        _selection.KeepFor(_diff, diff);
+                    }
+                    else
+                    {
+                        _selection.Clear();
+                    }
+
+                    (_diff, _error) = (diff, error);
+                }
+            }
+            finally
+            {
+                // Also after an unexpected error (reported by the guard): the buttons do not stay off until the next status.
+                // Staging still compares with a fresh diff (third review pass WP-25).
+                if (read == _reads)
+                {
+                    _current = true;
+                    StateHasChanged();
+                }
             }
         });
+    }
+
+    /// <summary>The last hunk of a diff cut off at the line limit: its patch would miss the rest (WP-25).</summary>
+    private bool IsCutOff(int hunk) => _diff is { IsTruncated: true } diff && hunk == diff.Hunks.Count - 1;
+
+    private string HunkLabel(int picked) => (Staged, picked > 0) switch
+    {
+        (false, false) => BoardText.Diff_StageHunk,
+        (true, false) => BoardText.Diff_UnstageHunk,
+        (false, true) => TextFormat.Format(BoardText.Diff_StageLines, picked),
+        (true, true) => TextFormat.Format(BoardText.Diff_UnstageLines, picked),
+    };
+
+    // Not while a hunk is being staged: its success clears the selection, a pick made meanwhile would go with it (review WP-25).
+    private void Pick(DiffHunk hunk, int hunkIndex, int line, bool shift)
+    {
+        if (!_staging)
+        {
+            _selection.Click(hunk, hunkIndex, line, shift);
+        }
+    }
+
+    /// <summary>Stages (unstages on the staged side) the picked lines of the hunk, or all of it with none picked.</summary>
+    private async Task StageAsync(int hunk)
+    {
+        if (_diff is not { } diff || !_current)
+        {
+            return;
+        }
+
+        var lines = _selection.CountIn(hunk) > 0 ? _selection.Lines.ToHashSet() : null;
+        _staging = true;
+        try
+        {
+            if (await Board.StageHunkAsync(Repo, Change, diff, Staged, hunk, lines, default))
+            {
+                _selection.Clear();
+            }
+        }
+        finally
+        {
+            _staging = false;
+            // The board read the new status before returning; until this panel reads its diff, the buttons stay off.
+            if (_readFor is not { } readFor || !ReferenceEquals(readFor.Status, Repo.Status))
+            {
+                _current = false;
+            }
+        }
     }
 
     /// <summary>Esc closes the diff: the keys reach the pane only while it has the focus. Called after a click on a file.</summary>
@@ -149,41 +220,6 @@
         if (e.Key == "Escape")
         {
             await OnClose.InvokeAsync();
-        }
-    }
-
-    private static string KindClass(DiffLineKind kind) => kind switch
-    {
-        DiffLineKind.Added => "add",
-        DiffLineKind.Removed => "del",
-        _ => "",
-    };
-
-    private static string Sign(DiffLineKind kind) => kind switch
-    {
-        DiffLineKind.Added => "+",
-        DiffLineKind.Removed => "−",
-        _ => " ",
-    };
-
-    /// <summary>The line's text cut at its changed spans (word highlighting).</summary>
-    private static IEnumerable<(string Text, bool Changed)> Segments(DiffLine line)
-    {
-        var at = 0;
-        foreach (var span in line.Changed)
-        {
-            if (span.Start > at)
-            {
-                yield return (line.Text[at..span.Start], false);
-            }
-
-            yield return (line.Text.Substring(span.Start, span.Length), true);
-            at = span.Start + span.Length;
-        }
-
-        if (at < line.Text.Length)
-        {
-            yield return (line.Text[at..], false);
         }
     }
 }
