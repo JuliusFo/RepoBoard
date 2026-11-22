@@ -440,7 +440,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         ActivityNote? pulled = null;
         return await RunAsync(repo, SyncText.Op_Pull, network: true, async c =>
         {
-            var result = await git.PullAsync(repo.Path, GitCallMode.Interactive, c);
+            var result = await git.PullAsync(repo.Path, c);
             pulled = result.Success ? await PulledTextAsync(repo.Path, before, c) : null;
             return result;
         }, () => pulled, ct);
@@ -865,7 +865,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         ActivityNote? pulled = null;
         await RunLockedAsync(repo, SyncText.Op_AutoPull, network: false, async c =>
         {
-            var result = await git.FastForwardAsync(repo.Path, c);
+            var result = await git.FastForwardAsync(repo.Path, GitCallMode.Background, c);
             pulled = result.Success ? await PulledTextAsync(repo.Path, before, c) : null;
             return result;
         }, () => pulled, auto: true, ct);

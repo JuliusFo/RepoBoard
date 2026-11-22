@@ -67,13 +67,22 @@ public sealed class GitClient(GitRunner runner)
     public Task<GitResult> FetchAsync(string repo, GitCallMode mode, CancellationToken ct) =>
         Network(repo, mode, ct, "fetch", "--all", "--prune");
 
-    /// <summary>Only fast-forward: never a merge commit, never a rebase, nothing to resolve (ADR 0003).</summary>
-    public Task<GitResult> PullAsync(string repo, GitCallMode mode, CancellationToken ct) =>
-        Network(repo, mode, ct, "pull", "--ff-only");
+    /// <summary>
+    /// Only fast-forward: never a merge commit, never a rebase, nothing to resolve (ADR 0003). The user's <c>pull.rebase</c>
+    /// and autostash settings are overridden: with autostash git would stash overlapping local changes, fast-forward and put
+    /// them back with conflict markers – and end with success (review 0.4.0, A1). Without it git refuses and the file stays.
+    /// </summary>
+    public Task<GitResult> PullAsync(string repo, CancellationToken ct) =>
+        Network(repo, GitCallMode.Interactive, ct, "pull", "--ff-only", "--no-rebase", "--no-autostash");
 
-    /// <summary>After a fetch: fast-forward to the upstream without a second network round trip.</summary>
-    public Task<GitResult> FastForwardAsync(string repo, CancellationToken ct) =>
-        Local(repo, ct, "merge", "--ff-only", "@{u}");
+    /// <summary>
+    /// After a fetch: fast-forward to the upstream without a second network round trip, never with the user's
+    /// <c>merge.autoStash</c> (see <see cref="PullAsync"/>). Checking out the new commits can be network work too – Git LFS,
+    /// a partial clone, a <c>post-merge</c> hook –, so it runs with the network's time limit and, for auto-pull, without
+    /// a prompt (review 0.4.0, A4).
+    /// </summary>
+    public Task<GitResult> FastForwardAsync(string repo, GitCallMode mode, CancellationToken ct) =>
+        Network(repo, mode, ct, "merge", "--ff-only", "--no-autostash", "@{u}");
 
     /// <summary>Push; the first push of a branch sets its upstream on <c>origin</c>.</summary>
     public Task<GitResult> PushAsync(string repo, bool setUpstream, CancellationToken ct) =>

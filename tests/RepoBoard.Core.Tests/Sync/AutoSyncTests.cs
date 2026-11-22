@@ -82,6 +82,57 @@ public sealed class AutoSyncTests : IDisposable
         Assert.Equal("my unsaved work", File.ReadAllText(Path.Combine(_git.Mine, "a.txt")));
     }
 
+    /// <summary>
+    /// Review 0.4.0, A1: with the user's autostash git stashes the overlapping change, fast-forwards and puts it back with
+    /// conflict markers – and ends with success. Auto-pull and a click on Pull must refuse instead, as without it.
+    /// </summary>
+    [Theory]
+    [InlineData(true, "merge.autoStash", "true")]
+    [InlineData(false, "pull.rebase", "true", "rebase.autoStash", "true")]
+    [InlineData(false, "merge.autoStash", "true")]
+    public async Task The_users_autostash_never_puts_local_changes_back_with_conflicts(bool auto, params string[] config)
+    {
+        var repo = await AddMineAsync(autoPull: auto);
+        for (var i = 0; i < config.Length; i += 2)
+        {
+            GitSandbox.Git(_git.Mine, "config", config[i], config[i + 1]);
+        }
+
+        GitSandbox.Commit(_git.Theirs, "a.txt", "theirs");
+        GitSandbox.Git(_git.Theirs, "push");
+        File.WriteAllText(Path.Combine(_git.Mine, "a.txt"), "my unsaved work");
+
+        if (auto)
+        {
+            await _board.AutoSyncAsync(repo, Ct);
+        }
+        else
+        {
+            Assert.False(await _board.PullAsync(repo, Ct));
+        }
+
+        Assert.NotNull(repo.Error);
+        Assert.Equal("my unsaved work", File.ReadAllText(Path.Combine(_git.Mine, "a.txt")));
+        Assert.Equal("", GitSandbox.Git(_git.Mine, "stash", "list"));
+        Assert.Equal(0, repo.Status!.Conflicts);
+    }
+
+    /// <summary>The fast-forward a click on Pull makes with the user's <c>pull.rebase</c>: unrelated local changes stay (review 0.4.0, A1).</summary>
+    [Fact]
+    public async Task Pull_fast_forwards_past_unrelated_local_changes_whatever_pull_rebase_says()
+    {
+        var repo = await AddMineAsync(autoPull: false);
+        GitSandbox.Git(_git.Mine, "config", "pull.rebase", "true");
+        GitSandbox.Commit(_git.Theirs, "b.txt", "two");
+        GitSandbox.Git(_git.Theirs, "push");
+        File.WriteAllText(Path.Combine(_git.Mine, "a.txt"), "my unsaved work");
+
+        Assert.True(await _board.PullAsync(repo, Ct), repo.Error);
+
+        Assert.True(File.Exists(Path.Combine(_git.Mine, "b.txt")));
+        Assert.Equal("my unsaved work", File.ReadAllText(Path.Combine(_git.Mine, "a.txt")));
+    }
+
     [Fact]
     public async Task A_repository_is_due_again_only_after_the_interval()
     {
