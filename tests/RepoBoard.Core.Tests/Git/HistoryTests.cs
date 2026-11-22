@@ -15,7 +15,7 @@ public sealed class HistoryTests : IDisposable
     private readonly BoardService _board;
 
     public HistoryTests() =>
-        _board = new(_client, new ConfigStore(Path.Combine(_git.Root, "config.json"), _time), _time);
+        _board = Boards.New(_git.Root, _time);
 
     private CancellationToken Ct => TestContext.Current.CancellationToken;
 

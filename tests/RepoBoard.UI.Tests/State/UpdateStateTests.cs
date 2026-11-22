@@ -25,7 +25,7 @@ public sealed class UpdateStateTests : IDisposable
     private readonly BoardService _board;
 
     public UpdateStateTests() =>
-        _board = new BoardService(new GitClient(new GitRunner()), new ConfigStore(_folder.Combine("config.json"), _time), _time);
+        _board = Boards.New(_folder.Path, _time);
 
     public void Dispose() => _folder.Dispose();
 

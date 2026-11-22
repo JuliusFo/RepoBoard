@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using RepoBoard.Core.Board;
 using RepoBoard.Core.Git;
@@ -176,7 +177,7 @@ public sealed class GitDiffTests : IDisposable
     [Fact]
     public async Task A_failing_diff_is_reported_in_place_not_as_the_repository_error()
     {
-        var board = new BoardService(_client, new ConfigStore(Path.Combine(_git.Root, "config.json"), TimeProvider.System), TimeProvider.System);
+        var board = Boards.New(_git.Root, new FakeTimeProvider());
         await board.AddAsync([_git.Mine], Ct);
         var repo = board.Repos.Single();
         var outside = new FileChange("../outside.txt", null, 'M', '.', false, false);

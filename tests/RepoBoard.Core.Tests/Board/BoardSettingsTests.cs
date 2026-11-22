@@ -22,7 +22,7 @@ public sealed class BoardSettingsTests : IDisposable
     public async Task Two_changes_at_once_both_stay()
     {
         var time = new FakeTimeProvider();
-        var board = new BoardService(new GitClient(new GitRunner()), new ConfigStore(_folder.Combine("config.json"), time), time);
+        var board = Boards.New(_folder.Path, time);
         using var firstReading = new ManualResetEventSlim();
         using var firstMayFinish = new ManualResetEventSlim();
 

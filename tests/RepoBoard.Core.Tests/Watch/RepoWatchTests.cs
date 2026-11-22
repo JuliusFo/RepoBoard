@@ -17,8 +17,7 @@ public sealed class RepoWatchTests : IDisposable
 
     private CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private BoardService NewBoard(TimeProvider time) =>
-        new(new GitClient(new GitRunner()), new ConfigStore(Path.Combine(_git.Root, "config.json"), time), time);
+    private BoardService NewBoard(TimeProvider time) => Boards.New(_git.Root, time);
 
     private async Task<(BoardService Board, RepoState Repo, RepoWatchService Watch)> WatchMineAsync()
     {
