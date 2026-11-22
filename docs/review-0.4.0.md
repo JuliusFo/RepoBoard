@@ -8,7 +8,7 @@ Auftrag des Nutzers (2026-11-22): `/complete-code-review` nach dem Release 0.4.0
 
 Acht parallele Agenten nach Themen, nur lesend, auf einer festen Kopie von `3318da0`: Git/Auto-Sync (GI), Zustand/Nebenläufigkeit (ST), UI/CSS (UI), Host/Prozesse/Build (PH), Sicherheit (SE), Wiederverwendung/toter Code (RE), Tests (TE), Doku (DO). Befunde aus `docs/backlog.md` sind nur genannt, wenn ihre Umsetzung fehlt oder fehlerhaft ist. Doppelte Befunde sind zusammengeführt (alle IDs genannt). **Nachgeprüft** = zusätzlich von Hand im Code bestätigt, **nachgestellt** = mit git in einem Wegwerf-Repo reproduziert; sonst die Einschätzung des Agenten.
 
-**Stand:** offen – Entscheidungen des Nutzers ausstehend.
+**Stand:** in Umsetzung mit R1 (`docs/work-packages/r1-review-0.4.md`, Branch `wp/r1-review-0.4`).
 
 Schwere: **S** falsche Daten, Datenverlust, Sicherheitslücke, Hänger · **M** falsches Verhalten in realistischen Fällen oder klare Wartungslast · **K** Kleinkram.
 
@@ -162,3 +162,17 @@ Geschätzte Tokens: `CLAUDE.md` ~3,2k (lädt immer); Regeln: `git.md` ~2,4k, `ap
 7. **D1/D11** – ADR 0002 (git-CLI an einer Stelle), die Sicherheitsregeln aus ADR 0003 (nur Fast-Forward, `PullCheck`, Hintergrund fragt nie, gemeinsames Intervall, 20-s-Takt) und ADR 0005 (en+de) bestätigen („Entscheidung des Nutzers“ eintragen) – oder bleiben sie Vorschlag und CLAUDE.md wird entsprechend abgeschwächt?
 8. **D10 (DO9)** – Hinweise auf Spielsitzungen/Anti-Cheat neutral formulieren („ein Anti-Cheat-Treiber filtert eingeschleuste Eingaben“)? Sind die lokalen Pfade (`C:\Dev-Repos`, FerretSharp) und die DevExpress-Quelle in der öffentlichen Doku in Ordnung?
 9. **Umfang und Reihenfolge** – alles (Teil A bis D) in **einem** Paket R1 (`wp/r1-review-0.4`) und einem Release 0.5.0, oder A1 sofort als Patch 0.4.1 (Datenverlust-Risiko im Hintergrund) und der Rest als R1/0.5.0?
+
+## Entscheidungen des Nutzers (2026-11-22)
+
+1. **Umfang** – Alles (Teil A bis D) in **einem** Paket R1 (`wp/r1-review-0.4`) und einem Release; A1 kommt als erster Commit.
+2. **A9** – Der Scan zeigt die Funde als Liste zum Anhaken, bevor git dort läuft, mit Hinweisen zu `core.fsmonitor`, `core.hooksPath`, `core.sshCommand` und Hooks; Hauptrepos außerhalb des Scan-Ordners nur mit Bestätigung; UNC-Worktrees nur, wenn das Repo selbst auf UNC liegt; ein Satz im README – in R1.
+3. **A2** – Nur „derselbe Auto-Pull-Fehler einmal“ reparieren; das Erkennen der Überschneidung vorher kommt in den Backlog.
+4. **A10** – Eigenes Icon und ein Eintrag in der Aktivität, keine Rückfrage und kein „Rückgängig“.
+5. **A12** – Erst messen, nur bei spürbarem Verzug umbauen.
+6. **A30** – Esc und Fokus in Dialogen und Menü sowie `lang` nach UI-Kultur jetzt; die Zeile per Tastatur öffnen kommt in den Backlog.
+7. **A37** – Nur auf die Arbeitsfläche begrenzen; Größe und Position merken kommt in den Backlog.
+8. **D1/D11** – ADR 0002, die Sicherheitsregeln aus ADR 0003 (nur Fast-Forward, `PullCheck`, Hintergrund fragt nie, gemeinsames Intervall, 20-s-Takt) und ADR 0005 (en+de) sind bestätigt.
+9. **D10** – Die Doku wird neutral formuliert (keine Spielsitzungen, kein Anti-Cheat-Bezug auf den Nutzer, keine persönlichen Pfade oder Quellen, wo sie nicht für die Arbeit gebraucht werden).
+
+Für alle übrigen Punkte gelten die Vorschläge oben. Verdachtsfälle werden vor einer Änderung nachgestellt bzw. gemessen; was sich nicht bestätigt, kommt mit Begründung ins Protokoll.
