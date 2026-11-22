@@ -8,7 +8,7 @@ Auftrag des Nutzers (2026-11-22): `/complete-code-review` nach dem Release 0.4.0
 
 Acht parallele Agenten nach Themen, nur lesend, auf einer festen Kopie von `3318da0`: Git/Auto-Sync (GI), Zustand/Nebenläufigkeit (ST), UI/CSS (UI), Host/Prozesse/Build (PH), Sicherheit (SE), Wiederverwendung/toter Code (RE), Tests (TE), Doku (DO). Befunde aus `docs/backlog.md` sind nur genannt, wenn ihre Umsetzung fehlt oder fehlerhaft ist. Doppelte Befunde sind zusammengeführt (alle IDs genannt). **Nachgeprüft** = zusätzlich von Hand im Code bestätigt, **nachgestellt** = mit git in einem Wegwerf-Repo reproduziert; sonst die Einschätzung des Agenten.
 
-**Stand:** in Umsetzung mit R1 (`docs/work-packages/r1-review-0.4.md`, Branch `wp/r1-review-0.4`).
+**Stand:** umgesetzt mit R1 (`docs/work-packages/r1-review-0.4.md`, Branch `wp/r1-review-0.4`), noch ohne Release; A12 gemessen (14 ms je Taste, kein Umbau), A16 nicht nachgestellt; offen im Backlog: A2-Erkennung vorher, A16, A30-Zeile per Tastatur, A37-Fenster merken, B13, C9-UI-Assembly, C14-Template.
 
 Schwere: **S** falsche Daten, Datenverlust, Sicherheitslücke, Hänger · **M** falsches Verhalten in realistischen Fällen oder klare Wartungslast · **K** Kleinkram.
 
