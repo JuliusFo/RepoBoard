@@ -1,6 +1,6 @@
 # Backlog
 
-Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Geplante Pakete: `docs/roadmap.md` (dort seit 2026-11-20 die ganze Ideenliste als WP-02 … WP-24). Neue Einträge in den passenden Bereich, erledigte entfernen; was ein Paket offen ließ, steht hier als „Fortsetzung von WP-NN“.
+Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Geplante Pakete: `docs/roadmap.md`. Neue Einträge in den passenden Bereich, erledigte entfernen; was ein Paket offen ließ, steht hier als „Fortsetzung von WP-NN“.
 
 ## Bekannte Lücken
 
@@ -9,7 +9,6 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - Die Kopfzeile passt bei 1440 px Fensterbreite nicht ganz: der Einstellungsknopf liegt am Rand (WP-10 E2E, schon vorher so); mit dem Update-Knopf fehlen ~200 px. Chips oder Suche schmaler, Knöpfe nur als Symbol, oder eine zweite Zeile.
 - Installer und Updates unsigniert (WP-10, ADR 0007): SmartScreen warnt; Signieren wie in FerretSharp (Kosten, SignPath) im Blick behalten.
 - Theme und Sprache folgen Windows; eine Einstellungsseite fehlt (ADR 0005). Passt zu WP-12 oder WP-16, falls dort Einstellungen dazukommen.
-- Ein Repo zu scannen heißt, seiner Konfiguration zu vertrauen (`core.fsmonitor`, Hooks laufen mit jedem `git status`, ADR 0002) – beim Scannen die Liste vorher bestätigen lassen?
 - Schwärzen in git-Meldungen (`GitSecrets`, vor v0.1.0) erkennt Tokens ohne festes Präfix nur in einer URL: ein Azure-DevOps-PAT oder ein anderes Geheimnis, das ein Server frei in eine `remote:`-Zeile schreibt, bliebe sichtbar. Weitere Muster ergänzen, wenn eines auftaucht.
 - Beenden während eines Auto-Pulls bricht `git merge --ff-only` nach 3 s ab (`host.StopAsync`, `GitRunner` beendet den Prozessbaum): lokale Arbeit bleibt, aber ein halb aktualisierter Worktree oder `index.lock` kann liegen bleiben. Seit `--exit` (WP-02) gibt es dafür einen Auslöser von außen, seit WP-10 auch „Jetzt neu starten“ in der Kopfzeile (ein Klick ohne Rückfrage); laufende Operationen beim Beenden bis zum Zeitlimit zu Ende laufen lassen (Review WP-02, vorher schon da).
 - Repos ohne Dateiwächter (Netzlaufwerk, inotify-Grenze, Fehler) liest der Takt weiter alle 20 s (ADR 0011): bei sehr vielen solchen Repos messen.
@@ -39,7 +38,6 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - Hunks und Zeilen stagen (Fortsetzung von WP-25): Zeilen per Ziehen am Rand wählen; mit der Tastatur (↑/↓, Leertaste, „s“ für stagen); Auswahl über mehrere Hunks auf einmal (heute ein Hunk je Patch).
 - Teile eines Hunks stagen, dessen letzte Zeile keinen Zeilenumbruch hat und mit anderen Zeilen getauscht wird: manche Auswahl lehnt RepoBoard ab („mit den Zeilen daneben auswählen“, ADR 0012) – `git add -p` kann hier mehr.
 - Größengrenze bei gelöschten Dateien (Review WP-05, Punkt 11): gemessen wird die Datei im Worktree – eine gelöschte große Datei hat keine, git liest ihren Diff bei offenem Diff alle 20 s ganz ein (geparst wird höchstens bis 5 000 Zeilen, nicht auf dem UI-Thread). Abhilfe: Größe aus Index bzw. HEAD (`git cat-file -s :<pfad>` / `HEAD:<pfad>`).
-- Scheitert ein Stagen per Häkchen, bleibt das vom Klick gesetzte Häkchen in der Liste „Nicht gestaged“ stehen (`checked` dort nicht gebunden; vorher schon da, Review WP-05).
 
 ## Historie (Fortsetzung von WP-09)
 
@@ -51,7 +49,7 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - Commit-Details: Tastatur (↑/↓ durch die Historie), Commit-ID kopieren, „im Terminal zeigen“, Suche in der Historie (mit WP-16).
 - „Alle Branches“ je Repo merken (Konfiguration Version 2).
 - Ignorierte Dateien überschreibt git auch beim Branchwechsel (`SwitchAsync`) und beim Fast-Forward von Auto-Pull, ebenso lokal geänderte Dateien mit `skip-worktree`/`assume-unchanged` – dort wie bei Revert/Cherry-Pick vorher prüfen (Review WP-09, vorher schon da).
-- Commit, Amend, Revert und Cherry-Pick laufen mit 30 s Zeitlimit (`Local`): wartet eine gpg-Passphrase (pinentry) länger, bricht `GitRunner` git mitten im Schreiben ab – für Befehle, die signieren können, ein längeres Limit (Review WP-09, vorher schon da).
+- Commit, Amend, Revert und Cherry-Pick laufen mit 30 s Zeitlimit (`Local`): wartet eine gpg-Passphrase (pinentry) oder ein langer `pre-commit`-Hook länger, bricht `GitRunner` git mitten im Schreiben ab – für Befehle, die signieren oder Hooks starten, ein längeres Limit (Review WP-09, vorher schon da; der Fast-Forward läuft seit Review 0.4.0 mit 3 min).
 - Leerer Cherry-Pick nach Squash: auf Wunsch `--skip` selbst ausführen (Nutzer wollte zunächst nur die Meldung, 2026-11-22).
 
 ## Dateiwächter (Fortsetzung von WP-03)
@@ -68,3 +66,14 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - Symbol im Infobereich mit Zustand (pausiert grau, Problem mit Punkt), wie der Tooltip.
 - Autostart verweist auf das Programm, das ihn eingeschaltet hat: nach einem Verschieben oder einem Build aus einem anderen Ordner bleibt der alte Pfad, bis man ihn neu einschaltet. Mit WP-10 (Installer, fester Pfad) erledigt sich das meist.
 - „Neue Commits“ bei Auto-Fetch ohne Auto-Pull als vierte Stufe der Benachrichtigungen?
+
+## Aus Review 0.4.0 (Entscheidungen des Nutzers, 2026-11-22)
+
+- Auto-Pull: eine Überschneidung lokaler Änderungen mit dem Pull vorher erkennen (`diff --name-only HEAD @{u}` ∩ geänderte Pfade) und als `PullCheck`-Grund „übersprungen“ führen statt als Fehler (A2).
+- Die Repo-Zeile per Tastatur öffnen (`tabindex=0`, `role=button`, `aria-expanded`, Enter/Leertaste) (A30).
+- Größe, Position und Maximiert des Fensters merken (`AppSettings`); heute nur auf die Arbeitsfläche begrenzt (A37).
+- Paket-Patches mit FerretSharp zusammen heben: AspNetCore.Components.Web und Extensions.Hosting 10.0.15, Components.WebView.Wpf 10.0.130 (Prüfliste ADR 0009), TimeProvider.Testing 10.11.1 (B13).
+- `RepoState.LastFetch`/`LastAutoSync` sind `DateTimeOffset?` ohne Schutz zwischen Threads (A16, Verdacht, nicht nachgestellt): bei einem gerissenen Lesen wie `StatusReadAt` als `long` speichern.
+- Nach einem erfolgreichen Auto-Fetch steht die Fehlerzeile eines Auto-Pulls, der gleich wieder scheitert, kurz nicht da (A2, Flackern; gemeldet wird nur einmal).
+- Ein Test, der die UI-Assembly gegen WPF-Referenzen prüft wie `ArchitectureTests.Core_does_not_reference_ui_assemblies` den Core (C9; der Linux-Build fängt es heute schon).
+- Ein vorgefertigtes Sandbox-Template, das jeder Git-Test kopiert, statt init/clone/commit/push neu (C14, nicht gemessen).

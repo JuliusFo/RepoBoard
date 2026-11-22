@@ -1,6 +1,6 @@
 # ADR 0002: Git über die installierte CLI, an genau einer Stelle
 
-- Status: Vorschlag (nicht bestätigt) – so im Spike gebaut und übernommen
+- Status: akzeptiert (Entscheidung des Nutzers, 2026-11-22, Review 0.4.0) – so im Spike gebaut und übernommen
 - Datum: 2026-11-20
 
 ## Kontext
