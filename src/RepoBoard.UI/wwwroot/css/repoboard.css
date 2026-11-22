@@ -297,6 +297,8 @@ code { font-family: var(--mono); font-size: 12px; }
 .letter.l-D { color: var(--danger); }
 .letter.l-R { color: var(--accent); }
 .letter.l-U { color: var(--danger); }
+.letter.l-C { color: var(--accent); }
+.letter.l-T { color: var(--purple); }
 
 /* the diff of a selected file, in place of branches and history (WP-05) */
 .details.diff-open { grid-template-columns: minmax(260px, 1fr) 2.4fr; }
@@ -407,8 +409,6 @@ code { font-family: var(--mono); font-size: 12px; }
 .commit-split { display: grid; grid-template-columns: minmax(160px, 1fr) 2.6fr; gap: 8px; flex: 1; min-height: 0; margin-top: 8px; }
 .commit-split .files { overflow: auto; }
 .commit-diff { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.letter.l-C { color: var(--accent); }
-.letter.l-T { color: var(--purple); }
 
 /* ---------- activity ---------- */
 .activity { flex: none; background: var(--surface); border-top: 1px solid var(--border); }

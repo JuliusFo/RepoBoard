@@ -178,10 +178,13 @@ public partial class App : Application
         }
     }
 
+    /// <summary>The user looks at the window: a notification there would cover what the activity log already shows.</summary>
+    private bool WindowInFront => _window is { IsVisible: true, IsActive: true, WindowState: not WindowState.Minimized };
+
     /// <summary>Not over the window the user is looking at: there the activity log shows it.</summary>
     private void Notify(SyncNotification notification)
     {
-        if (_window is { IsVisible: true, IsActive: true, WindowState: not WindowState.Minimized })
+        if (WindowInFront)
         {
             return;
         }
@@ -197,8 +200,7 @@ public partial class App : Application
     private void NotifyUpdate(AppUpdate update)
     {
         var board = _host!.Services.GetRequiredService<BoardService>();
-        if (board.Settings.Notifications == NotificationLevel.Off
-            || _window is { IsVisible: true, IsActive: true, WindowState: not WindowState.Minimized })
+        if (board.Settings.Notifications == NotificationLevel.Off || WindowInFront)
         {
             return;
         }

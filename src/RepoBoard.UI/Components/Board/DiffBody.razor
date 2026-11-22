@@ -1,0 +1,70 @@
+@* The body of a diff (ADR 0008): the states before there are lines – loading, binary, too large, no text change – and then
+   the hunks with their lines. One component for a changed file's diff (DiffPanel, with the staging tools) and a commit's
+   (CommitPanel, without): they were two copies, and a change to the view would have reached only one (review 0.4.0, B1). *@
+
+@if (Error is { } error)
+{
+    <p class="diff-error">@error</p>
+}
+else if (Diff is null)
+{
+    <p class="muted">@BoardText.Loading</p>
+}
+else if (Diff.IsBinary)
+{
+    <p class="muted">@BoardText.Diff_Binary</p>
+}
+else if (Diff.IsTooLarge)
+{
+    <p class="muted">@TextFormat.Format(BoardText.Diff_TooLarge, FileDiff.MaxFileBytes / (1024 * 1024))</p>
+}
+else if (Diff.HasNoTextChanges)
+{
+    <p class="muted">@BoardText.Diff_NoTextChanges</p>
+}
+else
+{
+    <div class="diff">
+        @for (var h = 0; h < Diff.Hunks.Count; h++)
+        {
+            var hunkIndex = h;
+            var hunk = Diff.Hunks[h];
+            <div class="diff-hunk">
+                <span class="range">@($"@@ -{hunk.OldStart},{hunk.OldCount} +{hunk.NewStart},{hunk.NewCount} @@") <span class="section">@hunk.Section</span></span>
+                @HunkTools?.Invoke(hunkIndex)
+            </div>
+            @for (var i = 0; i < hunk.Lines.Count; i++)
+            {
+                if (Line is null)
+                {
+                    <DiffLineView Line="hunk.Lines[i]" Pickable="false" />
+                }
+                else
+                {
+                    @Line(new DiffLineAt(hunk, hunkIndex, i))
+                }
+            }
+        }
+    </div>
+    @if (Diff.IsTruncated)
+    {
+        <p class="muted diff-note">@TextFormat.Format(BoardText.Diff_Truncated, FileDiff.MaxLines)</p>
+    }
+}
+
+@code {
+    /// <summary>The diff; null while it is read.</summary>
+    [Parameter] public FileDiff? Diff { get; set; }
+
+    /// <summary>Why the diff could not be read; shown instead of it.</summary>
+    [Parameter] public string? Error { get; set; }
+
+    /// <summary>What goes beside a hunk's header (the staging button), for the hunk's index.</summary>
+    [Parameter] public RenderFragment<int>? HunkTools { get; set; }
+
+    /// <summary>How a line is drawn; without it, a line that cannot be picked.</summary>
+    [Parameter] public RenderFragment<DiffLineAt>? Line { get; set; }
+
+    /// <summary>One line of a hunk, for <see cref="Line"/>.</summary>
+    public readonly record struct DiffLineAt(DiffHunk Hunk, int HunkIndex, int LineIndex);
+}

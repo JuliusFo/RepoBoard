@@ -5,8 +5,7 @@ namespace RepoBoard.Core.Git;
 /// <param name="Head">The commit checked out; null in a repository without commits.</param>
 /// <param name="Branch">The short branch name; null when detached (or bare).</param>
 /// <param name="Locked">Locked against removal and pruning (<c>git worktree lock</c>): the reason, empty without one; null when not locked.</param>
-/// <param name="Prunable">Its folder is gone: why git would prune it; null otherwise.</param>
-public sealed record WorktreeInfo(string Path, string? Head, string? Branch, bool IsBare, string? Locked, string? Prunable)
+public sealed record WorktreeInfo(string Path, string? Head, string? Branch, bool IsBare, string? Locked)
 {
     public bool IsLocked => Locked is not null;
 
@@ -34,7 +33,7 @@ public sealed record WorktreeInfo(string Path, string? Head, string? Branch, boo
                 // A broken entry (empty gitdir file after an aborted "worktree add") lists no path: left out – GetFullPath
                 // would throw and stop the status of every repository (review WP-04).
                 current = System.IO.Path.IsPathFullyQualified(value)
-                    ? new WorktreeInfo(System.IO.Path.GetFullPath(value), null, null, false, null, null)
+                    ? new WorktreeInfo(System.IO.Path.GetFullPath(value), null, null, false, null)
                     : null;
             }
             else if (current is not null)
@@ -45,7 +44,6 @@ public sealed record WorktreeInfo(string Path, string? Head, string? Branch, boo
                     "branch" => current with { Branch = value.StartsWith("refs/heads/", StringComparison.Ordinal) ? value["refs/heads/".Length..] : value },
                     "bare" => current with { IsBare = true },
                     "locked" => current with { Locked = value },
-                    "prunable" => current with { Prunable = value },
                     _ => current,
                 };
             }

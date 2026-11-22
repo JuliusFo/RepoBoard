@@ -24,7 +24,7 @@ public sealed class RepoState(RepoEntry entry, RepoState? mainRepo = null)
 
     public bool IsWorktree => MainRepo is not null;
 
-    /// <summary>For a worktree: what <c>git worktree list</c> says about it (locked, prunable).</summary>
+    /// <summary>For a worktree: what <c>git worktree list</c> says about it (locked, its branch).</summary>
     public WorktreeInfo? Worktree { get; internal set; }
 
     /// <summary>For a repository on the board: its linked worktrees, in git's order; never the main worktree itself.</summary>

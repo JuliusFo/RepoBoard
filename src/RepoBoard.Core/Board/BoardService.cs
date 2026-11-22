@@ -15,6 +15,9 @@ namespace RepoBoard.Core.Board;
 public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider time)
 {
     public const int MaxParallelNetwork = 4;
+
+    /// <summary>Status reads at once – the board's and the file watcher's (review 0.4.0, B6).</summary>
+    public const int MaxParallelReads = 8;
     /// <summary>The commits an opened row shows at first; "Load more" adds <see cref="LogStep"/> up to <see cref="MaxLogLength"/>.</summary>
     public const int LogLength = 15;
 
@@ -272,22 +275,20 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     }
 
     /// <summary>The repositories first – that reads their lists of worktrees –, then every worktree.</summary>
-    public async Task RefreshAllAsync(CancellationToken ct)
-    {
-        var options = new ParallelOptions { MaxDegreeOfParallelism = 8, CancellationToken = ct };
-        await Parallel.ForEachAsync(_repos, options, async (repo, token) => await RefreshAsync(repo, token));
-        await Parallel.ForEachAsync(_repos.SelectMany(r => r.Worktrees), options, async (worktree, token) => await RefreshAsync(worktree, token));
-    }
+    public Task RefreshAllAsync(CancellationToken ct) => RefreshManyAsync(_ => true, ct);
 
     /// <summary>
     /// The status tick (WP-03, ADR 0011): every repository and worktree no file watcher sees, and the watched ones whose
     /// last status is <see cref="WatchedRefresh"/> old – a fallback for an event the watcher missed.
     /// </summary>
-    public async Task RefreshStaleAsync(CancellationToken ct)
+    public Task RefreshStaleAsync(CancellationToken ct) => RefreshManyAsync(IsStale, ct);
+
+    /// <summary>The repositories first – that reads their lists of worktrees –, then the worktrees; each only if <paramref name="which"/>.</summary>
+    private async Task RefreshManyAsync(Func<RepoState, bool> which, CancellationToken ct)
     {
-        var options = new ParallelOptions { MaxDegreeOfParallelism = 8, CancellationToken = ct };
-        await Parallel.ForEachAsync(_repos.Where(IsStale), options, async (repo, token) => await RefreshAsync(repo, token));
-        await Parallel.ForEachAsync(_repos.SelectMany(r => r.Worktrees).Where(IsStale), options, async (worktree, token) => await RefreshAsync(worktree, token));
+        var options = new ParallelOptions { MaxDegreeOfParallelism = MaxParallelReads, CancellationToken = ct };
+        await Parallel.ForEachAsync(_repos.Where(which), options, async (repo, token) => await RefreshAsync(repo, token));
+        await Parallel.ForEachAsync(_repos.SelectMany(r => r.Worktrees).Where(which), options, async (worktree, token) => await RefreshAsync(worktree, token));
     }
 
     /// <summary>How often the tick reads a repository a file watcher sees (decision of the user, 2026-11-21).</summary>
@@ -401,11 +402,15 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     /// <see cref="RepoState.Error"/> alone – a failure is shown in place of the diff. Runs on the thread pool: the UI calls it
     /// from the renderer's context, where reading and parsing a large diff would stall the window (review WP-05).
     /// </summary>
-    public async Task<(FileDiff? Diff, string? Error)> DiffAsync(RepoState repo, FileChange change, bool staged, CancellationToken ct)
+    public Task<(FileDiff? Diff, string? Error)> DiffAsync(RepoState repo, FileChange change, bool staged, CancellationToken ct) =>
+        ReadDiffAsync(() => git.DiffAsync(repo.Path, change, staged, ct), ct);
+
+    /// <summary>A diff read on the thread pool; a failure as the text shown in its place.</summary>
+    private static async Task<(FileDiff? Diff, string? Error)> ReadDiffAsync(Func<Task<(FileDiff? Diff, GitResult Result)>> read, CancellationToken ct)
     {
         try
         {
-            var (diff, result) = await Task.Run(() => git.DiffAsync(repo.Path, change, staged, ct), ct);
+            var (diff, result) = await Task.Run(read, ct);
             return diff is not null ? (diff, null) : (null, TextFormat.Format(SyncText.OperationFailed, SyncText.Op_Diff, result.Message));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -451,18 +456,8 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             : Task.Run(async () => await git.IsAppliedAsync(repo.Path, commit, ct) == true, ct);
 
     /// <summary>The diff of one file of a commit (WP-09); only reads, on the thread pool (as <see cref="DiffAsync"/>).</summary>
-    public async Task<(FileDiff? Diff, string? Error)> CommitDiffAsync(RepoState repo, CommitDetails commit, CommitFile file, CancellationToken ct)
-    {
-        try
-        {
-            var (diff, result) = await Task.Run(() => git.CommitDiffAsync(repo.Path, commit, file, ct), ct);
-            return diff is not null ? (diff, null) : (null, TextFormat.Format(SyncText.OperationFailed, SyncText.Op_Diff, result.Message));
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return (null, TextFormat.Format(SyncText.OperationFailed, SyncText.Op_Diff, ex.Message));
-        }
-    }
+    public Task<(FileDiff? Diff, string? Error)> CommitDiffAsync(RepoState repo, CommitDetails commit, CommitFile file, CancellationToken ct) =>
+        ReadDiffAsync(() => git.CommitDiffAsync(repo.Path, commit, file, ct), ct);
 
     /// <summary>The whole message of HEAD, to start an amend from (WP-09); null if there is none.</summary>
     public Task<string?> HeadMessageAsync(RepoState repo, CancellationToken ct) =>
@@ -667,8 +662,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             return GitResult.Failed(SyncText.Amend_HeadMoved);
         }
 
-        var onRemote = await git.IsOnRemoteAsync(repo.Path, "HEAD", c);
-        return onRemote == false ? null : GitResult.Failed(onRemote is null ? SyncText.Amend_Unknown : SyncText.Amend_Pushed);
+        return PickCheck.OnRemote(await git.IsOnRemoteAsync(repo.Path, "HEAD", c)) is { } pushed ? GitResult.Failed(pushed) : null;
     }
 
     /// <summary>A new commit that undoes <paramref name="commit"/> (WP-09); see <see cref="PickAsync"/>.</summary>
@@ -709,19 +703,9 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             return GitResult.Failed(SyncText.Pick_Unknown);
         }
 
-        if (GitClient.OperationIn(gitDir) is { } running)
+        if (PickCheck.Before(commit.IsMerge, status, GitClient.OperationIn(gitDir)) is { } before)
         {
-            return GitResult.Failed(TextFormat.Format(SyncText.Pick_Operation, PullCheck.Name(running)));
-        }
-
-        if (status.IsInitial)
-        {
-            return GitResult.Failed(SyncText.Pick_Initial);
-        }
-
-        if (status.Changes.Any(f => !f.Untracked))
-        {
-            return GitResult.Failed(SyncText.Pick_Changes);
+            return GitResult.Failed(before);
         }
 
         var inHead = await git.IsAncestorAsync(repo.Path, commit.Id, "HEAD", c);
@@ -730,15 +714,11 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             return GitResult.Failed(SyncText.Pick_Unknown);
         }
 
-        if (revert != inHead)
-        {
-            return GitResult.Failed(revert ? SyncText.Revert_NotInHead : SyncText.CherryPick_InHead);
-        }
-
         // An empty revert fails without leaving anything behind; an empty cherry-pick would stay unfinished (E2E WP-09).
-        if (!revert && await git.IsAppliedAsync(repo.Path, commit, c) == true)
+        var applied = !revert && !inHead.Value && await git.IsAppliedAsync(repo.Path, commit, c) == true;
+        if (PickCheck.Side(revert, inHead.Value, applied) is { } side)
         {
-            return GitResult.Failed(SyncText.CherryPick_Applied);
+            return GitResult.Failed(side);
         }
 
         if (await IgnoredInTheWayAsync(repo, commit, c) is { } blocked)

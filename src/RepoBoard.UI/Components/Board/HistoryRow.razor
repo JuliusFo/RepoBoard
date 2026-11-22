@@ -23,7 +23,7 @@
         </span>
         <span class="c-meta">
             <span title="@RelativeTime.Exact(Commit.When)">@Commit.Author · @RelativeTime.Text(Commit.When, Now)</span>
-            @foreach (var r in Refs(Commit))
+            @foreach (var r in CommitText.RefNames(Commit.Refs))
             {
                 <span class="ref">@r</span>
             }
@@ -59,6 +59,4 @@
         return true;
     }
 
-    private static IEnumerable<string> Refs(CommitInfo commit) =>
-        commit.Refs.Split(", ", StringSplitOptions.RemoveEmptyEntries).Select(r => r.Replace("HEAD -> ", "", StringComparison.Ordinal));
 }

@@ -36,11 +36,11 @@
         }
         else if (Status.IsDetached)
         {
-            <span class="badge warn" title="@BoardText.Detached_Hint">@TextFormat.Format(BoardText.Detached, Status.Head?[..Math.Min(7, Status.Head.Length)])</span>
+            <span class="badge warn" title="@BoardText.Detached_Hint">@TextFormat.Format(BoardText.Detached, CommitText.Short(Status.Head))</span>
         }
         else
         {
-            <span class="badge branch-name @(IsMainBranch(Status.Branch) ? "main" : "feature")" title="@Status.Branch">@Icons.Branch <span>@Status.Branch</span></span>
+            <span class="badge branch-name @(CommitText.IsMainBranch(Status.Branch) ? "main" : "feature")" title="@Status.Branch">@Icons.Branch <span>@Status.Branch</span></span>
         }
         @if (Repo.Operation is { } op)
         {
@@ -117,8 +117,8 @@
     }
     else
     {
-        <span class="switch"><Toggle Value="Repo.Entry.AutoFetch" Title="@BoardText.Col_AutoFetch_Hint" OnChange="v => GuardAsync(() => Board.SetAutoFetchAsync(Repo, v, default))" /></span>
-        <span class="switch"><Toggle Value="Repo.Entry.AutoPull" Title="@BoardText.Col_AutoPull_Hint" OnChange="v => GuardAsync(() => Board.SetAutoPullAsync(Repo, v, default))" /></span>
+        <span><Toggle Value="Repo.Entry.AutoFetch" Title="@BoardText.Col_AutoFetch_Hint" OnChange="v => GuardAsync(() => Board.SetAutoFetchAsync(Repo, v, default))" /></span>
+        <span><Toggle Value="Repo.Entry.AutoPull" Title="@BoardText.Col_AutoPull_Hint" OnChange="v => GuardAsync(() => Board.SetAutoPullAsync(Repo, v, default))" /></span>
     }
 
     <span class="actions" @onclick:stopPropagation>
@@ -199,5 +199,4 @@
     }
 
     /// <summary>The usual long-lived branches stay grey; any other branch is coloured, so a forgotten feature branch stands out.</summary>
-    private static bool IsMainBranch(string? name) => name is "main" or "master" or "develop" or "dev";
 }

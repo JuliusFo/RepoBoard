@@ -34,6 +34,6 @@ public static class TrayStatus
             text += $"\n{BoardText.Paused}";
         }
 
-        return text.Length <= Limit ? text : string.Concat(text.AsSpan(0, Limit - 1), "…");
+        return TextCut.Cut(text, Limit);
     }
 }

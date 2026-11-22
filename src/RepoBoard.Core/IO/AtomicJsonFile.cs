@@ -10,9 +10,5 @@ public static class AtomicJsonFile
 {
     /// <summary>Writes <paramref name="value"/> to <paramref name="path"/>, creating its directory if needed.</summary>
     public static Task WriteAsync<T>(string path, T value, JsonSerializerOptions options, CancellationToken cancellationToken) =>
-        AtomicFile.WriteAsync(path, async (stream, ct) =>
-        {
-            await JsonSerializer.SerializeAsync(stream, value, options, ct);
-            return true;
-        }, cancellationToken);
+        AtomicFile.WriteAsync(path, (stream, ct) => JsonSerializer.SerializeAsync(stream, value, options, ct), cancellationToken);
 }

@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using System.Text.Unicode;
 using RepoBoard.Core.Resources;
@@ -14,10 +13,10 @@ public enum JsonFileState
     /// <summary>Read, and in a version this RepoBoard knows.</summary>
     Ok,
 
-    /// <summary>JSON, but no document in it (<c>null</c>, or without the part the store needs).</summary>
+    /// <summary>JSON, but no document in it (<c>null</c>).</summary>
     Empty,
 
-    /// <summary>No JSON, or a shape that does not fit (a value of the wrong type, an address without <c>type</c>).</summary>
+    /// <summary>No JSON, or a shape that does not fit (a value of the wrong type).</summary>
     Broken,
 
     /// <summary>The file could not be read (access, locked by a virus scanner or a backup).</summary>
@@ -30,9 +29,7 @@ public enum JsonFileState
 /// <summary>A read of a versioned JSON file: its state, the document (only <see cref="JsonFileState.Ok"/>) and why not.</summary>
 /// <param name="Version">The <c>version</c> in the file; null if it has none or it was not read.</param>
 /// <param name="Error">What went wrong for <see cref="JsonFileState.Broken"/> and <see cref="JsonFileState.Unreadable"/>.</param>
-/// <param name="Content">The text read, for <see cref="JsonFileState.Broken"/> only: a store that can mend part of it (the settings,
-/// fix/robustness) reads it from here, not from the file a second time.</param>
-public sealed record JsonFileRead<T>(JsonFileState State, T? Document, int? Version, Exception? Error = null, string? Content = null) where T : class;
+public sealed record JsonFileRead<T>(JsonFileState State, T? Document, int? Version, Exception? Error = null) where T : class;
 
 /// <summary>
 /// Reading RepoBoard's own versioned JSON files one way – each store decides explicitly what a state means for it. Taken
@@ -45,12 +42,11 @@ public static class VersionedJsonFile
 
     /// <summary>
     /// Reads <paramref name="path"/>. The version first: above <paramref name="currentVersion"/> the file is
-    /// <see cref="JsonFileState.Newer"/> without deserializing it. A document <paramref name="complete"/> rejects (or null)
-    /// is <see cref="JsonFileState.Empty"/>; a complete one goes through <paramref name="normalize"/> (collections set to
-    /// null by hand become empty) and is <see cref="JsonFileState.Ok"/>.
+    /// <see cref="JsonFileState.Newer"/> without deserializing it. A null document is <see cref="JsonFileState.Empty"/>; any
+    /// other goes through <paramref name="normalize"/> (a file edited by hand made sane) and is <see cref="JsonFileState.Ok"/>.
     /// </summary>
     public static async Task<JsonFileRead<T>> ReadAsync<T>(string path, int currentVersion, JsonSerializerOptions options, CancellationToken cancellationToken,
-        Func<T, bool>? complete = null, Func<T, T>? normalize = null)
+        Func<T, T>? normalize = null)
         where T : class
     {
         if (!File.Exists(path))
@@ -63,8 +59,7 @@ public static class VersionedJsonFile
         try
         {
             // Bytes, not text: decoding to text put U+FFFD in place of bytes that are no UTF-8 (a file saved as ANSI by hand),
-            // and the next save kept it – in a workspace also in pending values (second review pass of fix/robustness). Such a
-            // file is broken, as before (where reading a string of it threw).
+            // and the next save kept it (FerretSharp fix/robustness). Such a file is broken.
             utf8 = await File.ReadAllBytesAsync(path, cancellationToken);
             if (utf8.Span.StartsWith(Bom))
             {
@@ -73,9 +68,7 @@ public static class VersionedJsonFile
 
             if (!Utf8.IsValid(utf8.Span))
             {
-                var notUtf8 = new JsonException(CoreText.FileNotUtf8);
-                utf8 = default; // no text to mend
-                throw notUtf8;
+                throw new JsonException(CoreText.FileNotUtf8);
             }
 
             using var json = JsonDocument.Parse(utf8);
@@ -90,14 +83,14 @@ public static class VersionedJsonFile
             }
 
             var document = root.Deserialize<T>(options);
-            return document is null || complete?.Invoke(document) == false
+            return document is null
                 ? new(JsonFileState.Empty, null, version)
                 : new(JsonFileState.Ok, normalize is null ? document : normalize(document), version);
         }
         catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
-            // NotSupportedException: polymorphic JSON without "type", or with "type" not first (edited by hand).
-            return new(JsonFileState.Broken, null, version, ex, utf8.IsEmpty ? null : Encoding.UTF8.GetString(utf8.Span));
+            // NotSupportedException: a shape System.Text.Json cannot bind (edited by hand).
+            return new(JsonFileState.Broken, null, version, ex);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -106,7 +99,7 @@ public static class VersionedJsonFile
     }
 
     /// <summary>
-    /// Copies a file a store could not use next to it (<c>settings.json.bad-20261011-153000</c>) before it is replaced –
+    /// Copies a file a store could not use next to it (<c>config.json.bad-20261011-153000</c>) before it is replaced –
     /// an identical copy kept earlier is reused (every start with the same file would add one). The path of the copy.
     /// </summary>
     /// <exception cref="IOException">The file could not be copied.</exception>

@@ -12,22 +12,20 @@ public static class AtomicFile
     /// is <c>file.tmp</c>: a store owns its folder (RepoBoard's data folder only – never a folder of the user's), and the
     /// next write replaces one left behind by a crash.
     /// </summary>
-    public static async Task<T> WriteAsync<T>(string path, Func<Stream, CancellationToken, Task<T>> write, CancellationToken cancellationToken)
+    public static async Task WriteAsync(string path, Func<Stream, CancellationToken, Task> write, CancellationToken cancellationToken)
     {
         var temp = path + ".tmp";
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         try
         {
-            T result;
             await using (var stream = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 1 << 16, useAsync: true))
             {
-                result = await write(stream, cancellationToken);
+                await write(stream, cancellationToken);
                 // On disk before the move: after a power loss NTFS may keep the rename but not the data – an empty file.
                 stream.Flush(flushToDisk: true);
             }
 
             File.Move(temp, path, overwrite: true);
-            return result;
         }
         catch
         {

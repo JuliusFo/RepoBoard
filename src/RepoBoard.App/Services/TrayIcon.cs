@@ -1,6 +1,7 @@
 using System.Windows.Threading;
 using Microsoft.Extensions.Logging;
 using RepoBoard.Core.Board;
+using RepoBoard.Core.Resources;
 using RepoBoard.Core.Sync;
 using RepoBoard.UI.Resources;
 using RepoBoard.UI.State;
@@ -75,7 +76,8 @@ internal sealed class TrayIcon : IDisposable
             ActivityKind.Skipped => Forms.ToolTipIcon.Warning,
             _ => Forms.ToolTipIcon.Info,
         };
-        _icon.ShowBalloonTip(BalloonMilliseconds, title, text, icon);
+        // Within Windows' limits for every caller – the update's notification went uncut (review 0.4.0, B7).
+        _icon.ShowBalloonTip(BalloonMilliseconds, TextCut.Cut(title, SyncNotifier.TitleLimit), TextCut.Cut(text, SyncNotifier.TextLimit), icon);
     }
 
     /// <summary>Raised from any thread and in bursts: one tooltip update per burst, on the UI thread.</summary>

@@ -1,9 +1,7 @@
 @* The update dialog (WP-10, from FerretSharp WP-32): what is new in the newer version and, if known, in the versions between,
    "Download" and then "Restart now"; the download runs here with its progress and can be cancelled. Opened from the top
    bar, the settings or the Windows notification; mounted by the shell. *@
-@inherits BoardComponent
-@implements IDisposable
-@inject UpdateState Updates
+@inherits UpdateComponent
 
 @if (Updates.DetailsOpen && Updates.Update is { } update)
 {
@@ -104,8 +102,6 @@
     private ElementReference _dialog;
     private bool _focused;
 
-    protected override void OnInitialized() => Updates.Changed += OnChanged;
-
     /// <summary>Esc closes, so the dialog takes the keyboard each time it opens (review 0.4.0, A30).</summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -127,13 +123,6 @@
     }
 
     /// <summary>From any thread (the download's progress comes from the thread pool).</summary>
-    private void OnChanged() => Fire(() =>
-    {
-        StateHasChanged();
-        return Task.CompletedTask;
-    });
-
-    public void Dispose() => Updates.Changed -= OnChanged;
 
     /// <summary>Consecutive bullets form one list.</summary>
     private static IEnumerable<(NoteBlock Block, List<NoteBlock>? Bullets)> Group(IReadOnlyList<NoteBlock> blocks)

@@ -22,8 +22,6 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
     /// <summary>After an unexpected failure of the loop: a pause, so a failure that repeats does not spin.</summary>
     private static readonly TimeSpan PauseAfterFailure = TimeSpan.FromSeconds(5);
 
-    /// <summary>As many status reads at once as <see cref="BoardService.RefreshAllAsync"/> runs.</summary>
-    private const int MaxParallelReads = 8;
 
     private static readonly StringComparer PathComparer = Paths.Comparer;
 
@@ -37,7 +35,7 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
     // Never disposed: without AvailableWaitHandle there is nothing to free, and a watcher's callback or a read still
     // running when the host is disposed would otherwise throw (review WP-03).
     private readonly SemaphoreSlim _wake = new(0, 1);
-    private readonly SemaphoreSlim _reads = new(MaxParallelReads);
+    private readonly SemaphoreSlim _reads = new(BoardService.MaxParallelReads);
     private volatile WatchMap _map = WatchMap.Empty;
     private int _boardChanged = 1;
     private int _rebuild = 1;

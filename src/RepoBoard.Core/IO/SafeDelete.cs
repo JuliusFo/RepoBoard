@@ -21,21 +21,6 @@ public static class SafeDelete
         }
     }
 
-    /// <summary>Like <see cref="DirectoryBelow"/>, but a folder still in use stays where it is (false).</summary>
-    /// <exception cref="InvalidOperationException"><paramref name="path"/> is not strictly below <paramref name="root"/>.</exception>
-    public static bool TryDirectoryBelow(string root, string path)
-    {
-        try
-        {
-            DirectoryBelow(root, path);
-            return true;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return false;
-        }
-    }
-
     /// <summary>The full path of <paramref name="path"/> if it lies strictly below <paramref name="root"/>.</summary>
     /// <exception cref="InvalidOperationException">It does not, or <paramref name="root"/> is a drive root.</exception>
     public static string CheckBelow(string root, string path)

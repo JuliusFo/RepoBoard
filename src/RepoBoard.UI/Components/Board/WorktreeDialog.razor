@@ -153,7 +153,7 @@
     private static string BranchText(RepoState worktree) =>
         (worktree.Status?.Branch ?? worktree.Worktree?.Branch) is { } branch
             ? branch
-            : TextFormat.Format(BoardText.Detached, Short(worktree.Status?.Head ?? worktree.Worktree?.Head));
+            : TextFormat.Format(BoardText.Detached, CommitText.Short(worktree.Status?.Head ?? worktree.Worktree?.Head));
 
     private string? ReasonText(WorktreeCandidate candidate) => candidate.Reason switch
     {
@@ -164,5 +164,4 @@
         _ => null,
     };
 
-    private static string? Short(string? head) => head?[..Math.Min(7, head.Length)];
 }

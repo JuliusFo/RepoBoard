@@ -300,7 +300,7 @@
     });
 
     private static string Title(FileChange file) =>
-        file.OriginalPath is { } from ? $"{from} → {file.Path}" : file.Path;
+        CommitText.PathTitle(file.Path, file.OriginalPath);
 
     /// <summary>A CSS class for the status letter: '?' is no valid class character.</summary>
     private static string LetterClass(char letter) => letter == '?' ? "new" : letter.ToString();

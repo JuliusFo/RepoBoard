@@ -1,7 +1,5 @@
 @* The updates in the settings menu (WP-10): the version, when to check, and what the last check found. *@
-@inherits BoardComponent
-@implements IDisposable
-@inject UpdateState Updates
+@inherits UpdateComponent
 
 <div class="setting-head">@UpdateText.Section</div>
 <div class="setting">
@@ -67,27 +65,12 @@
     /// <summary>From the settings menu, which has it from the shell (a component without parameters is not rendered with its parent).</summary>
     [Parameter, EditorRequired] public AppSettings Settings { get; set; } = null!;
 
-    private static string Label(int hours) => hours switch
-    {
-        0 => UpdateText.Interval_Never,
-        1 => UpdateText.Interval_Hourly,
-        24 => UpdateText.Interval_Daily,
-        _ => UpdateText.Interval_Every4Hours,
-    };
+    private static string Label(int hours) => UpdateIntervals.Label(hours);
 
     private Task SetInterval(ChangeEventArgs e) => GuardAsync(() =>
         int.TryParse((string?)e.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var hours) && AppSettings.UpdateCheckIntervals.Contains(hours)
             ? Board.UpdateSettingsAsync(s => s with { UpdateCheckHours = hours }, default)
             : Task.CompletedTask);
 
-    protected override void OnInitialized() => Updates.Changed += OnChanged;
-
     /// <summary>From any thread (the download's progress comes from the thread pool).</summary>
-    private void OnChanged() => Fire(() =>
-    {
-        StateHasChanged();
-        return Task.CompletedTask;
-    });
-
-    public void Dispose() => Updates.Changed -= OnChanged;
 }

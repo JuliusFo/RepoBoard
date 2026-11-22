@@ -53,22 +53,21 @@ public sealed class WorktreeTests : IDisposable
     }
 
     [Theory]
-    [InlineData("worktree /r\0HEAD 1111111111111111111111111111111111111111\0branch refs/heads/main\0\0", "main", null, null, false)]
-    [InlineData("worktree /r\0HEAD 1111111111111111111111111111111111111111\0detached\0\0", null, null, null, false)]
-    [InlineData("worktree /r\0HEAD 1111111111111111111111111111111111111111\0branch refs/heads/f\0locked usb stick\0\0", "f", "usb stick", null, false)]
-    [InlineData("worktree /r\0HEAD 1111111111111111111111111111111111111111\0branch refs/heads/f\0locked\0\0", "f", "", null, false)]
-    [InlineData("worktree /r\0HEAD 1111111111111111111111111111111111111111\0branch refs/heads/f\0prunable gitdir file points to non-existent location\0\0", "f", null, "gitdir file points to non-existent location", false)]
-    [InlineData("worktree /r\0bare\0\0", null, null, null, true)]
+    [InlineData("worktree /r\0HEAD 1111111111111111111111111111111111111111\0branch refs/heads/main\0\0", "main", null, false)]
+    [InlineData("worktree /r\0HEAD 1111111111111111111111111111111111111111\0detached\0\0", null, null, false)]
+    [InlineData("worktree /r\0HEAD 1111111111111111111111111111111111111111\0branch refs/heads/f\0locked usb stick\0\0", "f", "usb stick", false)]
+    [InlineData("worktree /r\0HEAD 1111111111111111111111111111111111111111\0branch refs/heads/f\0locked\0\0", "f", "", false)]
+    [InlineData("worktree /r\0HEAD 1111111111111111111111111111111111111111\0branch refs/heads/f\0prunable gitdir file points to non-existent location\0\0", "f", null, false)] // "prunable" is read past: the board checks the folder itself
+    [InlineData("worktree /r\0bare\0\0", null, null, true)]
     // Review WP-04: a broken entry (empty gitdir file) has no path – left out instead of throwing for every repository.
-    [InlineData("worktree \0HEAD 1111111111111111111111111111111111111111\0detached\0\0worktree /r\0bare\0\0", null, null, null, true)]
-    public void The_porcelain_list_is_read_field_by_field(string output, string? branch, string? locked, string? prunable, bool bare)
+    [InlineData("worktree \0HEAD 1111111111111111111111111111111111111111\0detached\0\0worktree /r\0bare\0\0", null, null, true)]
+    public void The_porcelain_list_is_read_field_by_field(string output, string? branch, string? locked, bool bare)
     {
         var worktree = Assert.Single(WorktreeInfo.ParseList(Path.DirectorySeparatorChar == '\\' ? output.Replace("/r", "C:/r", StringComparison.Ordinal) : output));
 
         Assert.Equal(Path.GetFullPath(Path.DirectorySeparatorChar == '\\' ? "C:/r" : "/r"), worktree.Path);
         Assert.Equal(branch, worktree.Branch);
         Assert.Equal(locked, worktree.Locked);
-        Assert.Equal(prunable, worktree.Prunable);
         Assert.Equal(bare, worktree.IsBare);
     }
 
@@ -128,7 +127,10 @@ public sealed class WorktreeTests : IDisposable
         AddWorktree("one", Path.Combine(elsewhere, "one"), "-b", "one");
         AddWorktree("two", Path.Combine(elsewhere, "two"), "-b", "two");
 
-        await _board.ScanAsync(elsewhere, Ct);
+        var found = Assert.Single(await _board.ScanAsync(elsewhere, Ct)); // both worktrees name the same repository
+        Assert.Equal(_git.Mine, found.Board);
+        Assert.True(found.OutsideScan); // review 0.4.0, A9: the list says so before git runs there
+        await _board.AddScannedAsync(elsewhere, [found], Ct);
 
         var repo = Assert.Single(_board.Repos);
         Assert.Equal("mine", repo.Name);

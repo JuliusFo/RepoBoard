@@ -9,11 +9,11 @@
     the window on top) or if another window lies under the point (a new instance on another screen). Run
     Test-InjectedInput.ps1 first: with an anti-cheat filter active only moves arrive.
 
-    Holding the window in front gives the focus back to the last focused field; blur it via CDP first if a column
-    picker could open and cover the target.
+    Holding the window in front gives the focus back to the last focused field; blur it via CDP first if a menu
+    could open and cover the target.
 
     Only clicks into a process whose executable lies below <Root>\app, like Stop-TestInstance.ps1: the id of the user's own
-    instance would click for real into it - connections, commit, Prod (review 3.70.0, A25).
+    instance would click for real into it - fetch, commit, push in real repositories (FerretSharp review 3.70.0, A25).
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File tools/e2e/Invoke-RealClick.ps1 -Root <scratch>\e2e -ProcessId 12345 -X 188 -Y 22.5

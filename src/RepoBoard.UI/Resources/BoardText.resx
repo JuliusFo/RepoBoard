@@ -637,7 +637,7 @@ Log: {1}</value>
     <comment>{0} = folder path</comment>
   </data>
   <data name="Editor_NotFound" xml:space="preserve">
-    <value>VS Code was not found: the command "code" is not on the PATH.</value>
+    <value>VS Code was not found: the command “code” is not on the PATH.</value>
   </data>
   <data name="Error_Unexpected" xml:space="preserve">
     <value>Unexpected error.</value>
