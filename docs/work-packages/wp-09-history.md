@@ -66,3 +66,26 @@ Branch `wp/09-history`, 2026-11-22, noch kein Release.
   - Nach dem Revert blieb die Ansicht mit aktivem Knopf offen → sie schließt sich nach Erfolg.
 - Im Test gefunden: Ein Cherry-Pick auf den eigenen Elternteil in derselben Sekunde ergibt denselben Commit (gleicher Hash). Der Test lässt `main` vorher weiterlaufen.
 - Nicht geprüft: helles Theme im Bild, sehr große Repos (Zeit von `--topo-order`), mehr als acht Spuren.
+
+## Nachtrag: Code-Review (2026-11-22)
+Getrennter Reviewer-Agent über `add5681..52d1853`. Entscheidung des Nutzers: „Alle beheben, bei 2 nur mit Meldung“.
+
+1. S – Revert und Cherry-Pick überschrieben ignorierte Dateien ohne Rückfrage (`.env` nach „stop tracking“, git 2.41 nachgestellt) → behoben: `BoardService.IgnoredInTheWayAsync` mit `GitClient.IgnoredAmongAsync` (`ls-files --others --ignored`, Pfade in Teilen unter der Längengrenze der Kommandozeile), Meldung `Pick_Ignored`. Test `An_ignored_file_at_a_path_of_the_commit_keeps_revert_and_cherry_pick_out` (Revert und Cherry-Pick), dazu `Git_itself_keeps_a_new_file_that_a_cherry_pick_would_bring`.
+2. M – Leerer Cherry-Pick nach Squash mehrerer Commits blieb stehen, die Meldung nannte `--continue` → behoben nur mit Meldung (Entscheidung des Nutzers): `CherryPick_Empty` nennt `--skip`, kein automatisches `--skip` (Backlog). Test `A_cherry_pick_that_comes_out_empty_after_a_squash_says_so`.
+3. M – Amend ersetzte den HEAD beim Klick, nicht den, dessen Nachricht vorgefüllt war → behoben: `expectedHead` im Tor; die UI löst das Häkchen bei neuem HEAD. Test `Amend_keeps_out_when_another_commit_came_since_its_message_was_filled_in`.
+4. K – Amend prüfte laufendes Merge/Rebase nur in der UI → behoben im Tor (`AmendBlockerAsync`). Test `Amend_keeps_out_while_a_rebase_is_stopped`.
+5. K (Verdacht) – `git cherry` hielt die Commit-Details auf → behoben ohne Messung: „schon übernommen“ wird nach den Details gelesen (`BoardService.IsAppliedAsync`).
+6. K (Verdacht) – `for-each-ref --contains` je Status → durch `rev-list -n1 HEAD --not --remotes` ersetzt (gleiche Bedeutung, ein Durchlauf; Amend-Tests decken beide Richtungen).
+7. K – `IsCommitId` nahm kurze IDs an (ein Branch gleichen Namens gewönne) → nur 40 oder 64 Zeichen, Theorie angepasst.
+8. K – Spätes Vorfüllen nach dem Abhaken → behoben (seit dem zweiten Durchgang in `AmendDraft.Fill`, getestet).
+9. K – Betreff ohne Tooltip → `title` wieder am Betreff.
+10. K – README „scroll back“ → „Load 50 more“.
+- Die neuen Core-Tests scheiterten, als die Fixes probehalber ausgebaut waren.
+- Vorher schon da, in den Backlog: ignorierte Dateien bei Branchwechsel und Auto-Pull; 30-s-Zeitlimit bei signierten Commits.
+
+Zweiter Durchgang (`52d1853..b64e63d`; Nutzer: „Ja, alle drei“):
+11. M (N1) – Rest von 1: eine ignorierte *Datei* an der Stelle eines Ordners, den der Commit braucht (`foo` für `foo/bar`), ging verloren → behoben: Eltern-Ordner, an denen eine Datei liegt, gehen mit an `ls-files` und zählen nur bei genauem Treffer (ein ignorierter Ordner oberhalb sperrt nichts). Tests `An_ignored_file_where_the_commit_needs_a_folder_keeps_the_cherry_pick_out` (scheiterte ohne Fix) und `An_ignored_folder_above_the_commits_paths_is_no_obstacle`.
+12. K (N2) – Das Häkchen löste sich bei neuem HEAD ohne Hinweis → Hinweis `Amend_HeadMoved` daneben bis zum nächsten Ankreuzen oder Commit; das eigene Amend löst ihn nicht aus.
+13. K (N4) – Logik des Häkchens ungetestet in der Komponente → `UI/State/AmendDraft` mit `AmendDraftTests`.
+14. K (N3) – Doku nachgezogen (Regel zu Commit-IDs, Protokoll, CHANGELOG, ADR).
+- E2E nach dem zweiten Durchgang (echte Maus): Häkchen gesetzt, Nachricht vorgefüllt; Commit per CLI („andere Session“) → Häkchen aus, Hinweis sichtbar, unveränderte Nachricht weg; erneut angekreuzt und „Commit ändern“ → Amend im Reflog, kein Hinweis. Log ohne Warnungen.

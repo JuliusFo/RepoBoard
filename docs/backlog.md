@@ -50,6 +50,9 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - Graph: Spuren nach links rücken lassen (wie `git log --graph`), mehr als acht Spuren (seitlich scrollen), Spuren je Branch einfärben statt je Spalte.
 - Commit-Details: Tastatur (↑/↓ durch die Historie), Commit-ID kopieren, „im Terminal zeigen“, Suche in der Historie (mit WP-16).
 - „Alle Branches“ je Repo merken (Konfiguration Version 2).
+- Ignorierte Dateien überschreibt git auch beim Branchwechsel (`SwitchAsync`) und beim Fast-Forward von Auto-Pull, ebenso lokal geänderte Dateien mit `skip-worktree`/`assume-unchanged` – dort wie bei Revert/Cherry-Pick vorher prüfen (Review WP-09, vorher schon da).
+- Commit, Amend, Revert und Cherry-Pick laufen mit 30 s Zeitlimit (`Local`): wartet eine gpg-Passphrase (pinentry) länger, bricht `GitRunner` git mitten im Schreiben ab – für Befehle, die signieren können, ein längeres Limit (Review WP-09, vorher schon da).
+- Leerer Cherry-Pick nach Squash: auf Wunsch `--skip` selbst ausführen (Nutzer wollte zunächst nur die Meldung, 2026-11-22).
 
 ## Dateiwächter (Fortsetzung von WP-03)
 

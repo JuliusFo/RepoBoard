@@ -38,26 +38,28 @@ Bis WP-09 zeigte die geöffnete Zeile die letzten 15 Commits als Liste, ohne Elt
 - Diff einer Datei: `git show --format= --no-ext-diff -M --diff-merges=first-parent <id> -- [<alt>] <pfad>` mit `--literal-pathspecs`, geparst von `FileDiff.Parse` (ADR 0008).
   - Vorher misst `cat-file --batch-check` beide Seiten über stdin. Über 5 MB wird der Diff nicht gelesen.
   - `--diff-merges` braucht git ≥ 2.31.
-- **Commit-IDs** gehen nur an git, wenn sie Hex sind (`GitClient.IsCommitId`: 4–64 Zeichen `0-9a-f`). So sind sie nie Option, Revision (`HEAD~1`) oder Bereich.
+- **Commit-IDs** gehen nur an git, wenn sie volle Hex-IDs sind (`GitClient.IsCommitId`: 40 oder 64 Zeichen `0-9a-f`). So sind sie nie Option, Revision (`HEAD~1`), Bereich oder Ref – eine kurze ID löst git zuerst als Branch auf (Review WP-09).
 - Nur lesend wie der Diff: kein Tor, Fehler stehen an Stelle der Details, Arbeit auf dem Thread-Pool.
 
 ### Amend
 
 - `commit --amend -m <nachricht>` nimmt nur die gestagten Änderungen; anders als beim normalen Commit wird nichts automatisch gestaged.
-- Erlaubt nur, wenn kein Remote-Branch HEAD enthält (`for-each-ref --contains HEAD refs/remotes`). Im Tor wird das unmittelbar vor dem Aufruf erneut geprüft. „Unbekannt“ gilt als gepusht.
+- Erlaubt nur, wenn kein Remote-Branch HEAD enthält (`rev-list -n1 HEAD --not --remotes`). Im Tor wird das unmittelbar vor dem Aufruf erneut geprüft, dazu ob noch derselbe HEAD wie beim Vorfüllen und kein Merge/Rebase läuft (Review WP-09). „Unbekannt“ gilt als gepusht.
 - Ein Force-Push kommt nie vor. Der alte Commit bleibt im Reflog.
-- In der UI füllt das Häkchen „Letzten Commit ändern“ die Nachricht des letzten Commits vor. Ist HEAD gepusht, ist das Häkchen aus und der Tooltip nennt den Grund.
+- In der UI füllt das Häkchen „Letzten Commit ändern“ die Nachricht des letzten Commits vor (`UI/State/AmendDraft`). Ist HEAD gepusht, ist das Häkchen aus und der Tooltip nennt den Grund. Wird ein anderer Commit HEAD, solange es gesetzt ist, löst es sich mit einem Hinweis daneben (Review WP-09).
 
 ### Revert und Cherry-Pick
 
 `git revert --no-edit <id>` bzw. `git cherry-pick <id>`. Vorher prüft RepoBoard im Tor, mit frischem Status und frisch gelesenem Git-Ordner:
 - keine laufende Operation;
-- keine gestagte, geänderte oder Konfliktdatei; neue Dateien sind erlaubt, denn git weigert sich, eine zu überschreiben;
+- keine gestagte, geänderte oder Konfliktdatei; neue Dateien sind erlaubt, denn git weigert sich, eine zu überschreiben – außer einer **ignorierten**: die überschreibt git ohne Rückfrage, daher keine ignorierte Datei an einem Pfad des Commits und keine an der Stelle eines Ordners, den er braucht (`foo` für `foo/bar`); ein ignorierter Ordner oberhalb (`node_modules`) stört nicht (`ls-files --others --ignored`, in Teilen gegen die Längengrenze der Kommandozeile; Review WP-09);
 - kein Merge-Commit (der bräuchte `-m`);
 - Revert nur für einen Commit in HEAD, Cherry-Pick nur für einen außerhalb;
 - Cherry-Pick nicht, wenn HEAD dieselbe Änderung schon hat (`git cherry HEAD <id> <eltern>`, Patch-ID).
 
 Der letzte Punkt kam aus dem E2E: Ein leerer Cherry-Pick bleibt sonst als unfertige Operation mit `CHERRY_PICK_HEAD` stehen. Ein leerer Revert scheitert dagegen ohne Rest.
+
+`git cherry` erkennt nur 1:1-Kopien; nach einem Squash mehrerer Commits bleibt ein leerer Cherry-Pick trotzdem stehen – dann nennt die Meldung `--skip` (Entscheidung des Nutzers: nur die Meldung, kein automatisches `--skip`; Review WP-09). Ob die Änderung schon da ist, liest die Ansicht erst nach den Details (es kann dauern).
 
 Weil der Worktree vorher sauber war, verliert ein späteres `--abort` nichts vom Nutzer. Bleibt git an einem Konflikt stehen, lässt RepoBoard den Zustand stehen (Entscheidung des Nutzers). Die Zeile zeigt die laufende Operation, und die Meldung nennt `--continue` bzw. `--abort`. Abbrechen und Fortsetzen in RepoBoard kommen mit WP-07.
 
