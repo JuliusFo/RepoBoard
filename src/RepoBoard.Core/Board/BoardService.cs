@@ -14,7 +14,11 @@ namespace RepoBoard.Core.Board;
 public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider time)
 {
     public const int MaxParallelNetwork = 4;
-    private const int LogLength = 15;
+    /// <summary>The commits an opened row shows at first; "Load more" adds <see cref="LogStep"/> up to <see cref="MaxLogLength"/>.</summary>
+    public const int LogLength = 15;
+
+    public const int LogStep = 50;
+    public const int MaxLogLength = 1000;
 
     private readonly SemaphoreSlim _network = new(MaxParallelNetwork);
     private readonly SemaphoreSlim _saveGate = new(1, 1);
@@ -222,8 +226,20 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         else
         {
             repo.Details = null;
+            repo.LogLength = LogLength;
             Notify();
         }
+    }
+
+    /// <summary>
+    /// What the opened row's history shows (WP-09): <paramref name="length"/> commits (clamped to <see cref="MaxLogLength"/>),
+    /// of HEAD only or of all branches. Read again right away – or, while an operation runs, when it ends.
+    /// </summary>
+    public async Task SetLogAsync(RepoState repo, int length, bool all, CancellationToken ct)
+    {
+        repo.LogLength = Math.Clamp(length, LogLength, MaxLogLength);
+        repo.LogAll = all;
+        await RefreshAsync(repo, ct);
     }
 
     /// <summary>The repositories first – that reads their lists of worktrees –, then every worktree.</summary>
@@ -327,8 +343,10 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         if (repo.WantsDetails)
         {
             var branches = await git.BranchesAsync(repo.Path, status.Branch, ct);
-            var log = status.IsInitial ? [] : await git.LogAsync(repo.Path, LogLength, ct);
-            repo.Details = new RepoDetails(branches, log);
+            var (log, more) = status.IsInitial ? ([], false) : await git.LogAsync(repo.Path, repo.LogLength, repo.LogAll, ct);
+            // Unknown counts as pushed: an amend then stays off rather than needing a force push.
+            var onRemote = status.IsInitial || await git.IsOnRemoteAsync(repo.Path, "HEAD", ct) != false;
+            repo.Details = new RepoDetails(branches, log, CommitGraph.Build(log), more, onRemote);
         }
     }
 
@@ -349,6 +367,50 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             return (null, TextFormat.Format(SyncText.OperationFailed, SyncText.Op_Diff, ex.Message));
         }
     }
+
+    /// <summary>
+    /// One commit of the history with its files (WP-09) and whether HEAD contains it. Only reads, like <see cref="DiffAsync"/>:
+    /// no gate, a failure is shown in place of the details.
+    /// </summary>
+    public async Task<(CommitDetails? Commit, string? Error)> CommitDetailsAsync(RepoState repo, string id, CancellationToken ct)
+    {
+        try
+        {
+            return await Task.Run(async () =>
+            {
+                var (commit, result) = await git.CommitDetailsAsync(repo.Path, id, ct);
+                if (commit is null)
+                {
+                    return (null, TextFormat.Format(SyncText.OperationFailed, SyncText.Op_Show, result.Message));
+                }
+
+                var inHead = repo.Status is { IsInitial: false } && await git.IsAncestorAsync(repo.Path, commit.Id, "HEAD", ct) == true;
+                return ((CommitDetails?)(commit with { InHead = inHead }), (string?)null);
+            }, ct);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return (null, TextFormat.Format(SyncText.OperationFailed, SyncText.Op_Show, ex.Message));
+        }
+    }
+
+    /// <summary>The diff of one file of a commit (WP-09); only reads, on the thread pool (as <see cref="DiffAsync"/>).</summary>
+    public async Task<(FileDiff? Diff, string? Error)> CommitDiffAsync(RepoState repo, CommitDetails commit, CommitFile file, CancellationToken ct)
+    {
+        try
+        {
+            var (diff, result) = await Task.Run(() => git.CommitDiffAsync(repo.Path, commit, file, ct), ct);
+            return diff is not null ? (diff, null) : (null, TextFormat.Format(SyncText.OperationFailed, SyncText.Op_Diff, result.Message));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return (null, TextFormat.Format(SyncText.OperationFailed, SyncText.Op_Diff, ex.Message));
+        }
+    }
+
+    /// <summary>The whole message of HEAD, to start an amend from (WP-09); null if there is none.</summary>
+    public Task<string?> HeadMessageAsync(RepoState repo, CancellationToken ct) =>
+        repo.Status is { IsInitial: false } ? Task.Run(() => git.MessageAsync(repo.Path, "HEAD", ct), ct) : Task.FromResult<string?>(null);
 
     // ---------- operations (clicks) ----------
 
@@ -472,21 +534,122 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         };
     }
 
-    /// <summary>Commits what is staged; with nothing staged, everything (like "commit all" elsewhere).</summary>
-    public Task<bool> CommitAsync(RepoState repo, string message, bool push, CancellationToken ct)
+    /// <summary>
+    /// Commits what is staged; with nothing staged, everything (like "commit all" elsewhere). With <paramref name="amend"/>
+    /// (WP-09) the staged changes and the message replace the last commit instead – nothing is staged on top, and only if
+    /// no remote branch has that commit, checked inside the gate right before (it would need a force push).
+    /// </summary>
+    public Task<bool> CommitAsync(RepoState repo, string message, bool push, CancellationToken ct, bool amend = false)
     {
-        var stageAll = repo.Status is { Staged: 0 };
+        var stageAll = !amend && repo.Status is { Staged: 0 };
         var setUpstream = repo.Status is { HasUpstream: false, IsDetached: false };
-        return RunAsync(repo, push ? SyncText.Op_CommitPush : SyncText.Op_Commit, network: push, async c =>
+        var label = (amend, push) switch
+        {
+            (false, false) => SyncText.Op_Commit,
+            (false, true) => SyncText.Op_CommitPush,
+            (true, false) => SyncText.Op_Amend,
+            (true, true) => SyncText.Op_AmendPush,
+        };
+        var note = (amend, push) switch
+        {
+            (false, false) => SyncText.Committed,
+            (false, true) => SyncText.CommittedAndPushed,
+            (true, false) => SyncText.Amended,
+            (true, true) => SyncText.AmendedAndPushed,
+        };
+        return RunAsync(repo, label, network: push, async c =>
         {
             if (stageAll && await git.StageAllAsync(repo.Path, c) is { Success: false } staged)
             {
                 return staged;
             }
 
-            var committed = await git.CommitAsync(repo.Path, message, c);
+            GitResult committed;
+            if (amend)
+            {
+                var onRemote = await git.IsOnRemoteAsync(repo.Path, "HEAD", c);
+                if (onRemote != false)
+                {
+                    return GitResult.Failed(onRemote is null ? SyncText.Amend_Unknown : SyncText.Amend_Pushed);
+                }
+
+                committed = await git.AmendAsync(repo.Path, message, c);
+            }
+            else
+            {
+                committed = await git.CommitAsync(repo.Path, message, c);
+            }
+
             return !committed.Success || !push ? committed : await git.PushAsync(repo.Path, setUpstream, c);
-        }, () => Info(TextFormat.Format(push ? SyncText.CommittedAndPushed : SyncText.Committed, FirstLine(message))), ct);
+        }, () => Info(TextFormat.Format(note, FirstLine(message))), ct);
+    }
+
+    /// <summary>A new commit that undoes <paramref name="commit"/> (WP-09); see <see cref="PickAsync"/>.</summary>
+    public Task<bool> RevertAsync(RepoState repo, CommitDetails commit, CancellationToken ct) =>
+        RunAsync(repo, SyncText.Op_Revert, network: false, c => PickAsync(repo, commit, revert: true, c),
+            () => Info(TextFormat.Format(SyncText.Reverted, commit.ShortId, commit.Subject)), ct);
+
+    /// <summary>Applies <paramref name="commit"/> onto HEAD as a new commit (WP-09); see <see cref="PickAsync"/>.</summary>
+    public Task<bool> CherryPickAsync(RepoState repo, CommitDetails commit, CancellationToken ct) =>
+        RunAsync(repo, SyncText.Op_CherryPick, network: false, c => PickAsync(repo, commit, revert: false, c),
+            () => Info(TextFormat.Format(SyncText.CherryPicked, commit.ShortId, commit.Subject, repo.Status?.Branch ?? "HEAD")), ct);
+
+    /// <summary>
+    /// Revert or cherry-pick (WP-09, ADR 0013), checked inside the gate right before git runs: no unfinished operation, no
+    /// staged, changed or conflicted file (so that a later abort of a stopped one loses nothing of the user's; new files
+    /// may stay – git refuses to overwrite one), not a merge commit, a revert only of a commit HEAD contains and a
+    /// cherry-pick only of one it does not. If git stops at a conflict, the operation stays unfinished for the IDE or
+    /// terminal (decision of the user, 2026-11-22) and the message says so.
+    /// </summary>
+    private async Task<GitResult> PickAsync(RepoState repo, CommitDetails commit, bool revert, CancellationToken c)
+    {
+        if (commit.IsMerge)
+        {
+            return GitResult.Failed(SyncText.Pick_Merge);
+        }
+
+        var (status, read) = await git.StatusAsync(repo.Path, c);
+        if (status is null)
+        {
+            return read;
+        }
+
+        var gitDir = await git.GitDirAsync(repo.Path, c);
+        if (gitDir is null)
+        {
+            return GitResult.Failed(SyncText.Pick_Unknown);
+        }
+
+        if (GitClient.OperationIn(gitDir) is { } running)
+        {
+            return GitResult.Failed(TextFormat.Format(SyncText.Pick_Operation, PullCheck.Name(running)));
+        }
+
+        if (status.IsInitial)
+        {
+            return GitResult.Failed(SyncText.Pick_Initial);
+        }
+
+        if (status.Changes.Any(f => !f.Untracked))
+        {
+            return GitResult.Failed(SyncText.Pick_Changes);
+        }
+
+        var inHead = await git.IsAncestorAsync(repo.Path, commit.Id, "HEAD", c);
+        if (inHead is null)
+        {
+            return GitResult.Failed(SyncText.Pick_Unknown);
+        }
+
+        if (revert != inHead)
+        {
+            return GitResult.Failed(revert ? SyncText.Revert_NotInHead : SyncText.CherryPick_InHead);
+        }
+
+        var result = revert ? await git.RevertAsync(repo.Path, commit.Id, c) : await git.CherryPickAsync(repo.Path, commit.Id, c);
+        return result.Success || GitClient.OperationIn(gitDir) is null
+            ? result
+            : GitResult.Failed(TextFormat.Format(revert ? SyncText.Revert_Stopped : SyncText.CherryPick_Stopped, result.Message));
     }
 
     public Task<bool> SwitchAsync(RepoState repo, BranchInfo branch, CancellationToken ct)

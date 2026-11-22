@@ -260,4 +260,75 @@
     <value>{0} is a worktree – its repository {1} goes on the board, the worktree shows below it.</value>
     <comment>{0} = folder the user chose, {1} = folder of the main worktree</comment>
   </data>
+  <data name="InvalidCommit" xml:space="preserve">
+    <value>{0} is not a commit id.</value>
+    <comment>{0} = the text that was given as a commit id</comment>
+  </data>
+  <data name="Op_Show" xml:space="preserve">
+    <value>Commit</value>
+  </data>
+  <data name="Op_Amend" xml:space="preserve">
+    <value>Amend</value>
+  </data>
+  <data name="Op_AmendPush" xml:space="preserve">
+    <value>Amend and push</value>
+  </data>
+  <data name="Op_Revert" xml:space="preserve">
+    <value>Revert</value>
+  </data>
+  <data name="Op_CherryPick" xml:space="preserve">
+    <value>Cherry-pick</value>
+  </data>
+  <data name="Amended" xml:space="preserve">
+    <value>Last commit amended: {0}</value>
+    <comment>{0} = first line of the new commit message</comment>
+  </data>
+  <data name="AmendedAndPushed" xml:space="preserve">
+    <value>Last commit amended and pushed: {0}</value>
+    <comment>{0} = first line of the new commit message</comment>
+  </data>
+  <data name="Amend_Pushed" xml:space="preserve">
+    <value>the last commit is already on a remote branch – changing it would need a force push</value>
+  </data>
+  <data name="Amend_Unknown" xml:space="preserve">
+    <value>git could not tell whether the last commit was pushed – it stays as it is</value>
+  </data>
+  <data name="Reverted" xml:space="preserve">
+    <value>Reverted {0} {1}</value>
+    <comment>{0} = short commit id, {1} = its subject</comment>
+  </data>
+  <data name="CherryPicked" xml:space="preserve">
+    <value>Cherry-picked {0} {1} onto {2}</value>
+    <comment>{0} = short commit id, {1} = its subject, {2} = the current branch</comment>
+  </data>
+  <data name="Pick_Merge" xml:space="preserve">
+    <value>merge commits cannot be reverted or cherry-picked here</value>
+  </data>
+  <data name="Pick_Unknown" xml:space="preserve">
+    <value>git could not read the repository's state</value>
+  </data>
+  <data name="Pick_Operation" xml:space="preserve">
+    <value>a {0} is still in progress – finish or abort it first</value>
+    <comment>{0} = the unfinished operation (Operation_…)</comment>
+  </data>
+  <data name="Pick_Initial" xml:space="preserve">
+    <value>the branch has no commit yet</value>
+  </data>
+  <data name="Pick_Changes" xml:space="preserve">
+    <value>only with no staged or changed files – commit or stash them first</value>
+  </data>
+  <data name="Revert_NotInHead" xml:space="preserve">
+    <value>the commit is not in the current branch</value>
+  </data>
+  <data name="CherryPick_InHead" xml:space="preserve">
+    <value>the commit is already in the current branch</value>
+  </data>
+  <data name="Revert_Stopped" xml:space="preserve">
+    <value>stopped – finish it in the IDE or terminal (git revert --continue, or --abort): {0}</value>
+    <comment>{0} = git's message</comment>
+  </data>
+  <data name="CherryPick_Stopped" xml:space="preserve">
+    <value>stopped – finish it in the IDE or terminal (git cherry-pick --continue, or --abort): {0}</value>
+    <comment>{0} = git's message</comment>
+  </data>
 </root>
