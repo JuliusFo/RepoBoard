@@ -90,6 +90,27 @@ public sealed class RepoScannerTests : IDisposable
         Assert.Equal([RepoRuns.FsMonitor], candidate.Runs); // the repository's settings apply in its worktrees
     }
 
+    /// <summary>
+    /// What a scan does not descend into: build and package folders, dot folders, links to elsewhere (a junction to a share or
+    /// to C:\Users) – none of these lines ran in a test before (review 0.4.0, C8).
+    /// </summary>
+    [Fact]
+    public void A_scan_skips_build_folders_dot_folders_and_links()
+    {
+        Repo("found");
+        var nested = _folder.Combine("scan", "app", "node_modules", "pkg");
+        Directory.CreateDirectory(Path.Combine(nested, ".git"));
+        Directory.CreateDirectory(Path.Combine(_folder.Combine("scan", ".hidden", "repo"), ".git"));
+        var target = _folder.Combine("elsewhere", "linked");
+        Directory.CreateDirectory(Path.Combine(target, ".git"));
+        if (OperatingSystem.IsWindows())
+        {
+            TestFolder.Junction(_folder.Combine("scan", "link"), _folder.Combine("elsewhere"));
+        }
+
+        Assert.Equal(["found"], RepoScanner.Find(_folder.Combine("scan")).Select(Path.GetFileName));
+    }
+
     /// <summary>The scan itself never starts git: a git that fails the test on any call.</summary>
     [Fact]
     public async Task Scanning_starts_no_git_and_leaves_out_what_is_on_the_board()

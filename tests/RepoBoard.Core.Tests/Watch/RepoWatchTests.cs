@@ -179,8 +179,9 @@ public sealed class RepoWatchTests : IDisposable
             try
             {
                 File.WriteAllText(Path.Combine(_git.Mine, "new.txt"), "new");
-                await Task.Delay(RepoWatchService.Longest, Ct); // the watcher's read came and was skipped
-                Assert.Equal(0, repo.Status!.Untracked);
+                // The watcher's read comes and is skipped while the test holds the gate. (An assert on the status here could not
+                // fail: nothing can read it meanwhile – review 0.4.0, C13.)
+                await Task.Delay(RepoWatchService.Longest, Ct);
             }
             finally
             {

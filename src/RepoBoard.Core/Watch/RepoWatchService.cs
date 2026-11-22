@@ -183,7 +183,7 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
     /// user decided for folders without a working watcher. A drive root – a worktree entry pointing there – would watch
     /// the whole drive (review WP-03).
     /// </summary>
-    private static bool LeftToTheTick(string root)
+    internal static bool LeftToTheTick(string root)
     {
         if (Path.GetPathRoot(root) is not { } driveRoot || WatchMap.Normalize(driveRoot) is not { } normalizedRoot
             || string.Equals(normalizedRoot, root, Paths.Comparison))

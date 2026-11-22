@@ -170,6 +170,46 @@ public sealed class BoardTests : IDisposable
         Assert.Equal(_git.Mine, Assert.Single(_board.Repos).Path);
     }
 
+    /// <summary>A branch never pushed: the first push sets its upstream on origin (review 0.4.0, C10).</summary>
+    [Fact]
+    public async Task A_new_branch_is_created_switched_to_and_its_first_push_sets_the_upstream()
+    {
+        var repo = await AddMineAsync(autoPull: false);
+
+        Assert.True(await _board.CreateBranchAsync(repo, "feature/x", Ct), repo.Error);
+        Assert.Equal(("feature/x", false), (repo.Status!.Branch, repo.Status.HasUpstream));
+
+        Assert.True(await _board.PushAsync(repo, Ct), repo.Error);
+
+        Assert.Equal("origin/feature/x", repo.Status!.Upstream);
+        Assert.Contains("feature/x", GitSandbox.Git(_git.Remote, "branch", "--list", "feature/x"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Stage_takes_the_named_files_or_all()
+    {
+        var repo = await AddMineAsync(autoPull: false);
+        File.WriteAllText(Path.Combine(_git.Mine, "one.txt"), "1");
+        File.WriteAllText(Path.Combine(_git.Mine, "two.txt"), "2");
+        await _board.RefreshAsync(repo, Ct);
+
+        Assert.True(await _board.StageAsync(repo, ["one.txt"], Ct));
+        Assert.Equal(1, repo.Status!.Staged);
+
+        Assert.True(await _board.StageAsync(repo, [], Ct));
+        Assert.Equal(2, repo.Status!.Staged);
+    }
+
+    [Theory]
+    [InlineData(15, 15)]
+    [InlineData(7, BoardConfig.DefaultAutoSyncMinutes)] // not offered: the default
+    public async Task The_interval_is_one_of_those_offered(int minutes, int expected)
+    {
+        await _board.SetAutoSyncMinutesAsync(minutes, Ct);
+
+        Assert.Equal(expected, _board.AutoSyncMinutes);
+    }
+
     private async Task<RepoState> AddMineAsync(bool autoPull)
     {
         await _board.AddAsync([_git.Mine], Ct);

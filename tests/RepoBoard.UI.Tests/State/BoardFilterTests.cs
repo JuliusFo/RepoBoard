@@ -71,6 +71,23 @@ public sealed class BoardFilterTests
         Assert.Equal(kind == BoardFilterKind.All ? 1 : count, BoardFilter.Count([repo], kind));
     }
 
+    /// <summary>
+    /// Review WP-04 #12: only the worktrees of repositories the filter shows count as shown – the shell closes the others, or
+    /// they kept reading branches and history unseen (review 0.4.0, C7).
+    /// </summary>
+    [Fact]
+    public void Only_worktrees_of_shown_repositories_are_shown()
+    {
+        var shown = WithStatus(Repo("shown"), Status());
+        var hidden = WithStatus(Repo("hidden"), Status());
+        shown.Worktrees = [WithStatus(new RepoState(new RepoEntry(Path.Combine(shown.Path, "..", "shown-wt")), shown), Status(branch: "a"))];
+        hidden.Worktrees = [WithStatus(new RepoState(new RepoEntry(Path.Combine(hidden.Path, "..", "hidden-wt")), hidden), Status(branch: "b"))];
+
+        var worktrees = BoardFilter.ShownWorktrees([shown, hidden], _ => true, BoardFilterKind.All, "shown");
+
+        Assert.Equal(["shown-wt"], worktrees.Select(w => w.Name));
+    }
+
     private static RepoState WithStatus(RepoState repo, RepoStatus status)
     {
         repo.Status = status; // set by the board only (internal, visible to the tests)

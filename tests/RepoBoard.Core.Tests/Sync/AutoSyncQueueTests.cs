@@ -1,8 +1,10 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using RepoBoard.Core.Board;
 using RepoBoard.Core.Git;
 using RepoBoard.Core.IO;
 using RepoBoard.Core.Repos;
+using RepoBoard.Core.Sync;
 
 namespace RepoBoard.Core.Tests.Sync;
 
@@ -80,6 +82,23 @@ public sealed class AutoSyncQueueTests : IDisposable
         Assert.Empty(repo.Worktrees);
     }
 
+    /// <summary>A tick that throws is logged and the next one runs; stopping ends the loop quietly (ADR 0003, review 0.4.0, C1).</summary>
+    [Fact]
+    public async Task The_tick_goes_on_after_one_that_threw_and_stops_quietly()
+    {
+        var (board, git) = await BoardAsync(repos: 1);
+        git.FailGitDir = true; // the status after the fetch throws out of the tick
+        var service = new AutoSyncService(board, _time, NullLogger<AutoSyncService>.Instance);
+
+        await service.StartAsync(Ct);
+        await Wait.UntilAsync(() => git.Fetches == 1, "the first tick");
+        _time.Advance(TimeSpan.FromMinutes(board.AutoSyncMinutes));
+        await Wait.UntilAsync(() => git.Fetches == 2, "a tick after one that threw");
+        await service.StopAsync(Ct);
+
+        Assert.True(service.ExecuteTask!.IsCompletedSuccessfully);
+    }
+
     private async Task<(BoardService Board, CountingGit Git)> BoardAsync(int repos)
     {
         var entries = Enumerable.Range(0, repos).Select(i =>
@@ -107,6 +126,9 @@ public sealed class AutoSyncQueueTests : IDisposable
 
         /// <summary>What <c>git worktree list --porcelain -z</c> answers.</summary>
         public string Worktrees { get; set; } = "";
+
+        /// <summary><c>rev-parse</c> throws – a surprise inside the board.</summary>
+        public bool FailGitDir { get; set; }
         public int Fetches { get; private set; }
         public int MostAtOnce { get; private set; }
         public int MostBusy { get; private set; }
@@ -116,7 +138,9 @@ public sealed class AutoSyncQueueTests : IDisposable
         {
             if (args[0] == "rev-parse")
             {
-                return new GitResult(0, Path.Combine(workingDirectory, ".git"), "");
+                return FailGitDir
+                    ? throw new InvalidOperationException("git broke")
+                    : new GitResult(0, Path.Combine(workingDirectory, ".git"), "");
             }
 
             if (args[0] == "worktree")

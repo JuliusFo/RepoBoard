@@ -3,6 +3,7 @@ using RepoBoard.Core.Board;
 using RepoBoard.Core.Git;
 using RepoBoard.Core.Repos;
 using RepoBoard.Core.Resources;
+using RepoBoard.Core.Sync;
 
 namespace RepoBoard.Core.Tests.Git;
 
@@ -189,7 +190,7 @@ public sealed class HistoryTests : IDisposable
     {
         for (var i = 0; i < 20; i++)
         {
-            GitSandbox.Commit(_git.Mine, "n.txt", $"{i}");
+            GitSandbox.Git(_git.Mine, "commit", "-q", "--allow-empty", "-m", $"n {i}"); // one process each, not add + commit (review 0.4.0, C14)
         }
 
         var repo = await OpenMineAsync();
@@ -317,19 +318,23 @@ public sealed class HistoryTests : IDisposable
         Assert.Contains(SyncText.CherryPick_Applied, repo.Error, StringComparison.Ordinal);
     }
 
-    public static TheoryData<string, bool> Refusals => new()
+    /// <summary>
+    /// Each with the board's own reason: git itself refuses "staged", "merge" and "not in head" and leaves "in head" as an
+    /// unfinished cherry-pick – a test that only wanted "some error" stayed green without the board's checks (review 0.4.0, C4).
+    /// </summary>
+    public static TheoryData<string, bool, string> Refusals => new()
     {
-        { "changed", true },
-        { "staged", true },
-        { "merge", true },
-        { "not in head", true },
-        { "in head", false },
-        { "operation", true },
+        { "changed", true, SyncText.Pick_Changes },
+        { "staged", true, SyncText.Pick_Changes },
+        { "merge", true, SyncText.Pick_Merge },
+        { "not in head", true, SyncText.Revert_NotInHead },
+        { "in head", false, SyncText.CherryPick_InHead },
+        { "operation", true, TextFormat.Format(SyncText.Pick_Operation, PullCheck.Name(GitOperation.Merge)) },
     };
 
     [Theory]
     [MemberData(nameof(Refusals))]
-    public async Task Revert_and_cherry_pick_keep_out_where_they_could_mix_with_work(string situation, bool revert)
+    public async Task Revert_and_cherry_pick_keep_out_where_they_could_mix_with_work(string situation, bool revert, string reason)
     {
         var feature = Feature();
         GitSandbox.Commit(_git.Mine, "b.txt", "on main");
@@ -360,7 +365,8 @@ public sealed class HistoryTests : IDisposable
 
         Assert.Equal(before, Head());
         Assert.Equal(a, File.ReadAllText(Mine("a.txt")));
-        Assert.NotNull(repo.Error);
+        Assert.Contains(reason, repo.Error, StringComparison.Ordinal);
+        Assert.Equal(situation == "operation" ? GitOperation.Merge : null, repo.Operation); // no pick left unfinished
     }
 
     [Fact]
