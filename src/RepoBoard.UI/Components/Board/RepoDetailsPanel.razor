@@ -59,20 +59,24 @@
         }
         <div class="commit">
             <textarea rows="3" placeholder="@BoardText.CommitMessage_Placeholder" @bind="_message" @bind:event="oninput"
-                      disabled="@(Status is null || (Status.IsClean && !_amend))"></textarea>
+                      disabled="@(Status is null || (Status.IsClean && !_draft.On))"></textarea>
             @{
                 var amendBlocker = CommitTools.AmendBlocker(Repo);
             }
             <label class="amend" title="@(amendBlocker ?? BoardText.Amend_Hint)">
-                <input type="checkbox" checked="@_amend" disabled="@(amendBlocker is not null && !_amend)" @onchange="ToggleAmend" />
+                <input type="checkbox" checked="@_draft.On" disabled="@(amendBlocker is not null && !_draft.On)" @onchange="ToggleAmend" />
                 @BoardText.Amend_Label
             </label>
+            @if (_draft.Note is { } note)
+            {
+                <p class="amend-note">@note</p>
+            }
             <div class="commit-actions">
                 <button class="btn primary" disabled="@(!CanCommit)" @onclick="() => Commit(push: false)">
-                    @(_amend ? BoardText.Amend_Commit
+                    @(_draft.On ? BoardText.Amend_Commit
                         : Status is { Staged: > 0 } ? TextFormat.Format(BoardText.CommitStaged, Status.Staged) : BoardText.CommitAll)
                 </button>
-                <button class="btn" disabled="@(!CanCommit)" @onclick="() => Commit(push: true)">@(_amend ? BoardText.Amend_CommitPush : BoardText.CommitPush)</button>
+                <button class="btn" disabled="@(!CanCommit)" @onclick="() => Commit(push: true)">@(_draft.On ? BoardText.Amend_CommitPush : BoardText.CommitPush)</button>
             </div>
         </div>
     </section>
@@ -175,13 +179,11 @@
 
     private CommitPanel? _commitPanel;
 
-    /// <summary>The commit box replaces the last commit (WP-09); the message it started with, to tell whether it was edited.</summary>
-    private bool _amend;
+    /// <summary>"Amend last commit" (WP-09): for which HEAD, with which message (review WP-09).</summary>
+    private readonly AmendDraft _draft = new();
 
-    private string? _amendMessage;
-
-    /// <summary>HEAD when amend was ticked: only that commit is replaced, never one another session made meanwhile (review WP-09).</summary>
-    private string? _amendHead;
+    /// <summary>A commit or amend of this box runs: the new HEAD it makes is no other session's.</summary>
+    private bool _committing;
 
     /// <summary>Only a click on a file moves the focus to its diff (for Esc) – never a diff that a new status brought.</summary>
     private bool _focusDiff;
@@ -191,10 +193,10 @@
     protected override void OnParametersSet()
     {
         _diffTarget = DiffSelection.Next(_diffTarget, Status);
-        if (_amend && Status?.Head != _amendHead)
+        if (!_committing)
         {
             // Another commit is the last one now: the message filled in belongs to the one before.
-            ClearAmend();
+            _message = _draft.Follow(_message, Status?.Head);
         }
     }
 
@@ -222,7 +224,7 @@
     private RepoStatus? Status => Repo.Status;
 
     private bool CanCommit => !string.IsNullOrWhiteSpace(_message) && Repo.Busy is null
-        && (_amend
+        && (_draft.On
             ? CommitTools.AmendBlocker(Repo) is null && Status is { Conflicts: 0 }
             : Status is { IsClean: false, Conflicts: 0 });
 
@@ -260,29 +262,16 @@
     {
         if (e.Value is not true)
         {
-            ClearAmend();
+            _message = _draft.Untick(_message);
             return;
         }
 
-        _amend = true;
-        _amendHead = Status?.Head;
-        if (string.IsNullOrWhiteSpace(_message) && await Board.HeadMessageAsync(Repo, default) is { } message
-            && _amend && _amendHead == Status?.Head && string.IsNullOrWhiteSpace(_message))
+        _draft.Tick(Status?.Head);
+        if (string.IsNullOrWhiteSpace(_message) && await Board.HeadMessageAsync(Repo, default) is { } message)
         {
-            // Still ticked, for the same commit, and nothing typed meanwhile (review WP-09).
-            _message = _amendMessage = message;
+            _message = _draft.Fill(_message, Status?.Head, message);
         }
     });
-
-    private void ClearAmend()
-    {
-        if (_message == _amendMessage)
-        {
-            _message = "";
-        }
-
-        (_amend, _amendMessage, _amendHead) = (false, null, null);
-    }
 
     private static string Title(FileChange file) =>
         file.OriginalPath is { } from ? $"{from} → {file.Path}" : file.Path;
@@ -292,10 +281,21 @@
 
     private Task Commit(bool push) => GuardAsync(async () =>
     {
-        if (await Board.CommitAsync(Repo, _message.Trim(), push, default, amend: _amend, expectedHead: _amend ? _amendHead : null))
+        var amend = _draft.On;
+        _committing = true;
+        try
         {
-            _message = "";
-            (_amend, _amendMessage, _amendHead) = (false, null, null);
+            var done = await Board.CommitAsync(Repo, _message.Trim(), push, default, amend, amend ? _draft.Head : null);
+            // An amend whose push failed is still done: HEAD is the new commit.
+            if (done || (amend && Status?.Head != _draft.Head))
+            {
+                _message = "";
+                _draft.Done();
+            }
+        }
+        finally
+        {
+            _committing = false;
         }
     });
 

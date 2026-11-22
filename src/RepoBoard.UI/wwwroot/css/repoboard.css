@@ -375,6 +375,7 @@ code { font-family: var(--mono); font-size: 12px; }
 .ref { background: var(--purple-weak); color: var(--purple); border-radius: 4px; padding: 0 5px; font-size: 10.5px; }
 .log .load-more { width: 100%; margin-top: 4px; justify-content: center; }
 .log-all, .amend { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); cursor: pointer; }
+.amend-note { margin: 0; font-size: 12px; color: var(--warn); }
 
 /* The graph: one SVG per row, as high as the row (lanes coloured from the tokens, both themes). */
 /* The round line caps reach a little into the rows above and below (no seam between rows); lanes beyond the width are cut. */

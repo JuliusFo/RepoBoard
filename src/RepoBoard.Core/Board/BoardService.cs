@@ -690,16 +690,9 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             return GitResult.Failed(SyncText.CherryPick_Applied);
         }
 
-        string[] paths = [.. commit.Files.SelectMany(f => f.OriginalPath is { } from ? [from, f.Path] : new[] { f.Path }).Distinct()];
-        var ignored = paths.Length == 0 ? [] : await git.IgnoredAmongAsync(repo.Path, paths, c);
-        if (ignored is null)
+        if (await IgnoredInTheWayAsync(repo, commit, c) is { } blocked)
         {
-            return GitResult.Failed(SyncText.Pick_Unknown);
-        }
-
-        if (ignored.Count > 0)
-        {
-            return GitResult.Failed(TextFormat.Format(SyncText.Pick_Ignored, ignored[0]));
+            return blocked;
         }
 
         var result = revert ? await git.RevertAsync(repo.Path, commit.Id, c) : await git.CherryPickAsync(repo.Path, commit.Id, c);
@@ -714,6 +707,42 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         return GitResult.Failed(!revert && after is { Conflicts: 0 } && after.Changes.All(f => f.Untracked)
             ? SyncText.CherryPick_Empty
             : TextFormat.Format(revert ? SyncText.Revert_Stopped : SyncText.CherryPick_Stopped, result.Message));
+    }
+
+    /// <summary>
+    /// An ignored file git would overwrite without a word (review WP-09): at a path of the commit (also inside an ignored
+    /// folder where the commit needs a file – the path as pathspec finds the folder's files), or where the commit needs a
+    /// folder (<c>foo</c> for <c>foo/bar</c>; second review pass). For a folder only a file of exactly that name counts: an
+    /// ignored folder above a path (<c>node_modules</c>) is no obstacle. Null if nothing is in the way.
+    /// </summary>
+    private async Task<GitResult?> IgnoredInTheWayAsync(RepoState repo, CommitDetails commit, CancellationToken c)
+    {
+        string[] paths = [.. commit.Files.SelectMany(f => f.OriginalPath is { } from ? [from, f.Path] : new[] { f.Path }).Distinct()];
+        // Only folders where a file lies in the worktree: mostly none, so git is asked for few of them.
+        string[] files = [.. paths.SelectMany(Folders).Distinct().Where(f => File.Exists(Path.Combine(repo.Path, f)))];
+        if (paths.Length == 0)
+        {
+            return null; // without a pathspec git would list every ignored file
+        }
+
+        var ignored = await git.IgnoredAmongAsync(repo.Path, [.. paths, .. files], c);
+        if (ignored is null)
+        {
+            return GitResult.Failed(SyncText.Pick_Unknown);
+        }
+
+        var hit = ignored.FirstOrDefault(i => files.Contains(i)
+            || paths.Any(p => i == p || i.StartsWith(p + "/", StringComparison.Ordinal)));
+        return hit is null ? null : GitResult.Failed(TextFormat.Format(SyncText.Pick_Ignored, hit));
+
+        // "a/b/c" → "a", "a/b" (git writes paths with "/" on every platform).
+        static IEnumerable<string> Folders(string path)
+        {
+            for (var i = path.IndexOf('/'); i > 0; i = path.IndexOf('/', i + 1))
+            {
+                yield return path[..i];
+            }
+        }
     }
 
     public Task<bool> SwitchAsync(RepoState repo, BranchInfo branch, CancellationToken ct)

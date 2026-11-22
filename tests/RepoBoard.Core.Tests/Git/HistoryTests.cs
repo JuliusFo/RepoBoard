@@ -388,6 +388,52 @@ public sealed class HistoryTests : IDisposable
     }
 
     [Fact]
+    public async Task An_ignored_file_where_the_commit_needs_a_folder_keeps_the_cherry_pick_out()
+    {
+        // Second review pass WP-09: the file "foo" became a folder for "foo/bar" and was gone.
+        File.WriteAllText(Mine(".gitignore"), "foo\nnode_modules/\n");
+        GitSandbox.Git(_git.Mine, "add", ".gitignore");
+        GitSandbox.Git(_git.Mine, "commit", "-m", "ignore");
+        GitSandbox.Git(_git.Mine, "switch", "-c", "feature");
+        Directory.CreateDirectory(Mine("foo"));
+        File.WriteAllText(Mine(Path.Combine("foo", "bar")), "theirs");
+        GitSandbox.Git(_git.Mine, "add", "-f", "foo/bar");
+        GitSandbox.Git(_git.Mine, "commit", "-m", "add foo/bar");
+        GitSandbox.Git(_git.Mine, "switch", "main");
+        File.WriteAllText(Mine("foo"), "mine");
+        var before = Head();
+        var repo = await OpenMineAsync();
+
+        Assert.False(await _board.CherryPickAsync(repo, await DetailsAsync(repo, "feature"), Ct));
+
+        Assert.Equal("mine", File.ReadAllText(Mine("foo")));
+        Assert.Equal(before, Head());
+        Assert.Contains("foo", repo.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task An_ignored_folder_above_the_commits_paths_is_no_obstacle()
+    {
+        File.WriteAllText(Mine(".gitignore"), "build/\n");
+        GitSandbox.Git(_git.Mine, "add", ".gitignore");
+        GitSandbox.Git(_git.Mine, "commit", "-m", "ignore");
+        GitSandbox.Git(_git.Mine, "switch", "-c", "feature");
+        Directory.CreateDirectory(Mine("build"));
+        File.WriteAllText(Mine(Path.Combine("build", "kept.txt")), "tracked on purpose");
+        GitSandbox.Git(_git.Mine, "add", "-f", "build/kept.txt");
+        GitSandbox.Git(_git.Mine, "commit", "-m", "add build/kept.txt");
+        GitSandbox.Git(_git.Mine, "switch", "main");
+        GitSandbox.Commit(_git.Mine, "b.txt", "main moves on");
+        Directory.CreateDirectory(Mine("build"));
+        File.WriteAllText(Mine(Path.Combine("build", "output.dll")), "local build output");
+        var repo = await OpenMineAsync();
+
+        Assert.True(await _board.CherryPickAsync(repo, await DetailsAsync(repo, "feature"), Ct), repo.Error);
+
+        Assert.Equal("local build output", File.ReadAllText(Mine(Path.Combine("build", "output.dll"))));
+    }
+
+    [Fact]
     public async Task Git_itself_keeps_a_new_file_that_a_cherry_pick_would_bring()
     {
         Feature("f.txt", "theirs");
