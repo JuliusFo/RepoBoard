@@ -4,8 +4,8 @@
 
 <section class="pane diff-pane commit-pane" tabindex="-1" @ref="_pane" @onkeydown="OnKeyDown">
     <header>
-        <h3 class="diff-title" title="@_commit?.Subject">
-            <code>@(_commit?.ShortId ?? Id[..Math.Min(Id.Length, 7)])</code> @_commit?.Subject
+        <h3 class="diff-title" title="@(_commit is null ? null : VisibleText.Of(_commit.Subject))">
+            <code>@(_commit?.ShortId ?? Id[..Math.Min(Id.Length, 7)])</code> @(_commit is null ? null : VisibleText.Of(_commit.Subject))
         </h3>
         @if (_commit is { } actions)
         {
@@ -57,7 +57,7 @@
         </div>
         @if (commit.Body is { Length: > 0 } body)
         {
-            <pre class="commit-body">@body</pre>
+            <pre class="commit-body">@VisibleText.Of(body)</pre>
         }
         @if (commit.IsMerge)
         {

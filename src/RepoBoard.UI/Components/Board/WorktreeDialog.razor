@@ -4,7 +4,7 @@
 @inherits BoardComponent
 
 <div class="modal-backdrop" @onclick="OnClose"></div>
-<div class="dialog worktree-dialog" role="dialog" aria-modal="true" aria-label="@Title">
+<div class="dialog" role="dialog" aria-modal="true" aria-label="@Title" tabindex="-1" @ref="_dialog" @onkeydown="OnKeyDown">
     <header>
         <span>@Title</span>
         <button class="btn icon-only ghost" title="@BoardText.Dialog_Close" @onclick="OnClose">@Icons.Close</button>
@@ -88,6 +88,7 @@
 
     [Parameter] public EventCallback OnClose { get; set; }
 
+    private ElementReference _dialog;
     private IReadOnlyList<WorktreeCandidate>? _candidates;
     private string? _defaultBranch;
     private readonly HashSet<RepoState> _selected = [];
@@ -96,6 +97,17 @@
     private string Title => Worktree is { } one
         ? TextFormat.Format(BoardText.Worktrees_RemoveTitle, one.Name)
         : TextFormat.Format(BoardText.Worktrees_CleanUpTitle, Repo.Name);
+
+    /// <summary>Esc closes, so the dialog takes the keyboard when it opens (review 0.4.0, A30).</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await FocusQuietlyAsync(_dialog);
+        }
+    }
+
+    private Task OnKeyDown(KeyboardEventArgs e) => e.Key == "Escape" ? OnClose.InvokeAsync() : Task.CompletedTask;
 
     protected override async Task OnInitializedAsync()
     {

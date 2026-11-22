@@ -34,7 +34,7 @@
                     {
                         <div class="file @(IsSelected(selected, file, true) ? "selected" : "")" @key="StagedKey(file)">
                             <label title="@Title(file)">
-                                <input type="checkbox" checked @onchange="() => GuardAsync(() => Board.UnstageAsync(Repo, [file.Path], default))" />
+                                <input type="checkbox" checked @onchange="() => StageAsync(file, stage: false)" />
                                 <span class="letter l-@LetterClass(file.Letter(true))">@file.Letter(true)</span>
                             </label>
                             <button class="path" title="@BoardText.Diff_Show_Hint" @onclick="() => Select(file, true)"><span>@file.Path</span></button>
@@ -48,7 +48,7 @@
                     {
                         <div class="file @(IsSelected(selected, file, false) ? "selected" : "")" @key="UnstagedKey(file)">
                             <label title="@Title(file)">
-                                <input type="checkbox" @onchange="() => GuardAsync(() => Board.StageAsync(Repo, [file.Path], default))" />
+                                <input type="checkbox" @onchange="() => StageAsync(file, stage: true)" />
                                 <span class="letter l-@LetterClass(file.Letter(false))">@file.Letter(false)</span>
                             </label>
                             <button class="path" title="@BoardText.Diff_Show_Hint" @onclick="() => Select(file, false)"><span>@file.Path</span></button>
@@ -210,7 +210,7 @@
             _focusDiff = false;
             if (_diffPanel is { } panel)
             {
-                await panel.FocusAsync();
+                await FocusQuietlyAsync(panel.FocusAsync);
             }
         }
 
@@ -219,10 +219,25 @@
             _focusCommit = false;
             if (_commitPanel is { } panel)
             {
-                await panel.FocusAsync();
+                await FocusQuietlyAsync(panel.FocusAsync);
             }
         }
     }
+
+    /// <summary>
+    /// Bumped after a stage or unstage git refused: the file's row gets a new key, so its checkbox shows the file's real
+    /// state again – Blazor leaves an unchanged <c>checked</c> as the click set it (review 0.4.0, A31).
+    /// </summary>
+    private int _fileRound;
+
+    private Task StageAsync(FileChange file, bool stage) => GuardAsync(async () =>
+    {
+        var done = stage ? await Board.StageAsync(Repo, [file.Path], default) : await Board.UnstageAsync(Repo, [file.Path], default);
+        if (!done)
+        {
+            _fileRound++;
+        }
+    });
 
     private RepoStatus? Status => Repo.Status;
 
@@ -234,8 +249,8 @@
     // A row per file and side (a partly staged file is in both lists, which share one parent): without a key Blazor reuses
     // the row of a file that moved to the other list for the next file – with the checkbox the click left ticked (E2E
     // review WP-05; a click on it would have staged that next file).
-    private static string StagedKey(FileChange file) => "s:" + file.Path;
-    private static string UnstagedKey(FileChange file) => "u:" + file.Path;
+    private string StagedKey(FileChange file) => $"s{_fileRound}:{file.Path}";
+    private string UnstagedKey(FileChange file) => $"u{_fileRound}:{file.Path}";
 
     private static bool IsSelected((FileChange Change, bool Staged)? selected, FileChange file, bool staged) =>
         selected is { } s && s.Staged == staged && s.Change.Path == file.Path;
@@ -248,7 +263,11 @@
         _focusDiff = _diffTarget is not null;
     }
 
-    private void CloseDiff() => _diffTarget = null;
+    private void CloseDiff()
+    {
+        _diffTarget = null;
+        _diffPanel = null;
+    }
 
     /// <summary>A click on a commit of the history, or on a parent in the open commit, shows its details.</summary>
     private void OpenCommit(string id)
@@ -258,7 +277,11 @@
         _focusCommit = true;
     }
 
-    private void CloseCommit() => _commitId = null;
+    private void CloseCommit()
+    {
+        _commitId = null;
+        _commitPanel = null;
+    }
 
     /// <summary>Amend starts from the last commit's message; unticked, an unedited one goes again.</summary>
     private Task ToggleAmend(ChangeEventArgs e) => GuardAsync(async () =>

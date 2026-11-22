@@ -8,7 +8,8 @@
 @if (Updates.DetailsOpen && Updates.Update is { } update)
 {
     <div class="modal-backdrop" @onclick="Updates.HideDetails"></div>
-    <div class="dialog update-dialog" role="dialog" aria-modal="true" aria-label="@TextFormat.Format(UpdateText.DialogTitle, update.Version)">
+    <div class="dialog" role="dialog" aria-modal="true" aria-label="@TextFormat.Format(UpdateText.DialogTitle, update.Version)"
+         tabindex="-1" @ref="_dialog" @onkeydown="OnKeyDown">
         <header>
             <span>@TextFormat.Format(UpdateText.DialogTitle, update.Version)</span>
             <button class="btn icon-only ghost" title="@UpdateText.Close" @onclick="Updates.HideDetails">@Icons.Close</button>
@@ -100,7 +101,30 @@
 }
 
 @code {
+    private ElementReference _dialog;
+    private bool _focused;
+
     protected override void OnInitialized() => Updates.Changed += OnChanged;
+
+    /// <summary>Esc closes, so the dialog takes the keyboard each time it opens (review 0.4.0, A30).</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var open = Updates.DetailsOpen && Updates.Update is not null;
+        if (open && !_focused)
+        {
+            await FocusQuietlyAsync(_dialog);
+        }
+
+        _focused = open;
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            Updates.HideDetails();
+        }
+    }
 
     /// <summary>From any thread (the download's progress comes from the thread pool).</summary>
     private void OnChanged() => Fire(() =>

@@ -10,15 +10,17 @@
   --border-strong: #d6d6de;
   --text: #1d1d22;
   --muted: #6b6b76;
-  --faint: #a4a4ae;
+  --faint: #80808a;
   --accent: #3b6fe0;
   --accent-text: #ffffff;
-  --danger: #d64545;
-  --warn: #c07a00;
-  --green: #1f8a4c;
+  /* At least 4.5:1 on their own weak fill and on the surface in the light mode too (review 0.4.0, A28). */
+  --danger: #b83232;
+  --warn: #8f5b00;
+  --green: #18753f;
   --purple: #7a5fc7;
   --knob: #ffffff;            /* the knob of a switch, on both the grey and the green track */
   --knob-shadow: rgba(0, 0, 0, .25);
+  --scrim: rgba(20, 21, 24, .35); /* behind a dialog: darker, never lighter (review 0.4.0, A29) */
   /* Light fills mixed from the tokens: the dark mode follows by itself. */
   --accent-weak: color-mix(in srgb, var(--accent) 12%, transparent);
   --danger-weak: color-mix(in srgb, var(--danger) 12%, transparent);
@@ -52,6 +54,7 @@
     --green: #3cc47a;
     --purple: #a898f0;
     --knob-shadow: rgba(0, 0, 0, .5);
+    --scrim: rgba(0, 0, 0, .5);
     color-scheme: dark;
   }
 }
@@ -437,7 +440,9 @@ code { font-family: var(--mono); font-size: 12px; }
 .btn.update-failed { border-color: var(--danger); color: var(--danger); background: var(--danger-weak); }
 .btn.update-failed:hover:not(:disabled) { background: var(--danger-weak); filter: brightness(1.08); }
 
-.modal-backdrop { position: fixed; inset: 0; z-index: 20; background: color-mix(in srgb, var(--text) 30%, transparent); }
+.modal-backdrop { position: fixed; inset: 0; z-index: 20; background: var(--scrim); }
+/* A dialog takes the focus only to hear Esc (review 0.4.0, A30): no ring around the whole of it. */
+.dialog:focus, .menu-panel:focus { outline: none; }
 .dialog {
   position: fixed; z-index: 21; top: 50%; left: 50%; transform: translate(-50%, -50%);
   display: flex; flex-direction: column; width: min(620px, calc(100vw - 40px)); max-height: calc(100vh - 60px);

@@ -55,7 +55,7 @@
     {
         if (firstRender)
         {
-            await GuardAsync(async () => await _dialog.FocusAsync());
+            await FocusQuietlyAsync(_dialog);
         }
     }
 

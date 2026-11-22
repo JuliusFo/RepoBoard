@@ -9,7 +9,7 @@ namespace RepoBoard.UI.Tests.State;
 /// <summary>When the buttons of amend, revert and cherry-pick are open (WP-09).</summary>
 public sealed class CommitToolsTests
 {
-    private static RepoState Repo(IReadOnlyList<FileChange>? changes = null, bool initial = false, bool onRemote = false,
+    private static RepoState Repo(IReadOnlyList<FileChange>? changes = null, bool initial = false, bool? onRemote = false,
         GitOperation? operation = null) => new(new RepoEntry("/r"))
     {
         Status = new RepoStatus("main", initial ? null : "abc", "origin/main", 0, 0, changes ?? []),
@@ -28,6 +28,7 @@ public sealed class CommitToolsTests
     {
         Assert.Null(CommitTools.AmendBlocker(Repo([Changed])));
         Assert.Equal(SyncText.Amend_Pushed, CommitTools.AmendBlocker(Repo(onRemote: true)));
+        Assert.Equal(SyncText.Amend_Unknown, CommitTools.AmendBlocker(Repo(onRemote: null))); // review 0.4.0, A38
         Assert.Equal(SyncText.Pick_Initial, CommitTools.AmendBlocker(Repo(initial: true)));
         Assert.NotNull(CommitTools.AmendBlocker(Repo(operation: GitOperation.Merge)));
         Assert.Equal(SyncText.Pick_Unknown, CommitTools.AmendBlocker(new RepoState(new RepoEntry("/r"))));
