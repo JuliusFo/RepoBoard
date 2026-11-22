@@ -199,6 +199,15 @@
             }
 
             StateHasChanged();
+
+            // Only then whether the branch has its change already: that can take a while (review WP-09). Until it is known
+            // the button stays open; the board checks again before git runs.
+            if (commit is { InHead: false, IsMerge: false } && await Board.IsAppliedAsync(Repo, commit, default)
+                && read == _reads && _commit is { } shown)
+            {
+                _commit = shown with { Applied = true };
+                StateHasChanged();
+            }
         });
     }
 

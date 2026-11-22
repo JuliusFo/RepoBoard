@@ -180,12 +180,23 @@
 
     private string? _amendMessage;
 
+    /// <summary>HEAD when amend was ticked: only that commit is replaced, never one another session made meanwhile (review WP-09).</summary>
+    private string? _amendHead;
+
     /// <summary>Only a click on a file moves the focus to its diff (for Esc) – never a diff that a new status brought.</summary>
     private bool _focusDiff;
 
     private bool _focusCommit;
 
-    protected override void OnParametersSet() => _diffTarget = DiffSelection.Next(_diffTarget, Status);
+    protected override void OnParametersSet()
+    {
+        _diffTarget = DiffSelection.Next(_diffTarget, Status);
+        if (_amend && Status?.Head != _amendHead)
+        {
+            // Another commit is the last one now: the message filled in belongs to the one before.
+            ClearAmend();
+        }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -247,24 +258,31 @@
     /// <summary>Amend starts from the last commit's message; unticked, an unedited one goes again.</summary>
     private Task ToggleAmend(ChangeEventArgs e) => GuardAsync(async () =>
     {
-        _amend = e.Value is true;
-        if (_amend)
+        if (e.Value is not true)
         {
-            if (string.IsNullOrWhiteSpace(_message) && await Board.HeadMessageAsync(Repo, default) is { } message)
-            {
-                _message = _amendMessage = message;
-            }
+            ClearAmend();
+            return;
         }
-        else
-        {
-            if (_message == _amendMessage)
-            {
-                _message = "";
-            }
 
-            _amendMessage = null;
+        _amend = true;
+        _amendHead = Status?.Head;
+        if (string.IsNullOrWhiteSpace(_message) && await Board.HeadMessageAsync(Repo, default) is { } message
+            && _amend && _amendHead == Status?.Head && string.IsNullOrWhiteSpace(_message))
+        {
+            // Still ticked, for the same commit, and nothing typed meanwhile (review WP-09).
+            _message = _amendMessage = message;
         }
     });
+
+    private void ClearAmend()
+    {
+        if (_message == _amendMessage)
+        {
+            _message = "";
+        }
+
+        (_amend, _amendMessage, _amendHead) = (false, null, null);
+    }
 
     private static string Title(FileChange file) =>
         file.OriginalPath is { } from ? $"{from} → {file.Path}" : file.Path;
@@ -274,11 +292,10 @@
 
     private Task Commit(bool push) => GuardAsync(async () =>
     {
-        if (await Board.CommitAsync(Repo, _message.Trim(), push, default, amend: _amend))
+        if (await Board.CommitAsync(Repo, _message.Trim(), push, default, amend: _amend, expectedHead: _amend ? _amendHead : null))
         {
             _message = "";
-            _amend = false;
-            _amendMessage = null;
+            (_amend, _amendMessage, _amendHead) = (false, null, null);
         }
     });
 

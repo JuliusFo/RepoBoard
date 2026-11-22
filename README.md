@@ -30,7 +30,7 @@ sign-in, SSH, hooks and LFS work exactly as in your terminal.
   lists the ignored files git deletes with it, and never removes a worktree with changes. The branch always stays.
 - **Branches:** switch to a local or remote branch, create a new one.
 - **History:** the commits of the current branch – or of all branches – with a graph of their branches and merges, and
-  their refs; load more as you scroll back. Click a commit for its whole message, author, parents, the files it changed
+  their refs; “Load 50 more” goes further back. Click a commit for its whole message, author, parents, the files it changed
   and their diff. Revert a commit of the branch (a new commit that undoes it) or cherry-pick one of another branch onto
   it – only with no staged or changed files; if git stops at a conflict, finish it in your IDE or terminal.
 - **Auto-fetch and auto-pull** per repository, at an interval of 1 to 60 minutes. Auto-pull only fast-forwards a branch
