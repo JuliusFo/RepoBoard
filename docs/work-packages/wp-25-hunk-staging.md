@@ -55,4 +55,4 @@ Zweiter Durchgang (Fix-Commits `e097af3..b10bf6c`; Nutzer: „Alle beheben“):
 
 Dritter Durchgang (`b10bf6c..6e7c6b7`; Nutzer: „Beheben, dann pushen“):
 14. K – Nach einer unerwarteten Ausnahme beim Lesen des Diffs blieben die Hunk-Knöpfe bis zum nächsten Status gesperrt → behoben: `_current` im `finally` (das Stagen vergleicht ohnehin mit frisch gelesenem Diff). Ohne Test (Komponente).
-- Offen: echter Mausklick nach dem Umbau zu `DiffLineView` (Windows holte das Testfenster dreimal nicht nach vorn); per CDP geprüft.
+- Echter Mausklick nach dem Umbau zu `DiffLineView` (2026-11-22, `Invoke-RealClick.ps1`, ungefilterte Eingabe): Klick auf den Rand von „line 15b added“ wählt sie („Zeilen stagen (1)“), Klick auf den Knopf bringt nur diese Zeile in den Index, „line 15 changed“ bleibt draußen; Worktree-Datei unverändert (Hash gleich), Log ohne Warnungen.
