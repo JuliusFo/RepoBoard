@@ -1,6 +1,6 @@
 # WP-25 Hunks und Zeilen stagen
 
-Branch `wp/25-hunk-staging`, 2026-11-21, noch kein Release.
+Branch `wp/25-hunk-staging`, 2026-11-21, Release 0.4.0.
 
 ## Planung (aus `docs/roadmap.md`)
 - Braucht WP-05 (Diff aus `git diff`, ADR 0008). Als eigenes Paket nach WP-05 entschieden vom Nutzer (2026-11-21).
