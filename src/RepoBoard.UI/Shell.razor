@@ -146,7 +146,7 @@
     private void OnNavigationRequested() => Fire(async () =>
     {
         if (Navigation.Take() is not { } path
-            || Board.Repos.FirstOrDefault(r => string.Equals(r.Path, path, StringComparison.OrdinalIgnoreCase)) is not { } repo)
+            || Board.Repos.FirstOrDefault(r => Paths.Same(r.Path, path)) is not { } repo)
         {
             return;
         }

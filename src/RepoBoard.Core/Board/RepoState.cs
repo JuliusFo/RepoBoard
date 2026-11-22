@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using RepoBoard.Core.Git;
 using RepoBoard.Core.Repos;
+using RepoBoard.Core.IO;
 
 namespace RepoBoard.Core.Board;
 
@@ -46,7 +47,7 @@ public sealed class RepoState(RepoEntry entry, RepoState? mainRepo = null)
 
     /// <summary>A worktree a Claude Code session made (<c>&lt;repo&gt;\.claude\worktrees\…</c>): it may still be in use.</summary>
     public bool IsClaudeWorktree => MainRepo is { } main
-        && Path.StartsWith(System.IO.Path.Combine(main.Path, ".claude", "worktrees") + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        && Path.StartsWith(System.IO.Path.Combine(main.Path, ".claude", "worktrees") + System.IO.Path.DirectorySeparatorChar, Paths.Comparison);
 
     /// <summary>The opened row wants branches and history; they are read with each refresh only then.</summary>
     public bool WantsDetails { get; internal set; }

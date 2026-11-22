@@ -3,6 +3,7 @@ using RepoBoard.Core.Git;
 using RepoBoard.Core.Repos;
 using RepoBoard.Core.Resources;
 using RepoBoard.Core.Sync;
+using RepoBoard.Core.IO;
 
 namespace RepoBoard.Core.Board;
 
@@ -1169,9 +1170,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     /// <summary>A worktree root: <c>.git</c> as a folder, or as a file in a linked worktree or submodule.</summary>
     private static bool IsRepository(string path) => Path.Exists(Path.Combine(path, ".git"));
 
-    private static bool SamePath(string a, string b) =>
-        string.Equals(Path.TrimEndingDirectorySeparator(a), Path.TrimEndingDirectorySeparator(b),
-            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+    private static bool SamePath(string a, string b) => Paths.Same(a, b);
 
     // ---------- plumbing ----------
 

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RepoBoard.Core.Board;
+using RepoBoard.Core.IO;
 
 namespace RepoBoard.Core.Watch;
 
@@ -24,7 +25,7 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
     /// <summary>As many status reads at once as <see cref="BoardService.RefreshAllAsync"/> runs.</summary>
     private const int MaxParallelReads = 8;
 
-    private static readonly StringComparer PathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+    private static readonly StringComparer PathComparer = Paths.Comparer;
 
     private readonly Lock _lock = new();
     private readonly ChangeDebouncer<RepoState> _pending = new(Ticks(Quiet, time), Ticks(Longest, time));
@@ -187,7 +188,7 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
     private static bool LeftToTheTick(string root)
     {
         if (Path.GetPathRoot(root) is not { } driveRoot || WatchMap.Normalize(driveRoot) is not { } normalizedRoot
-            || string.Equals(normalizedRoot, root, StringComparison.OrdinalIgnoreCase))
+            || string.Equals(normalizedRoot, root, Paths.Comparison))
         {
             return true;
         }

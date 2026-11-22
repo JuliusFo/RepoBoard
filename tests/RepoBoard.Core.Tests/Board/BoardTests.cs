@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Time.Testing;
 using RepoBoard.Core.Board;
 using RepoBoard.Core.IO;
+using RepoBoard.Core.Repos;
 
 namespace RepoBoard.Core.Tests.Board;
 
@@ -148,6 +149,22 @@ public sealed class BoardTests : IDisposable
         var entry = Assert.Single(_board.Activity.Entries, e => e.Kind == ActivityKind.Error);
         Assert.Contains("config", entry.Text, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("kein Git-Repository", entry.Text, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Review 0.4.0, A23: a path written by hand with "/" or ".." stayed as written, and a scan put the same repository on
+    /// the board a second time – two gates, two auto-fetches at once.
+    /// </summary>
+    [Fact]
+    public async Task A_repository_written_another_way_in_the_config_is_not_added_twice()
+    {
+        var written = Path.Combine(_git.Mine, "sub", "..").Replace('\\', '/') + "/";
+        await new ConfigStore(Path.Combine(_git.Root, "config.json"), _time).SaveAsync(new BoardConfig { Repos = [new RepoEntry(written)] }, Ct);
+        await _board.LoadAsync(Ct);
+
+        Assert.Equal(0, await _board.AddAsync([_git.Mine], Ct));
+
+        Assert.Equal(_git.Mine, Assert.Single(_board.Repos).Path);
     }
 
     private async Task<RepoState> AddMineAsync(bool autoPull)

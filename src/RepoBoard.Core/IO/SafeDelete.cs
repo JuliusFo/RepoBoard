@@ -7,8 +7,7 @@ namespace RepoBoard.Core.IO;
 /// </summary>
 public static class SafeDelete
 {
-    private static readonly StringComparison PathComparison =
-        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+    private static StringComparison PathComparison => Paths.Comparison;
 
     /// <summary>Deletes <paramref name="path"/> with its contents; a missing folder is nothing to do.</summary>
     /// <param name="root">The fixed folder the caller works in, e.g. the temp path for a test's folder.</param>
