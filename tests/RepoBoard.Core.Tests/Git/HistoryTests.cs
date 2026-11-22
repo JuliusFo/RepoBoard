@@ -49,9 +49,10 @@ public sealed class HistoryTests : IDisposable
     }
 
     [Theory]
-    [InlineData("0123abcd", true)]
     [InlineData("0123456789abcdef0123456789abcdef01234567", true)]
-    [InlineData("abc", false)]          // too short to be unique
+    [InlineData("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", true)] // SHA-256
+    [InlineData("0123abcd", false)]     // short: a branch "0123abcd" would win (review WP-09)
+    [InlineData("0123456789abcdef0123456789abcdef0123456", false)]
     [InlineData("-abcdef", false)]      // an option
     [InlineData("HEAD~1", false)]       // a revision, not an id
     [InlineData("a..b0", false)]        // a range
@@ -267,7 +268,7 @@ public sealed class HistoryTests : IDisposable
         var picked = Head();
 
         commit = await DetailsAsync(repo, "feature");
-        Assert.True(commit.Applied);
+        Assert.True(await _board.IsAppliedAsync(repo, commit, Ct));
         Assert.False(await _board.CherryPickAsync(repo, commit, Ct));
 
         // git would have stopped with an empty pick and left it unfinished (E2E WP-09).
@@ -346,6 +347,121 @@ public sealed class HistoryTests : IDisposable
         Assert.Equal(GitOperation.CherryPick, repo.Operation);
         Assert.Equal(1, repo.Status!.Conflicts);
         Assert.Contains("cherry-pick --continue", repo.Error, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task An_ignored_file_at_a_path_of_the_commit_keeps_revert_and_cherry_pick_out(bool revert)
+    {
+        // Review WP-09: git counts ignored files as expendable and overwrote the user's .env without a word.
+        File.WriteAllText(Mine(".gitignore"), ".env\n");
+        GitSandbox.Git(_git.Mine, "add", ".gitignore");
+        GitSandbox.Git(_git.Mine, "commit", "-m", "ignore .env");
+        if (revert)
+        {
+            File.WriteAllText(Mine(".env"), "SECRET=old");
+            GitSandbox.Git(_git.Mine, "add", "-f", ".env");
+            GitSandbox.Git(_git.Mine, "commit", "-m", "track .env");
+            GitSandbox.Git(_git.Mine, "rm", "-q", "--cached", ".env");
+            GitSandbox.Git(_git.Mine, "commit", "-m", "stop tracking .env");
+        }
+        else
+        {
+            GitSandbox.Git(_git.Mine, "switch", "-c", "feature");
+            File.WriteAllText(Mine(".env"), "SECRET=theirs");
+            GitSandbox.Git(_git.Mine, "add", "-f", ".env");
+            GitSandbox.Git(_git.Mine, "commit", "-m", "add .env");
+            GitSandbox.Git(_git.Mine, "switch", "main");
+        }
+
+        File.WriteAllText(Mine(".env"), "SECRET=mine");
+        var before = Head();
+        var repo = await OpenMineAsync();
+        var commit = await DetailsAsync(repo, revert ? "HEAD" : "feature");
+
+        Assert.False(revert ? await _board.RevertAsync(repo, commit, Ct) : await _board.CherryPickAsync(repo, commit, Ct));
+
+        Assert.Equal("SECRET=mine", File.ReadAllText(Mine(".env")));
+        Assert.Equal(before, Head());
+        Assert.Contains(".env", repo.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Git_itself_keeps_a_new_file_that_a_cherry_pick_would_bring()
+    {
+        Feature("f.txt", "theirs");
+        File.WriteAllText(Mine("f.txt"), "mine, not ignored");
+        var before = Head();
+        var repo = await OpenMineAsync();
+
+        Assert.False(await _board.CherryPickAsync(repo, await DetailsAsync(repo, "feature"), Ct));
+
+        Assert.Equal("mine, not ignored", File.ReadAllText(Mine("f.txt")));
+        Assert.Equal(before, Head());
+        Assert.Null(repo.Operation);
+    }
+
+    [Fact]
+    public async Task A_cherry_pick_that_comes_out_empty_after_a_squash_says_so()
+    {
+        // Review WP-09: two commits squashed into one have another patch id than each of them, "git cherry" does not see it.
+        var first = Feature();
+        GitSandbox.Git(_git.Mine, "switch", "feature");
+        GitSandbox.Commit(_git.Mine, "g.txt", "second");
+        GitSandbox.Git(_git.Mine, "switch", "main");
+        GitSandbox.Git(_git.Mine, "merge", "--squash", "feature");
+        GitSandbox.Git(_git.Mine, "commit", "-m", "squashed feature");
+        var repo = await OpenMineAsync();
+        var commit = await DetailsAsync(repo, first);
+        Assert.False(await _board.IsAppliedAsync(repo, commit, Ct));
+
+        Assert.False(await _board.CherryPickAsync(repo, commit, Ct));
+
+        Assert.Equal(GitOperation.CherryPick, repo.Operation); // stays for the IDE or terminal (decision of the user)
+        Assert.Contains(SyncText.CherryPick_Empty, repo.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Amend_keeps_out_when_another_commit_came_since_its_message_was_filled_in()
+    {
+        GitSandbox.Commit(_git.Mine, "b.txt", "mine");
+        var filledIn = Head();
+        var repo = await OpenMineAsync();
+        GitSandbox.Commit(_git.Mine, "c.txt", "another session"); // review WP-09
+        var other = Head();
+
+        Assert.False(await _board.CommitAsync(repo, "b.txt: mine, better", push: false, Ct, amend: true, expectedHead: filledIn));
+
+        Assert.Equal(other, Head());
+        Assert.Equal("c.txt: another session", GitSandbox.Git(_git.Mine, "log", "-1", "--format=%s").Trim());
+        Assert.Contains(SyncText.Amend_HeadMoved, repo.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Amend_keeps_out_while_a_rebase_is_stopped()
+    {
+        GitSandbox.Commit(_git.Mine, "b.txt", "mine");
+        var before = Head();
+        var repo = await OpenMineAsync();
+        Directory.CreateDirectory(Path.Combine(_git.Mine, ".git", "rebase-merge")); // review WP-09: git would amend
+
+        Assert.False(await _board.CommitAsync(repo, "rewritten", push: false, Ct, amend: true, expectedHead: before));
+
+        Assert.Equal(before, Head());
+        Assert.NotNull(repo.Error);
+    }
+
+    [Fact]
+    public void Paths_go_to_git_in_batches_below_the_command_line_limit()
+    {
+        string[] paths = [.. Enumerable.Range(0, 1000).Select(i => $"folder/file-{i:D4}.txt")];
+
+        var batches = GitClient.Batches(paths, 2000).ToList();
+
+        Assert.Equal(paths, batches.SelectMany(b => b));
+        Assert.All(batches, b => Assert.True(b.Sum(p => p.Length + 1) <= 2000));
+        Assert.Equal([["a very long path"]], GitClient.Batches(["a very long path"], 5)); // one path is never split off
     }
 
     public void Dispose() => _git.Dispose();

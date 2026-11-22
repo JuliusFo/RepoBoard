@@ -385,8 +385,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
                 }
 
                 var inHead = repo.Status is { IsInitial: false } && await git.IsAncestorAsync(repo.Path, commit.Id, "HEAD", ct) == true;
-                var applied = !inHead && repo.Status is { IsInitial: false } && await git.IsAppliedAsync(repo.Path, commit, ct) == true;
-                return ((CommitDetails?)(commit with { InHead = inHead, Applied = applied }), (string?)null);
+                return ((CommitDetails?)(commit with { InHead = inHead }), (string?)null);
             }, ct);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -394,6 +393,16 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             return (null, TextFormat.Format(SyncText.OperationFailed, SyncText.Op_Show, ex.Message));
         }
     }
+
+    /// <summary>
+    /// Whether HEAD already has the change of <paramref name="commit"/> (<see cref="GitClient.IsAppliedAsync"/>), for the
+    /// cherry-pick button. Read after the details are shown: <c>git cherry</c> computes a patch id for every commit of HEAD
+    /// since the fork point, which takes a while for an old branch (review WP-09). Only reads.
+    /// </summary>
+    public Task<bool> IsAppliedAsync(RepoState repo, CommitDetails commit, CancellationToken ct) =>
+        commit.InHead || commit.IsMerge || repo.Status is not { IsInitial: false }
+            ? Task.FromResult(false)
+            : Task.Run(async () => await git.IsAppliedAsync(repo.Path, commit, ct) == true, ct);
 
     /// <summary>The diff of one file of a commit (WP-09); only reads, on the thread pool (as <see cref="DiffAsync"/>).</summary>
     public async Task<(FileDiff? Diff, string? Error)> CommitDiffAsync(RepoState repo, CommitDetails commit, CommitFile file, CancellationToken ct)
@@ -537,10 +546,14 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
 
     /// <summary>
     /// Commits what is staged; with nothing staged, everything (like "commit all" elsewhere). With <paramref name="amend"/>
-    /// (WP-09) the staged changes and the message replace the last commit instead – nothing is staged on top, and only if
-    /// no remote branch has that commit, checked inside the gate right before (it would need a force push).
+    /// (WP-09) the staged changes and the message replace the last commit instead – nothing is staged on top. Checked inside
+    /// the gate right before: no remote branch has that commit (it would need a force push), no merge or rebase is under
+    /// way (a stopped rebase would take the next commit's changes into it), and HEAD is still
+    /// <paramref name="expectedHead"/>, the commit whose message the user started from – another session may have committed
+    /// meanwhile (review WP-09).
     /// </summary>
-    public Task<bool> CommitAsync(RepoState repo, string message, bool push, CancellationToken ct, bool amend = false)
+    public Task<bool> CommitAsync(RepoState repo, string message, bool push, CancellationToken ct, bool amend = false,
+        string? expectedHead = null)
     {
         var stageAll = !amend && repo.Status is { Staged: 0 };
         var setUpstream = repo.Status is { HasUpstream: false, IsDetached: false };
@@ -568,10 +581,9 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             GitResult committed;
             if (amend)
             {
-                var onRemote = await git.IsOnRemoteAsync(repo.Path, "HEAD", c);
-                if (onRemote != false)
+                if (await AmendBlockerAsync(repo, expectedHead, c) is { } blocked)
                 {
-                    return GitResult.Failed(onRemote is null ? SyncText.Amend_Unknown : SyncText.Amend_Pushed);
+                    return blocked;
                 }
 
                 committed = await git.AmendAsync(repo.Path, message, c);
@@ -583,6 +595,29 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
 
             return !committed.Success || !push ? committed : await git.PushAsync(repo.Path, setUpstream, c);
         }, () => Info(TextFormat.Format(note, FirstLine(message))), ct);
+    }
+
+    /// <summary>Why the last commit must not be amended right now (inside the gate); null if it may.</summary>
+    private async Task<GitResult?> AmendBlockerAsync(RepoState repo, string? expectedHead, CancellationToken c)
+    {
+        var gitDir = await git.GitDirAsync(repo.Path, c);
+        if (gitDir is null)
+        {
+            return GitResult.Failed(SyncText.Pick_Unknown);
+        }
+
+        if (GitClient.OperationIn(gitDir) is { } running)
+        {
+            return GitResult.Failed(TextFormat.Format(SyncText.Pick_Operation, PullCheck.Name(running)));
+        }
+
+        if (expectedHead is not null && await git.CommitOfAsync(repo.Path, "HEAD", c) != expectedHead)
+        {
+            return GitResult.Failed(SyncText.Amend_HeadMoved);
+        }
+
+        var onRemote = await git.IsOnRemoteAsync(repo.Path, "HEAD", c);
+        return onRemote == false ? null : GitResult.Failed(onRemote is null ? SyncText.Amend_Unknown : SyncText.Amend_Pushed);
     }
 
     /// <summary>A new commit that undoes <paramref name="commit"/> (WP-09); see <see cref="PickAsync"/>.</summary>
@@ -598,9 +633,11 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     /// <summary>
     /// Revert or cherry-pick (WP-09, ADR 0013), checked inside the gate right before git runs: no unfinished operation, no
     /// staged, changed or conflicted file (so that a later abort of a stopped one loses nothing of the user's; new files
-    /// may stay – git refuses to overwrite one), not a merge commit, a revert only of a commit HEAD contains and a
-    /// cherry-pick only of one it does not, nor its change (<see cref="GitClient.IsAppliedAsync"/>). If git stops at a conflict, the operation stays unfinished for the IDE or
-    /// terminal (decision of the user, 2026-11-22) and the message says so.
+    /// may stay – git refuses to overwrite one), no ignored file at a path of the commit (git overwrites those without a
+    /// word; review WP-09), not a merge commit, a revert only of a commit HEAD contains and a cherry-pick only of one it
+    /// does not, nor its change (<see cref="GitClient.IsAppliedAsync"/>). If git stops – at a conflict, or with a
+    /// cherry-pick that came out empty – the operation stays unfinished for the IDE or terminal (decision of the user,
+    /// 2026-11-22) and the message says how to go on.
     /// </summary>
     private async Task<GitResult> PickAsync(RepoState repo, CommitDetails commit, bool revert, CancellationToken c)
     {
@@ -653,10 +690,30 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             return GitResult.Failed(SyncText.CherryPick_Applied);
         }
 
+        string[] paths = [.. commit.Files.SelectMany(f => f.OriginalPath is { } from ? [from, f.Path] : new[] { f.Path }).Distinct()];
+        var ignored = paths.Length == 0 ? [] : await git.IgnoredAmongAsync(repo.Path, paths, c);
+        if (ignored is null)
+        {
+            return GitResult.Failed(SyncText.Pick_Unknown);
+        }
+
+        if (ignored.Count > 0)
+        {
+            return GitResult.Failed(TextFormat.Format(SyncText.Pick_Ignored, ignored[0]));
+        }
+
         var result = revert ? await git.RevertAsync(repo.Path, commit.Id, c) : await git.CherryPickAsync(repo.Path, commit.Id, c);
-        return result.Success || GitClient.OperationIn(gitDir) is null
-            ? result
-            : GitResult.Failed(TextFormat.Format(revert ? SyncText.Revert_Stopped : SyncText.CherryPick_Stopped, result.Message));
+        if (result.Success || GitClient.OperationIn(gitDir) is null)
+        {
+            return result;
+        }
+
+        // Stopped without a conflict and with nothing to commit (the worktree was clean before): the change is already in
+        // HEAD in another form, as after a squash merge – "git cherry" only knows 1:1 copies (review WP-09).
+        var (after, _) = await git.StatusAsync(repo.Path, c);
+        return GitResult.Failed(!revert && after is { Conflicts: 0 } && after.Changes.All(f => f.Untracked)
+            ? SyncText.CherryPick_Empty
+            : TextFormat.Format(revert ? SyncText.Revert_Stopped : SyncText.CherryPick_Stopped, result.Message));
     }
 
     public Task<bool> SwitchAsync(RepoState repo, BranchInfo branch, CancellationToken ct)

@@ -294,4 +294,13 @@
   <data name="CherryPick_Applied" xml:space="preserve">
     <value>der aktuelle Branch hat diese Änderung schon (früher übernommen)</value>
   </data>
+  <data name="Pick_Ignored" xml:space="preserve">
+    <value>{0} ist hier ignoriert und würde ohne Rückfrage überschrieben – erst wegschieben</value>
+  </data>
+  <data name="CherryPick_Empty" xml:space="preserve">
+    <value>nichts zu übernehmen: der Branch hat diese Änderung schon (etwa über einen Squash-Merge) – den Cherry-Pick im IDE oder Terminal mit git cherry-pick --skip beenden</value>
+  </data>
+  <data name="Amend_HeadMoved" xml:space="preserve">
+    <value>der letzte Commit hat sich geändert, seit seine Nachricht eingefüllt wurde – „Letzten Commit ändern“ neu ankreuzen</value>
+  </data>
 </root>

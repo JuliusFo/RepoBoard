@@ -265,11 +265,12 @@ public sealed class GitClient(GitRunner runner)
     ];
 
     /// <summary>
-    /// A commit id as the history gives it: hex digits only. Checked before a command takes it, so it can never be an
-    /// option or a range (WP-09).
+    /// A full commit id as the history gives it (<c>%H</c>: 40 hex digits, 64 with SHA-256). Checked before a command takes
+    /// it, so it can never be an option or a range (WP-09) – nor a ref: git resolves a short id to a branch of that name
+    /// first (review WP-09).
     /// </summary>
     public static bool IsCommitId(string id) =>
-        id.Length is >= 4 and <= 64 && id.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f');
+        id.Length is 40 or 64 && id.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f');
 
     /// <summary>One commit with its whole message and changed files (WP-09); a merge against its first parent. Null if git fails.</summary>
     public async Task<(CommitDetails? Commit, GitResult Result)> CommitDetailsAsync(string repo, string id, CancellationToken ct)
@@ -360,7 +361,8 @@ public sealed class GitClient(GitRunner runner)
 
     /// <summary>
     /// True if a remote branch contains <paramref name="rev"/> – it was pushed, an amend would need a force push (WP-09).
-    /// Null if git cannot tell.
+    /// Null if git cannot tell. One walk from <paramref name="rev"/> that stops at the remotes – read with every status of an
+    /// opened row, where <c>for-each-ref --contains</c> would test each remote ref on its own (review WP-09).
     /// </summary>
     public async Task<bool?> IsOnRemoteAsync(string repo, string rev, CancellationToken ct)
     {
@@ -369,8 +371,53 @@ public sealed class GitClient(GitRunner runner)
             return null;
         }
 
-        var result = await Local(repo, ct, "for-each-ref", "--count=1", "--format=%(refname)", "--contains", rev, "refs/remotes");
-        return result.Success ? result.Output.Trim().Length > 0 : null;
+        var result = await Local(repo, ct, "rev-list", "-n1", rev, "--not", "--remotes", "--");
+        return result.Success ? result.Output.Trim().Length == 0 : null;
+    }
+
+    /// <summary>
+    /// Which of <paramref name="paths"/> are untracked and ignored in the worktree. git counts such files as expendable: a
+    /// revert, cherry-pick or merge that brings a file there overwrites it without a word (review WP-09). Null if git fails.
+    /// </summary>
+    public async Task<IReadOnlyList<string>?> IgnoredAmongAsync(string repo, IReadOnlyList<string> paths, CancellationToken ct)
+    {
+        // In batches: a commit with thousands of files would pass the command line's limit on Windows (32,767 characters).
+        var ignored = new List<string>();
+        foreach (var batch in Batches(paths, 16_000))
+        {
+            var result = await Local(repo, ct, [LiteralPaths, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--", .. batch]);
+            if (!result.Success)
+            {
+                return null;
+            }
+
+            ignored.AddRange(result.Output.Split('\0', StringSplitOptions.RemoveEmptyEntries));
+        }
+
+        return ignored;
+    }
+
+    /// <summary>Consecutive parts of <paramref name="paths"/>, each together at most <paramref name="chars"/> long (at least one path).</summary>
+    internal static IEnumerable<List<string>> Batches(IReadOnlyList<string> paths, int chars)
+    {
+        var batch = new List<string>();
+        var length = 0;
+        foreach (var path in paths)
+        {
+            if (batch.Count > 0 && length + path.Length + 1 > chars)
+            {
+                yield return batch;
+                (batch, length) = ([], 0);
+            }
+
+            batch.Add(path);
+            length += path.Length + 1;
+        }
+
+        if (batch.Count > 0)
+        {
+            yield return batch;
+        }
     }
 
     /// <summary>

@@ -334,4 +334,14 @@
   <data name="CherryPick_Applied" xml:space="preserve">
     <value>the current branch already has this change (picked before)</value>
   </data>
+  <data name="Pick_Ignored" xml:space="preserve">
+    <value>{0} is ignored here and would be overwritten without a word – move it away first</value>
+    <comment>{0} = path of the ignored file</comment>
+  </data>
+  <data name="CherryPick_Empty" xml:space="preserve">
+    <value>nothing to pick: the branch already has this change (perhaps through a squash merge) – end the cherry-pick in the IDE or terminal with git cherry-pick --skip</value>
+  </data>
+  <data name="Amend_HeadMoved" xml:space="preserve">
+    <value>the last commit changed since its message was filled in – tick “Amend last commit” again</value>
+  </data>
 </root>
