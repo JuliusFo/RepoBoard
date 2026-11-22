@@ -385,7 +385,8 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
                 }
 
                 var inHead = repo.Status is { IsInitial: false } && await git.IsAncestorAsync(repo.Path, commit.Id, "HEAD", ct) == true;
-                return ((CommitDetails?)(commit with { InHead = inHead }), (string?)null);
+                var applied = !inHead && repo.Status is { IsInitial: false } && await git.IsAppliedAsync(repo.Path, commit, ct) == true;
+                return ((CommitDetails?)(commit with { InHead = inHead, Applied = applied }), (string?)null);
             }, ct);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -598,7 +599,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     /// Revert or cherry-pick (WP-09, ADR 0013), checked inside the gate right before git runs: no unfinished operation, no
     /// staged, changed or conflicted file (so that a later abort of a stopped one loses nothing of the user's; new files
     /// may stay – git refuses to overwrite one), not a merge commit, a revert only of a commit HEAD contains and a
-    /// cherry-pick only of one it does not. If git stops at a conflict, the operation stays unfinished for the IDE or
+    /// cherry-pick only of one it does not, nor its change (<see cref="GitClient.IsAppliedAsync"/>). If git stops at a conflict, the operation stays unfinished for the IDE or
     /// terminal (decision of the user, 2026-11-22) and the message says so.
     /// </summary>
     private async Task<GitResult> PickAsync(RepoState repo, CommitDetails commit, bool revert, CancellationToken c)
@@ -644,6 +645,12 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         if (revert != inHead)
         {
             return GitResult.Failed(revert ? SyncText.Revert_NotInHead : SyncText.CherryPick_InHead);
+        }
+
+        // An empty revert fails without leaving anything behind; an empty cherry-pick would stay unfinished (E2E WP-09).
+        if (!revert && await git.IsAppliedAsync(repo.Path, commit, c) == true)
+        {
+            return GitResult.Failed(SyncText.CherryPick_Applied);
         }
 
         var result = revert ? await git.RevertAsync(repo.Path, commit.Id, c) : await git.CherryPickAsync(repo.Path, commit.Id, c);

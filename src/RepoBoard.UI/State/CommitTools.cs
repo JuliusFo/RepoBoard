@@ -29,5 +29,6 @@ public static class CommitTools
         : status.Changes.Any(c => !c.Untracked) ? SyncText.Pick_Changes
         : revert && !commit.InHead ? SyncText.Revert_NotInHead
         : !revert && commit.InHead ? SyncText.CherryPick_InHead
+        : !revert && commit.Applied ? SyncText.CherryPick_Applied
         : null;
 }

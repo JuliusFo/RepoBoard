@@ -17,8 +17,8 @@ public sealed class CommitToolsTests
         Operation = operation,
     };
 
-    private static CommitDetails Commit(bool inHead, int parents = 1) =>
-        new("abc", "abc", [.. Enumerable.Range(0, parents).Select(i => $"p{i}")], "Jo", "jo@x", default, "Jo", default, "", "Subject", [], inHead);
+    private static CommitDetails Commit(bool inHead, int parents = 1, bool applied = false) =>
+        new("abc", "abc", [.. Enumerable.Range(0, parents).Select(i => $"p{i}")], "Jo", "jo@x", default, "Jo", default, "", "Subject", [], inHead, applied);
 
     private static readonly FileChange Changed = new("a.txt", null, '.', 'M', false, false);
     private static readonly FileChange New = new("n.txt", null, '.', '?', true, false);
@@ -41,6 +41,7 @@ public sealed class CommitToolsTests
         Assert.Equal(SyncText.Pick_Changes, CommitTools.PickBlocker(Repo([Changed]), Commit(inHead: true), revert: true));
         Assert.Equal(SyncText.Revert_NotInHead, CommitTools.PickBlocker(Repo(), Commit(inHead: false), revert: true));
         Assert.Equal(SyncText.CherryPick_InHead, CommitTools.PickBlocker(Repo(), Commit(inHead: true), revert: false));
+        Assert.Equal(SyncText.CherryPick_Applied, CommitTools.PickBlocker(Repo(), Commit(inHead: false, applied: true), revert: false));
         Assert.Equal(SyncText.Pick_Merge, CommitTools.PickBlocker(Repo(), Commit(inHead: true, parents: 2), revert: true));
         Assert.NotNull(CommitTools.PickBlocker(Repo(operation: GitOperation.Revert), Commit(inHead: true), revert: true));
     }

@@ -15,13 +15,13 @@
             {
                 <button class="btn small" disabled="@(revertBlocker is not null || Repo.Busy is not null)"
                         title="@(revertBlocker ?? BoardText.Commit_Revert_Hint)"
-                        @onclick="() => GuardAsync(() => Board.RevertAsync(Repo, actions, default))">@BoardText.Commit_Revert</button>
+                        @onclick="() => PickAsync(actions, revert: true)">@BoardText.Commit_Revert</button>
             }
             else
             {
                 <button class="btn small" disabled="@(pickBlocker is not null || Repo.Busy is not null)"
                         title="@(pickBlocker ?? TextFormat.Format(BoardText.Commit_CherryPick_Hint, Repo.Status?.Branch ?? "HEAD"))"
-                        @onclick="() => GuardAsync(() => Board.CherryPickAsync(Repo, actions, default))">@BoardText.Commit_CherryPick</button>
+                        @onclick="() => PickAsync(actions, revert: false)">@BoardText.Commit_CherryPick</button>
             }
         }
         <button class="btn small ghost icon-only" title="@BoardText.Commit_Close_Hint" @onclick="OnClose">@Icons.Close</button>
@@ -222,6 +222,15 @@
             }
         });
     }
+
+    /// <summary>Revert or cherry-pick; on success the pane closes – the new commit is on top of the history.</summary>
+    private Task PickAsync(CommitDetails commit, bool revert) => GuardAsync(async () =>
+    {
+        if (revert ? await Board.RevertAsync(Repo, commit, default) : await Board.CherryPickAsync(Repo, commit, default))
+        {
+            await OnClose.InvokeAsync();
+        }
+    });
 
     private static string Date(DateTimeOffset date) => date.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
 

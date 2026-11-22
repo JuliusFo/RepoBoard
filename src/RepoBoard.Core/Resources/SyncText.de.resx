@@ -291,4 +291,7 @@
   <data name="CherryPick_Stopped" xml:space="preserve">
     <value>angehalten – im IDE oder Terminal abschließen (git cherry-pick --continue, oder --abort): {0}</value>
   </data>
+  <data name="CherryPick_Applied" xml:space="preserve">
+    <value>der aktuelle Branch hat diese Änderung schon (früher übernommen)</value>
+  </data>
 </root>

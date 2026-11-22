@@ -17,8 +17,11 @@ public enum GraphLineKind
 /// <param name="To">The lane at the bottom (<see cref="GraphLineKind.Through"/>, <see cref="GraphLineKind.Out"/>) or the commit's column.</param>
 public readonly record struct GraphLine(int From, int To, GraphLineKind Kind)
 {
-    /// <summary>The lane whose colour the line takes: the one it comes from, or for a line out of the commit, the one it goes to.</summary>
-    public int Lane => Kind == GraphLineKind.Out ? To : From;
+    /// <summary>
+    /// The lane whose colour the line takes: of two, always the right one – the branch that joins or leaves the lane on its
+    /// left (a merge's second parent, a branch's tip joining its fork point, a lane moving over).
+    /// </summary>
+    public int Lane => Math.Max(From, To);
 }
 
 /// <summary>The graph in one row of the history: the commit's column and the lines through the row.</summary>

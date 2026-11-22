@@ -389,6 +389,22 @@ public sealed class GitClient(GitRunner runner)
             ? Local(repo, ct, "revert", "--no-edit", id)
             : Task.FromResult(GitResult.Failed(TextFormat.Format(SyncText.InvalidCommit, id)));
 
+    /// <summary>
+    /// True if HEAD already has a commit with the same change as <paramref name="id"/> (same patch id, <c>git cherry</c>): a
+    /// cherry-pick of it would come out empty, and git would stop and leave it unfinished (E2E WP-09). Null if git cannot
+    /// tell – for a root commit, or one with several parents.
+    /// </summary>
+    public async Task<bool?> IsAppliedAsync(string repo, CommitDetails commit, CancellationToken ct)
+    {
+        if (commit.Parents is not [var parent] || !IsCommitId(commit.Id) || !IsCommitId(parent))
+        {
+            return null;
+        }
+
+        var result = await Local(repo, ct, "cherry", "HEAD", commit.Id, parent);
+        return result.Success ? result.Output.TrimStart().StartsWith('-') : null;
+    }
+
     /// <summary>Applies <paramref name="id"/> onto HEAD as a new commit (WP-09); on a conflict git stops as in <see cref="RevertAsync"/>.</summary>
     public Task<GitResult> CherryPickAsync(string repo, string id, CancellationToken ct) =>
         IsCommitId(id)

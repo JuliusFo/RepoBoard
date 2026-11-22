@@ -62,10 +62,12 @@ public sealed class CommitGraphTests
     }
 
     [Fact]
-    public void The_colour_of_a_line_is_the_lane_it_leads_to_or_comes_from()
+    public void A_line_between_two_lanes_takes_the_colour_of_the_branch_on_the_right()
     {
-        Assert.Equal(1, Out(0, 1).Lane);
+        Assert.Equal(1, Out(0, 1).Lane); // a merge's second parent
+        Assert.Equal(1, Out(1, 0).Lane); // a tip joining its fork point (E2E WP-09: was main's colour)
         Assert.Equal(1, In(1, 0).Lane);
+        Assert.Equal(1, new GraphLine(1, 0, GraphLineKind.Through).Lane);
         Assert.Equal(2, Through(2).Lane);
     }
 

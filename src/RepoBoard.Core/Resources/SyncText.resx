@@ -331,4 +331,7 @@
     <value>stopped – finish it in the IDE or terminal (git cherry-pick --continue, or --abort): {0}</value>
     <comment>{0} = git's message</comment>
   </data>
+  <data name="CherryPick_Applied" xml:space="preserve">
+    <value>the current branch already has this change (picked before)</value>
+  </data>
 </root>

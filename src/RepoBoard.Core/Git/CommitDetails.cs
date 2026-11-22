@@ -12,6 +12,8 @@ public sealed record CommitFile(string Path, string? OriginalPath, char Status);
 /// first parent – what the merge brought into the branch.
 /// </summary>
 /// <param name="InHead">The commit is in the history of HEAD: it can be reverted, not cherry-picked.</param>
+/// <param name="Applied">Not in HEAD, but HEAD has a commit with the same change (an earlier cherry-pick): picking it again
+/// would come out empty.</param>
 public sealed record CommitDetails(
     string Id,
     string ShortId,
@@ -24,7 +26,8 @@ public sealed record CommitDetails(
     string Refs,
     string Message,
     IReadOnlyList<CommitFile> Files,
-    bool InHead = false)
+    bool InHead = false,
+    bool Applied = false)
 {
     public bool IsMerge => Parents.Count > 1;
     public bool IsRoot => Parents.Count == 0;

@@ -256,6 +256,26 @@ public sealed class HistoryTests : IDisposable
         Assert.Equal(before, Head("HEAD~1")); // a new commit with the same change on top of main
     }
 
+    [Fact]
+    public async Task A_change_picked_before_is_not_picked_again()
+    {
+        Feature();
+        GitSandbox.Commit(_git.Mine, "b.txt", "on main");
+        var repo = await OpenMineAsync();
+        var commit = await DetailsAsync(repo, "feature");
+        Assert.True(await _board.CherryPickAsync(repo, commit, Ct));
+        var picked = Head();
+
+        commit = await DetailsAsync(repo, "feature");
+        Assert.True(commit.Applied);
+        Assert.False(await _board.CherryPickAsync(repo, commit, Ct));
+
+        // git would have stopped with an empty pick and left it unfinished (E2E WP-09).
+        Assert.Null(repo.Operation);
+        Assert.Equal(picked, Head());
+        Assert.Contains(SyncText.CherryPick_Applied, repo.Error, StringComparison.Ordinal);
+    }
+
     public static TheoryData<string, bool> Refusals => new()
     {
         { "changed", true },
