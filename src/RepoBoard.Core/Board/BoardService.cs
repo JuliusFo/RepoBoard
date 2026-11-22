@@ -117,12 +117,20 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         return added.Count;
     }
 
-    /// <summary>Adds every repository below <paramref name="root"/> and logs how many were new.</summary>
-    public async Task<int> ScanAsync(string root, CancellationToken ct)
+    /// <summary>
+    /// The repositories below <paramref name="root"/> that are not on the board yet, read without git (review 0.4.0, A9):
+    /// a repository's configuration and hooks run with every git call RepoBoard makes there, so the user ticks first.
+    /// </summary>
+    public Task<IReadOnlyList<ScanCandidate>> ScanAsync(string root, CancellationToken ct) => Task.Run(() =>
+        (IReadOnlyList<ScanCandidate>)[.. RepoScanner.Candidates(root)
+            .Where(c => !_repos.Any(r => Paths.Same(r.Path, c.Board)))
+            .DistinctBy(c => Paths.Full(c.Board), Paths.Comparer)], ct);
+
+    /// <summary>Adds the repositories the user ticked from <see cref="ScanAsync"/> and logs how many were new.</summary>
+    public async Task<int> AddScannedAsync(string root, IReadOnlyList<ScanCandidate> chosen, CancellationToken ct)
     {
-        var found = await Task.Run(() => RepoScanner.Find(root), ct);
-        var added = await AddAsync(found, ct);
-        Log(Path.GetFileName(root), added == 0 ? SyncText.Scan_NothingNew : TextFormat.Plural(added, SyncText.Scan_AddedOne, SyncText.Scan_AddedOther), ActivityKind.Info);
+        var added = chosen.Count == 0 ? 0 : await AddAsync(chosen.Select(c => c.Path), ct);
+        Log(Path.GetFileName(Path.TrimEndingDirectorySeparator(root)), added == 0 ? SyncText.Scan_NothingNew : TextFormat.Plural(added, SyncText.Scan_AddedOne, SyncText.Scan_AddedOther), ActivityKind.Info);
         Notify();
         return added;
     }
@@ -1153,7 +1161,9 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             return;
         }
 
-        ImmutableList<RepoState> next = [.. list.Skip(1).Where(w => !w.IsBare).Select(info =>
+        // A worktree on a network share of another host only for a repository on a share itself: every status there would
+        // send a sign-in to that host, and the entry came from a file in the repository, not from the user (review 0.4.0, A9).
+        ImmutableList<RepoState> next = [.. list.Skip(1).Where(w => !w.IsBare && (!IsShare(w.Path) || IsShare(repo.Path))).Select(info =>
         {
             var worktree = known.FirstOrDefault(w => SamePath(w.Path, info.Path)) ?? new RepoState(new RepoEntry(info.Path), repo);
             worktree.Worktree = info;
@@ -1171,6 +1181,8 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     private static bool IsRepository(string path) => Path.Exists(Path.Combine(path, ".git"));
 
     private static bool SamePath(string a, string b) => Paths.Same(a, b);
+
+    private static bool IsShare(string path) => path.StartsWith(@"\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal);
 
     // ---------- plumbing ----------
 

@@ -19,19 +19,19 @@
             <p class="muted">@BoardText.Worktrees_RemoveExplain</p>
             @if (Worktree is null && _defaultBranch is null)
             {
-                <div class="update-note failed">@BoardText.Worktrees_NoDefaultBranch</div>
+                <div class="note failed">@BoardText.Worktrees_NoDefaultBranch</div>
             }
             @if (_candidates.Count == 0)
             {
                 <p>@BoardText.Worktrees_NothingDone</p>
             }
-            <div class="wt-list">
+            <div class="pick-list">
                 @foreach (var candidate in _candidates)
                 {
                     var worktree = candidate.Worktree;
-                    <label class="wt-item @(candidate.CanRemove ? "" : "blocked")" @key="worktree">
+                    <label class="pick-item @(candidate.CanRemove ? "" : "blocked")" @key="worktree">
                         <input type="checkbox" checked="@_selected.Contains(worktree)" disabled="@(!candidate.CanRemove)" @onchange="() => Select(worktree)" />
-                        <span class="wt-text">
+                        <span class="pick-text">
                             <span class="wt-name">
                                 <strong>@worktree.Name</strong>
                                 <span class="muted">@BranchText(worktree)</span>
@@ -47,7 +47,7 @@
                             }
                             @if (candidate.Block is { } block)
                             {
-                                <span class="wt-block">@Icons.Warning @BoardService.BlockText(block)</span>
+                                <span class="pick-warn">@Icons.Warning @BoardService.BlockText(block)</span>
                             }
                             @if (candidate.Ignored.Count > 0)
                             {
@@ -66,7 +66,7 @@
             </div>
             @if (_selected.Any(w => w.IsClaudeWorktree))
             {
-                <div class="update-note">@BoardText.Worktrees_ClaudeWarning</div>
+                <div class="note">@BoardText.Worktrees_ClaudeWarning</div>
             }
         }
     </div>

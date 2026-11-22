@@ -543,4 +543,34 @@ Log: {1}</value>
   <data name="Ago_Years" xml:space="preserve">
     <value>vor {0} Jahren</value>
   </data>
+  <data name="Scan_Title" xml:space="preserve">
+    <value>Repos hinzufügen</value>
+  </data>
+  <data name="Scan_Explain" xml:space="preserve">
+    <value>Gefunden unter {0}. RepoBoard ruft in jedem Repo, das du hinzufügst, git auf – mit den Einstellungen und Hooks dieses Repos, wie im Terminal. Ein Repo, das selbst etwas ausführt, ist nicht angehakt: hake es nur an, wenn du ihm vertraust.</value>
+  </data>
+  <data name="Scan_Runs_FsMonitor" xml:space="preserve">
+    <value>führt bei jedem Status ein Programm aus (core.fsmonitor)</value>
+  </data>
+  <data name="Scan_Runs_HooksPath" xml:space="preserve">
+    <value>nimmt Hooks aus einem anderen Ordner (core.hooksPath)</value>
+  </data>
+  <data name="Scan_Runs_SshCommand" xml:space="preserve">
+    <value>führt statt ssh ein eigenes Programm aus (core.sshCommand)</value>
+  </data>
+  <data name="Scan_Runs_Hooks" xml:space="preserve">
+    <value>hat eigene Hooks (.git/hooks)</value>
+  </data>
+  <data name="Scan_Runs_Includes" xml:space="preserve">
+    <value>bindet weitere Konfiguration aus einer anderen Datei ein</value>
+  </data>
+  <data name="Scan_Outside" xml:space="preserve">
+    <value>ein verknüpfter Worktree – sein Repo {0} kommt aufs Board, außerhalb des gescannten Ordners</value>
+  </data>
+  <data name="Scan_AddOne" xml:space="preserve">
+    <value>{0} Repo hinzufügen</value>
+  </data>
+  <data name="Scan_AddOther" xml:space="preserve">
+    <value>{0} Repos hinzufügen</value>
+  </data>
 </root>

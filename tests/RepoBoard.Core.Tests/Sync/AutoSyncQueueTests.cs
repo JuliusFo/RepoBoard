@@ -63,6 +63,23 @@ public sealed class AutoSyncQueueTests : IDisposable
         Assert.Equal(1, git.MostAtOnce);
     }
 
+    /// <summary>
+    /// Review 0.4.0, A9 (decision of the user): a worktree entry on another host's share comes from a file in the repository –
+    /// reading its status every tick would send a sign-in there. Only for a repository on a share itself.
+    /// </summary>
+    [Fact]
+    public async Task A_worktree_on_a_share_is_left_out_for_a_repository_that_is_not_on_one()
+    {
+        var (board, git) = await BoardAsync(repos: 1);
+        var repo = board.Repos[0];
+        git.Worktrees = $"worktree {repo.Path}\0HEAD {new string('a', 40)}\0branch refs/heads/main\0\0"
+            + $"worktree \\\\host\\share\\wt\0HEAD {new string('b', 40)}\0branch refs/heads/side\0\0";
+
+        await board.RefreshAsync(repo, Ct);
+
+        Assert.Empty(repo.Worktrees);
+    }
+
     private async Task<(BoardService Board, CountingGit Git)> BoardAsync(int repos)
     {
         var entries = Enumerable.Range(0, repos).Select(i =>

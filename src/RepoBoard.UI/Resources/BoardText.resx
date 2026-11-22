@@ -599,4 +599,38 @@ Log: {1}</value>
     <value>{0} years ago</value>
     <comment>{0} = number of years, at least 2</comment>
   </data>
+  <data name="Scan_Title" xml:space="preserve">
+    <value>Add repositories</value>
+  </data>
+  <data name="Scan_Explain" xml:space="preserve">
+    <value>Found below {0}. RepoBoard runs git in every repository you add – with that repository's own settings and hooks, as in your terminal. A repository that runs something of its own is not ticked: tick it only if you trust it.</value>
+    <comment>{0} = the scanned folder</comment>
+  </data>
+  <data name="Scan_Runs_FsMonitor" xml:space="preserve">
+    <value>runs a program on every status (core.fsmonitor)</value>
+  </data>
+  <data name="Scan_Runs_HooksPath" xml:space="preserve">
+    <value>takes hooks from another folder (core.hooksPath)</value>
+  </data>
+  <data name="Scan_Runs_SshCommand" xml:space="preserve">
+    <value>runs its own program instead of ssh (core.sshCommand)</value>
+  </data>
+  <data name="Scan_Runs_Hooks" xml:space="preserve">
+    <value>has hooks of its own (.git/hooks)</value>
+  </data>
+  <data name="Scan_Runs_Includes" xml:space="preserve">
+    <value>includes more configuration from another file</value>
+  </data>
+  <data name="Scan_Outside" xml:space="preserve">
+    <value>a linked worktree – its repository {0} goes on the board, outside the scanned folder</value>
+    <comment>{0} = path of the repository</comment>
+  </data>
+  <data name="Scan_AddOne" xml:space="preserve">
+    <value>Add {0} repository</value>
+    <comment>{0} = 1</comment>
+  </data>
+  <data name="Scan_AddOther" xml:space="preserve">
+    <value>Add {0} repositories</value>
+    <comment>{0} = number of repositories</comment>
+  </data>
 </root>

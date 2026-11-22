@@ -64,11 +64,11 @@
             <p><a href="@ProjectSite.Releases" target="_blank" rel="noopener">@UpdateText.AllReleases</a></p>
             @if (Updates.Phase == UpdatePhase.DownloadFailed)
             {
-                <div class="update-note failed">@TextFormat.Format(UpdateText.DownloadFailed, update.Version, Updates.Error)</div>
+                <div class="note failed">@TextFormat.Format(UpdateText.DownloadFailed, update.Version, Updates.Error)</div>
             }
             else if (Updates.Phase == UpdatePhase.Ready)
             {
-                <div class="update-note">@TextFormat.Format(UpdateText.Ready, update.Version)</div>
+                <div class="note">@TextFormat.Format(UpdateText.Ready, update.Version)</div>
             }
             <p class="muted">@UpdateText.RestartHint</p>
         </div>

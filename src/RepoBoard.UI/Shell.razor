@@ -109,10 +109,19 @@
     <WorktreeDialog @key="dialog" Repo="dialog.Repo" Worktree="dialog.Worktree" OnClose="() => _worktreeDialog = null" />
 }
 
+@if (_scan is { } scan)
+{
+    <ScanDialog @key="scan" Root="scan.Root" Selection="scan.Selection" OnClose="() => _scan = null" />
+}
+
 @code {
     private readonly HashSet<RepoState> _expanded = [];
     private readonly HashSet<RepoState> _worktreesOpen = [];
     private WorktreeDialogRequest? _worktreeDialog;
+    private ScanRequest? _scan;
+
+    /// <summary>The repositories a scan found, waiting for the user to tick (review 0.4.0, A9).</summary>
+    private sealed record ScanRequest(string Root, ScanSelection Selection);
 
     /// <summary>The open question: clean up a repository's worktrees, or remove one.</summary>
     private sealed record WorktreeDialogRequest(RepoState Repo, RepoState? Worktree);
@@ -221,10 +230,19 @@
 
     private Task Scan() => GuardAsync(async () =>
     {
-        if (await Desktop.PickFolderAsync(BoardText.Scan_DialogTitle) is { } folder)
+        if (await Desktop.PickFolderAsync(BoardText.Scan_DialogTitle) is not { } folder)
         {
-            await Board.ScanAsync(folder, default);
+            return;
         }
+
+        var found = await Board.ScanAsync(folder, default);
+        if (found.Count == 0)
+        {
+            await Board.AddScannedAsync(folder, [], default); // says that nothing was new
+            return;
+        }
+
+        _scan = new ScanRequest(folder, new ScanSelection(found));
     });
 
     public void Dispose()

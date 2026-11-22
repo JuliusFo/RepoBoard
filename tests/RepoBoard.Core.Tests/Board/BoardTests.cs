@@ -49,7 +49,10 @@ public sealed class BoardTests : IDisposable
     [Fact]
     public async Task Scan_finds_the_repositories_and_the_config_keeps_the_switches()
     {
-        Assert.Equal(2, await _board.ScanAsync(_git.Root, Ct)); // mine and theirs; the bare remote has no worktree
+        var found = await _board.ScanAsync(_git.Root, Ct); // mine and theirs; the bare remote has no worktree
+        Assert.Equal(2, found.Count);
+        Assert.Equal(2, await _board.AddScannedAsync(_git.Root, found, Ct));
+        Assert.Empty(await _board.ScanAsync(_git.Root, Ct)); // what is on the board is not found again
         await _board.SetAutoPullAsync(_board.Repos.First(r => r.Name == "mine"), true, Ct);
 
         var reloaded = Boards.New(_git.Root, _time);

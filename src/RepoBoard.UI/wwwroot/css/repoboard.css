@@ -185,14 +185,14 @@ code { font-family: var(--mono); font-size: 12px; }
 .btn.danger { background: var(--danger); border-color: var(--danger); color: var(--accent-text); }
 .btn.danger:hover:not(:disabled) { background: var(--danger); filter: brightness(1.08); }
 
-.wt-list { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
-.wt-item { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
-.wt-item input { margin-top: 3px; }
-.wt-item.blocked { cursor: default; background: var(--surface-2); }
-.wt-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pick-list { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.pick-item { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+.pick-item input { margin-top: 3px; }
+.pick-item.blocked { cursor: default; background: var(--surface-2); }
+.pick-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .wt-name { display: flex; align-items: center; gap: 8px; }
-.wt-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
-.wt-block { display: inline-flex; align-items: center; gap: 5px; color: var(--warn); }
+.pick-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.pick-warn { display: inline-flex; align-items: center; gap: 5px; color: var(--warn); }
 .wt-ignored { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; max-height: 120px; overflow-y: auto; }
 .wt-ignored code { padding: 0 5px; border-radius: 4px; background: var(--hover); color: var(--text); }
 
@@ -455,8 +455,8 @@ code { font-family: var(--mono); font-size: 12px; }
 .release-notes h3 { margin: 10px 0 2px; font-size: 13px; }
 .release-notes p, .release-notes ul { margin: 4px 0; }
 .release-notes ul { padding-left: 20px; }
-.update-note { margin: 8px 0; padding: 8px 10px; border-radius: 7px; background: var(--accent-weak); color: var(--text); }
-.update-note.failed { background: var(--danger-weak); color: var(--danger); }
+.note { margin: 8px 0; padding: 8px 10px; border-radius: 7px; background: var(--accent-weak); color: var(--text); }
+.note.failed { background: var(--danger-weak); color: var(--danger); }
 .update-progress { width: 160px; height: 6px; border-radius: 3px; background: var(--accent-weak); overflow: hidden; flex: none; }
 .update-progress .bar { height: 100%; background: var(--accent); transition: width .2s; }
 
