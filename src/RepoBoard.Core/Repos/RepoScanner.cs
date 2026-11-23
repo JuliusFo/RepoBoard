@@ -351,6 +351,8 @@ public static class RepoScanner
             "fsmonitor" => IsBoolean(value) ? null : RepoRuns.FsMonitor,
             "hookspath" => RepoRuns.HooksPath,
             "sshcommand" => RepoRuns.SshCommand,
+            // git writes it for every submodule (../../../lib); one on a share would read each status there.
+            "worktree" => IsShareUrl(value) ? RepoRuns.OtherSettings : null,
             _ => HarmlessCore.Contains(name) ? null : RepoRuns.OtherSettings,
         },
         "remote" => name switch

@@ -61,6 +61,7 @@ public sealed class RepoScannerTests : IDisposable
     [InlineData("[remote \"origin\"]\n\turl = \\\\host\\share\\r.git\n", RepoRuns.OtherSettings)]
     [InlineData("[remote \"origin\"]\n\turl = file://host/share/r.git\n", RepoRuns.OtherSettings)]
     [InlineData("[lfs]\n\turl = //host/share/lfs\n", RepoRuns.OtherSettings)]
+    [InlineData("[core]\n\tworktree = //host/share/w\n", RepoRuns.OtherSettings)]
     public void What_the_configuration_makes_git_run_is_named(string config, RepoRuns runs)
     {
         var candidate = Inspect(Repo("r", config));
@@ -158,6 +159,19 @@ public sealed class RepoScannerTests : IDisposable
 
         Assert.Equal([RepoRuns.FsMonitor], Inspect(absorbed).Runs);
         Assert.Equal([RepoRuns.SshCommand], Inspect(old).Runs); // not the folder outside the repository
+    }
+
+    /// <summary>
+    /// What git itself writes for a submodule (<c>core.worktree</c>, its remote and branch) runs nothing: a clone with
+    /// submodules stays ticked (third review pass R1 – the submodule check marked every such clone).
+    /// </summary>
+    [Fact]
+    public void A_submodule_git_added_runs_nothing()
+    {
+        using var git = new GitSandbox();
+        GitSandbox.Git(git.Mine, "-c", "protocol.file.allow=always", "submodule", "add", git.Remote, "lib");
+
+        Assert.Empty(RepoScanner.Inspect(git.Mine, git.Root).Runs);
     }
 
     [Fact]
