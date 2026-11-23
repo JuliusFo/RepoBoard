@@ -63,5 +63,48 @@ public sealed class AtomicFileTests : IDisposable
         again.Dispose();
     }
 
+    /// <summary>
+    /// The first instance ends between the second's failed open and its look for the file (the file goes with the lock):
+    /// the second took that for "the folder cannot be written" and started without the lock (code review R1, K4).
+    /// </summary>
+    [Fact]
+    public async Task A_lock_let_go_while_another_tries_is_taken_or_held_never_lost()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "File locks are advisory outside Windows.");
+        var paths = new AppPaths(_folder.Combine("data"));
+        using var stop = new CancellationTokenSource();
+        var failures = 0;
+        void TakeAndLetGo(int processId)
+        {
+            try
+            {
+                if (InstanceLock.TryAcquire(paths, processId, out var held, out _))
+                {
+                    held.Dispose();
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Interlocked.Increment(ref failures); // Program.Main started without the lock
+            }
+        }
+
+        var first = Task.Run(() =>
+        {
+            while (!stop.IsCancellationRequested)
+            {
+                TakeAndLetGo(1);
+            }
+        }, Ct);
+        for (var i = 0; i < 3_000; i++)
+        {
+            TakeAndLetGo(2);
+        }
+
+        await stop.CancelAsync();
+        await first;
+        Assert.Equal(0, failures);
+    }
+
     public void Dispose() => _folder.Dispose();
 }

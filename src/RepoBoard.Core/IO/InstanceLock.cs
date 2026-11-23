@@ -14,6 +14,8 @@ public sealed class InstanceLock : IDisposable
 {
     private readonly FileStream _file;
 
+    private const int LockAttempts = 20;
+
     private InstanceLock(FileStream file) => _file = file;
 
     /// <summary>
@@ -28,14 +30,31 @@ public sealed class InstanceLock : IDisposable
         held = null;
         otherProcessId = null;
         FileStream file;
-        try
+        for (var attempt = 1; ; attempt++)
         {
-            file = new FileStream(paths.InstanceLockFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.DeleteOnClose);
-        }
-        catch (IOException) when (File.Exists(paths.InstanceLockFile))
-        {
-            otherProcessId = ReadProcessId(paths);
-            return false;
+            try
+            {
+                file = new FileStream(paths.InstanceLockFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.DeleteOnClose);
+                break;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (File.Exists(paths.InstanceLockFile))
+                {
+                    otherProcessId = ReadProcessId(paths);
+                    return false;
+                }
+
+                // Gone between the failed open and the look: the other instance just ended (the file goes with its lock, and
+                // while Windows deletes it an open fails with "access denied"). Once more – before, this start took it for
+                // an unwritable folder and ran without the lock (code review R1, reproduced).
+                if (attempt == LockAttempts)
+                {
+                    throw;
+                }
+
+                Thread.Sleep(10);
+            }
         }
 
         try
