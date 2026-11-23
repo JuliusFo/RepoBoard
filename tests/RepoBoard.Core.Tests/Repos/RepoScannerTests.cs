@@ -54,6 +54,13 @@ public sealed class RepoScannerTests : IDisposable
     [InlineData("[remote \"origin\"]\n\tuploadpack = calc\n", RepoRuns.OtherSettings)]
     [InlineData("[core]\n\taskPass = calc\n", RepoRuns.OtherSettings)]
     [InlineData("[submodule \"s\"]\n\tupdate = !calc\n", RepoRuns.OtherSettings)]
+    // Code review R1: LFS starts a transfer agent or an extension on fetch and fast-forward; a remote on a share signs in.
+    [InlineData("[lfs \"customtransfer.x\"]\n\tpath = calc\n", RepoRuns.OtherSettings)]
+    [InlineData("[lfs \"extension.x\"]\n\tclean = calc %f\n", RepoRuns.OtherSettings)]
+    [InlineData("[lfs]\n\tstandalonetransferagent = x\n", RepoRuns.OtherSettings)]
+    [InlineData("[remote \"origin\"]\n\turl = \\\\host\\share\\r.git\n", RepoRuns.OtherSettings)]
+    [InlineData("[remote \"origin\"]\n\turl = file://host/share/r.git\n", RepoRuns.OtherSettings)]
+    [InlineData("[lfs]\n\turl = //host/share/lfs\n", RepoRuns.OtherSettings)]
     public void What_the_configuration_makes_git_run_is_named(string config, RepoRuns runs)
     {
         var candidate = Inspect(Repo("r", config));
@@ -71,6 +78,8 @@ public sealed class RepoScannerTests : IDisposable
         + "[remote \"origin\"]\n\turl = https://example.invalid/r.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n"
         + "[branch \"main\"]\n\tremote = origin\n\tmerge = refs/heads/main\n[lfs]\n\trepositoryformatversion = 0\n"
         + "[extensions]\n\tworktreeConfig = true\n[submodule \"s\"]\n\tactive = true\n[mergetool]\n\tcmd = tool\n[diff]\n\ttool = x\n")]
+    [InlineData("[lfs \"https://example.invalid/r.git/info/lfs\"]\n\taccess = basic\n[lfs]\n\tfetchexclude = big\n")]
+    [InlineData("[remote \"origin\"]\n\turl = file:///C:/repos/r.git\n[remote \"local\"]\n\turl = C:/repos/r.git\n[remote \"l\"]\n\turl = file://localhost/r.git\n")]
     public void Settings_that_run_nothing_of_the_repository_s_are_not_named(string config) =>
         Assert.Empty(Inspect(Repo("r", config)).Runs);
 
@@ -100,6 +109,55 @@ public sealed class RepoScannerTests : IDisposable
 
         Assert.Equal([RepoRuns.GitDirOnShare], candidate.Runs);
         Assert.False(candidate.Plain);
+    }
+
+    /// <summary>
+    /// A .git that is a link to another computer's share: named and not read, like a .git file naming one (code review R1).
+    /// Creating a symbolic link needs rights on Windows; the test skips without them.
+    /// </summary>
+    [Fact]
+    public void A_git_link_to_a_share_is_named_and_not_read()
+    {
+        var repo = _folder.Combine("scan", "linked");
+        Directory.CreateDirectory(repo);
+        var share = OperatingSystem.IsWindows() ? @"\\host.invalid\share\x" : "//host.invalid/share/x";
+        try
+        {
+            Directory.CreateSymbolicLink(Path.Combine(repo, ".git"), share);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Assert.Skip($"No right to create a symbolic link: {ex.Message}");
+        }
+
+        Assert.Equal([RepoRuns.GitDirOnShare], Inspect(repo).Runs);
+    }
+
+    /// <summary>
+    /// <c>git status</c> starts a git in each checked-out submodule with that submodule's settings: they are read too, in
+    /// <c>.git/modules</c> (also a name with a slash and a submodule's own) and in an old submodule's .git folder (code review R1).
+    /// </summary>
+    [Fact]
+    public void The_settings_of_submodules_are_read_too()
+    {
+        var absorbed = Repo("absorbed");
+        var module = Path.Combine(absorbed, ".git", "modules", "lib", "a");
+        Directory.CreateDirectory(module);
+        File.WriteAllText(Path.Combine(module, "config"), "[core]\n\tbare = false\n");
+        var nested = Path.Combine(module, "modules", "b");
+        Directory.CreateDirectory(nested);
+        File.WriteAllText(Path.Combine(nested, "config"), "[core]\n\tfsmonitor = calc\n");
+
+        var old = Repo("old");
+        File.WriteAllText(Path.Combine(old, ".gitmodules"), "[submodule \"s\"]\n\tpath = sub\n[submodule \"o\"]\n\tpath = ../outside\n");
+        Directory.CreateDirectory(Path.Combine(old, "sub", ".git"));
+        File.WriteAllText(Path.Combine(old, "sub", ".git", "config"), "[core]\n\tsshCommand = calc\n");
+        var outside = _folder.Combine("scan", "outside", ".git");
+        Directory.CreateDirectory(outside);
+        File.WriteAllText(Path.Combine(outside, "config"), "[core]\n\thooksPath = x\n");
+
+        Assert.Equal([RepoRuns.FsMonitor], Inspect(absorbed).Runs);
+        Assert.Equal([RepoRuns.SshCommand], Inspect(old).Runs); // not the folder outside the repository
     }
 
     [Fact]
