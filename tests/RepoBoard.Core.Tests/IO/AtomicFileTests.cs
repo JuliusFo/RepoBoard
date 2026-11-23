@@ -64,6 +64,44 @@ public sealed class AtomicFileTests : IDisposable
     }
 
     /// <summary>
+    /// A lock file this account may not open: "already running" only while the process it names runs – otherwise every
+    /// start waited ten seconds for nothing and said so (third review pass R1).
+    /// </summary>
+    [Fact]
+    public void A_lock_file_that_cannot_be_opened_is_held_only_by_a_running_process()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Skip("File access rules are Windows ACLs here.");
+            return;
+        }
+
+        var paths = new AppPaths(_folder.Combine("data"));
+        Directory.CreateDirectory(paths.Root);
+        File.WriteAllText(paths.InstanceLockFile, "");
+        var file = new FileInfo(paths.InstanceLockFile);
+        var deny = new System.Security.AccessControl.FileSystemAccessRule(System.Security.Principal.WindowsIdentity.GetCurrent().User!,
+            System.Security.AccessControl.FileSystemRights.ReadData | System.Security.AccessControl.FileSystemRights.WriteData,
+            System.Security.AccessControl.AccessControlType.Deny);
+        var acl = file.GetAccessControl();
+        acl.AddAccessRule(deny);
+        file.SetAccessControl(acl);
+        try
+        {
+            Assert.Throws<UnauthorizedAccessException>(() => InstanceLock.TryAcquire(paths, 4712, out _, out _));
+
+            File.WriteAllText(paths.InstanceProcessFile, Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            Assert.False(InstanceLock.TryAcquire(paths, 4712, out _, out var other));
+            Assert.Equal(Environment.ProcessId, other);
+        }
+        finally
+        {
+            acl.RemoveAccessRule(deny);
+            file.SetAccessControl(acl);
+        }
+    }
+
+    /// <summary>
     /// The first instance ends between the second's failed open and its look for the file (the file goes with the lock):
     /// the second took that for "the folder cannot be written" and started without the lock (code review R1, K4).
     /// </summary>
