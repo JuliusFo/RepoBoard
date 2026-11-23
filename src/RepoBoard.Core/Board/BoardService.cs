@@ -4,6 +4,7 @@ using RepoBoard.Core.Repos;
 using RepoBoard.Core.Resources;
 using RepoBoard.Core.Sync;
 using RepoBoard.Core.IO;
+using Microsoft.Extensions.Logging;
 
 namespace RepoBoard.Core.Board;
 
@@ -12,7 +13,8 @@ namespace RepoBoard.Core.Board;
 /// gate), at most <see cref="MaxParallelNetwork"/> network operations at once. <see cref="Changed"/> fires from any
 /// thread; the UI marshals itself.
 /// </summary>
-public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider time)
+/// <param name="logger">Where a surprise in one repository of a run over many goes, with its stack trace (code review R1).</param>
+public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider time, ILogger<BoardService>? logger = null)
 {
     public const int MaxParallelNetwork = 4;
 
@@ -474,7 +476,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     /// <paramref name="work"/> for each repository, <paramref name="parallel"/> at once. Each runs to its end with the caller's
     /// token: <c>Parallel.ForEachAsync</c> cancels its own token at the first failure, and that killed git in every other
     /// repository – a fast-forward mid-checkout, leaving <c>index.lock</c> behind (second review pass R1). A failure stays in
-    /// its repository's row.
+    /// its repository's row and goes to the log with its stack trace – nobody else sees it now (code review R1).
     /// </summary>
     private Task EachAsync<T>(IEnumerable<RepoState> repos, int parallel, Func<RepoState, CancellationToken, Task<T>> work, CancellationToken ct) =>
         Parallel.ForEachAsync(repos, new ParallelOptions { MaxDegreeOfParallelism = parallel, CancellationToken = ct }, async (repo, _) =>
@@ -485,6 +487,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
+                logger?.LogError(ex, "Operation failed in {Repo}", repo.Path);
                 repo.Error = TextFormat.Format(SyncText.OperationFailed, SyncText.Op_Status, ex.Message);
                 repo.StatusFailed = true;
                 Notify();

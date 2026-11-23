@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using RepoBoard.Core.Board;
@@ -16,6 +17,7 @@ public sealed class AutoSyncQueueTests : IDisposable
 {
     private readonly TestFolder _folder = new();
     private readonly FakeTimeProvider _time = new();
+    private readonly ErrorLog _log = new();
 
     private CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -97,6 +99,7 @@ public sealed class AutoSyncQueueTests : IDisposable
         Assert.Equal(2, git.FetchesDone);
         Assert.NotNull(board.Repos[0].Error);
         Assert.Null(board.Repos[1].Error);
+        Assert.IsType<InvalidOperationException>(Assert.Single(_log.Errors)); // with its stack trace (code review R1)
     }
 
     /// <summary>
@@ -154,10 +157,30 @@ public sealed class AutoSyncQueueTests : IDisposable
         var store = new ConfigStore(_folder.Combine("config.json"), _time);
         await store.SaveAsync(new BoardConfig { Repos = entries }, Ct);
         var git = new CountingGit();
-        var board = new BoardService(new GitClient(git), store, _time);
+        var board = new BoardService(new GitClient(git), store, _time, _log);
         git.Board = board;
         await board.LoadAsync(Ct);
         return (board, git);
+    }
+
+    /// <summary>The exceptions the board logs as errors.</summary>
+    private sealed class ErrorLog : ILogger<BoardService>
+    {
+        private readonly System.Collections.Concurrent.ConcurrentQueue<Exception> _errors = new();
+
+        public IReadOnlyList<Exception> Errors => [.. _errors];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (logLevel == LogLevel.Error && exception is not null)
+            {
+                _errors.Enqueue(exception);
+            }
+        }
     }
 
     /// <summary>Answers every call at once, except a fetch or pull, which takes a moment and is counted.</summary>

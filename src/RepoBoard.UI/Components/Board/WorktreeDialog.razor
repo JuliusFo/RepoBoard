@@ -152,7 +152,7 @@
 
     private static string BranchText(RepoState worktree) =>
         (worktree.Status?.Branch ?? worktree.Worktree?.Branch) is { } branch
-            ? branch
+            ? VisibleText.Of(branch) // a branch name from the repository, like the row's badge (code review R1)
             : TextFormat.Format(BoardText.Detached, CommitText.Short(worktree.Status?.Head ?? worktree.Worktree?.Head));
 
     private string? ReasonText(WorktreeCandidate candidate) => candidate.Reason switch
