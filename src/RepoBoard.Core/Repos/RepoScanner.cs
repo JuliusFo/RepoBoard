@@ -53,29 +53,42 @@ public static class RepoScanner
         return new ScanCandidate(repo, board, outside, [.. runs.Distinct().Order()]);
     }
 
-    /// <summary>What the settings and hooks of one git folder run (a linked worktree's: its own and its repository's).</summary>
+    /// <summary>
+    /// What the settings and hooks of one git folder run (a linked worktree's: its own and its repository's). A folder or file
+    /// in it that is a link to another computer's share is named, not read (third review pass R1).
+    /// </summary>
     private static IEnumerable<RepoRuns> FolderRuns(string gitDir, string common)
     {
+        if (LinkedToShare(gitDir) || LinkedToShare(common))
+        {
+            yield return RepoRuns.GitDirOnShare;
+            yield break;
+        }
+
         // config.worktree too: with extensions.worktreeConfig git reads it on top (shared and per worktree).
-        foreach (var runs in ConfigRuns(System.IO.Path.Combine(common, "config")))
+        string[] configs = IO.Paths.Same(gitDir, common)
+            ? [System.IO.Path.Combine(common, "config"), System.IO.Path.Combine(common, "config.worktree")]
+            : [System.IO.Path.Combine(common, "config"), System.IO.Path.Combine(common, "config.worktree"), System.IO.Path.Combine(gitDir, "config.worktree")];
+        foreach (var config in configs)
         {
-            yield return runs;
-        }
+            if (LinkedToShare(config))
+            {
+                yield return RepoRuns.GitDirOnShare;
+                continue;
+            }
 
-        foreach (var runs in ConfigRuns(System.IO.Path.Combine(common, "config.worktree")))
-        {
-            yield return runs;
-        }
-
-        if (!IO.Paths.Same(gitDir, common))
-        {
-            foreach (var runs in ConfigRuns(System.IO.Path.Combine(gitDir, "config.worktree")))
+            foreach (var runs in ConfigRuns(config))
             {
                 yield return runs;
             }
         }
 
-        if (HasOwnHooks(System.IO.Path.Combine(common, "hooks")))
+        var hooks = System.IO.Path.Combine(common, "hooks");
+        if (LinkedToShare(hooks))
+        {
+            yield return RepoRuns.GitDirOnShare;
+        }
+        else if (HasOwnHooks(hooks))
         {
             yield return RepoRuns.Hooks;
         }
@@ -88,6 +101,7 @@ public static class RepoScanner
     /// that submodule's settings (an fsmonitor there runs as well; second review pass R1, code review). A submodule's git
     /// folder lies in <c>&lt;git folder&gt;/modules/&lt;name&gt;</c> (names may contain slashes, a submodule's own
     /// submodules lie in its <c>modules</c>), an old one in the submodule's folder (<c>.gitmodules</c> names the path).
+    /// A link on the way is followed like git does – unless it leads to another computer's share.
     /// </summary>
     private static IEnumerable<RepoRuns> SubmoduleRuns(string repo, string common, int depth)
     {
@@ -104,12 +118,25 @@ public static class RepoScanner
             }
         }
 
-        foreach (var path in SubmodulePaths(repo))
+        var gitmodules = System.IO.Path.Combine(repo, ".gitmodules");
+        if (LinkedToShare(gitmodules))
+        {
+            yield return RepoRuns.GitDirOnShare;
+            yield break;
+        }
+
+        foreach (var path in SubmodulePaths(gitmodules))
         {
             var folder = IO.Paths.Full(System.IO.Path.Combine(repo, path));
-            // A path from a file in the repository: only folders inside it, and no link to elsewhere.
-            if (!IO.Paths.IsUnder(folder, IO.Paths.Full(repo)) || IO.Paths.Same(folder, repo) || !IsPlainFolder(folder))
+            // A path from a file in the repository: only folders inside it.
+            if (!IO.Paths.IsUnder(folder, IO.Paths.Full(repo)) || IO.Paths.Same(folder, repo))
             {
+                continue;
+            }
+
+            if (LinkedToShareOnTheWay(IO.Paths.Full(repo), folder))
+            {
+                yield return RepoRuns.GitDirOnShare;
                 continue;
             }
 
@@ -138,18 +165,27 @@ public static class RepoScanner
         }
     }
 
-    /// <summary>The git folders below <paramref name="modules"/>: a folder with a <c>config</c>, then its own <c>modules</c>.</summary>
+    /// <summary>
+    /// The git folders below <paramref name="modules"/>: a folder with a <c>config</c>, then its own <c>modules</c>. A link to
+    /// a share comes back unread – <see cref="FolderRuns"/> names it.
+    /// </summary>
     private static IEnumerable<string> GitFolders(string modules, int depth)
     {
-        if (depth >= 2 * MaxSubmoduleDepth || !IsPlainFolder(modules))
+        if (depth >= 2 * MaxSubmoduleDepth)
         {
+            yield break;
+        }
+
+        if (LinkedToShare(modules))
+        {
+            yield return modules;
             yield break;
         }
 
         string[] children;
         try
         {
-            children = Directory.GetDirectories(modules);
+            children = Directory.Exists(modules) ? Directory.GetDirectories(modules) : [];
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -158,12 +194,11 @@ public static class RepoScanner
 
         foreach (var child in children)
         {
-            if (!IsPlainFolder(child))
+            if (LinkedToShare(child))
             {
-                continue;
+                yield return child;
             }
-
-            if (File.Exists(System.IO.Path.Combine(child, "config")))
+            else if (File.Exists(System.IO.Path.Combine(child, "config")))
             {
                 yield return child;
                 foreach (var nested in GitFolders(System.IO.Path.Combine(child, "modules"), depth + 1))
@@ -182,14 +217,13 @@ public static class RepoScanner
         }
     }
 
-    /// <summary>The <c>path</c> entries of <c>.gitmodules</c>.</summary>
-    private static IEnumerable<string> SubmodulePaths(string repo)
+    /// <summary>The <c>path</c> entries of a <c>.gitmodules</c>.</summary>
+    private static IEnumerable<string> SubmodulePaths(string gitmodules)
     {
         string[] lines;
         try
         {
-            var file = System.IO.Path.Combine(repo, ".gitmodules");
-            lines = File.Exists(file) ? File.ReadAllLines(file) : [];
+            lines = File.Exists(gitmodules) ? File.ReadAllLines(gitmodules) : [];
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -207,18 +241,25 @@ public static class RepoScanner
         }
     }
 
-    /// <summary>A folder that is no link: a link may lead to a share, which reading would sign in to.</summary>
-    private static bool IsPlainFolder(string path)
+    /// <summary>
+    /// <paramref name="path"/> is a link (symbolic link, junction) that ends on another computer's share, while the path
+    /// itself is not on one: reading through it would sign in to that host before the user ticked the repository.
+    /// </summary>
+    private static bool LinkedToShare(string path) =>
+        !IO.Paths.IsShare(path) && LinkTargetOf(path) is { } target && IO.Paths.IsShare(target);
+
+    /// <summary>A folder from <paramref name="root"/> down to <paramref name="path"/> (both full) is a link to a share.</summary>
+    private static bool LinkedToShareOnTheWay(string root, string path)
     {
-        try
+        for (var folder = path; folder is not null && !IO.Paths.Same(folder, root); folder = System.IO.Path.GetDirectoryName(folder))
         {
-            var info = new DirectoryInfo(path);
-            return info.Exists && !info.Attributes.HasFlag(FileAttributes.ReparsePoint);
+            if (LinkedToShare(folder))
+            {
+                return true;
+            }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return false;
-        }
+
+        return false;
     }
 
     private static string? GitDirOf(string repo)
@@ -284,6 +325,12 @@ public static class RepoScanner
         try
         {
             var file = System.IO.Path.Combine(gitDir, "commondir");
+            // A commondir that is a link to a share: its target, unread – Inspect names it (third review pass R1).
+            if (LinkedToShare(file))
+            {
+                return LinkTargetOf(file);
+            }
+
             return File.Exists(file)
                 ? System.IO.Path.GetFullPath(System.IO.Path.Combine(gitDir, File.ReadAllText(file).Trim()))
                 : gitDir;
@@ -357,25 +404,34 @@ public static class RepoScanner
         },
         "remote" => name switch
         {
-            // ext:: and fd:: run a command as the transport; upload-pack/receive-pack name the program on the other side.
-            // A remote on another computer's share: each fetch signs in to that host (second review pass R1, code review).
-            "url" or "pushurl" => value.Contains("::", StringComparison.Ordinal) || IsShareUrl(value) ? RepoRuns.OtherSettings : null,
+            // upload-pack/receive-pack (not on the list) name the program on the other side.
+            "url" or "pushurl" or "pushdefault" => RemoteRuns(value),
             _ => HarmlessRemote.Contains(name) ? null : RepoRuns.OtherSettings,
         },
+        // branch.<name>.remote may be a URL instead of a remote's name: a pull goes there (third review pass R1).
+        "branch" => name is "remote" or "pushremote" ? RemoteRuns(value) : null,
         "submodule" => name == "update" && value.StartsWith('!') ? RepoRuns.OtherSettings : null,
         // Git LFS runs on fetch and fast-forward: a custom transfer agent ([lfs "customtransfer.x"] path), an extension
         // ([lfs "extension.x"] clean/smudge) and lfs.standalonetransferagent start programs – only known keys are harmless.
         "lfs" => name switch
         {
-            "url" or "pushurl" => IsShareUrl(value) ? RepoRuns.OtherSettings : null,
+            // lfs.storage on a share: every fetch and checkout reads the objects there (third review pass R1).
+            "url" or "pushurl" or "storage" => IsShareUrl(value) ? RepoRuns.OtherSettings : null,
             _ => HarmlessLfs.Contains(name) ? null : RepoRuns.OtherSettings,
         },
-        "extensions" or "branch" or "user" or "gc" or "pull" or "push" or "fetch" or "http" or "color" or "advice"
+        "extensions" or "user" or "gc" or "pull" or "push" or "fetch" or "http" or "color" or "advice"
             or "status" or "log" or "init" or "index" or "pack" or "rerere" or "maintenance" or "receive" or "checkout"
             or "difftool" or "mergetool" => null, // the tools run only with git difftool/mergetool, which RepoBoard never calls
         "merge" or "diff" => name is "ff" or "renames" or "renamelimit" or "conflictstyle" or "tool" or "algorithm" ? null : RepoRuns.OtherSettings,
         _ => RepoRuns.OtherSettings,
     };
+
+    /// <summary>
+    /// A remote's URL (or a branch's remote, which may be one): <c>ext::</c>/<c>fd::</c> run a command as the transport, and a
+    /// remote on another computer's share signs in to that host on each fetch (second review pass R1, code review).
+    /// </summary>
+    private static RepoRuns? RemoteRuns(string value) =>
+        value.Contains("::", StringComparison.Ordinal) || IsShareUrl(value) ? RepoRuns.OtherSettings : null;
 
     private static bool IsBoolean(string value) =>
         value.ToLowerInvariant() is "false" or "no" or "off" or "0" or "true" or "yes" or "on" or "1" or "";
@@ -416,7 +472,7 @@ public static class RepoScanner
         "repositoryformatversion", "fetchinclude", "fetchexclude", "fetchrecentrefsdays", "fetchrecentremoterefs",
         "fetchrecentcommitsdays", "fetchrecentalways", "pruneoffsetdays", "pruneremotetocheck", "pruneverifyremotealways",
         "concurrenttransfers", "basictransfersonly", "tustransfers", "allowincompletepush", "locksverify", "setlockablereadonly",
-        "lockignoredfiles", "skipdownloaderrors", "storage", "dialtimeout", "tlstimeout", "activitytimeout", "keepalive",
+        "lockignoredfiles", "skipdownloaderrors", "dialtimeout", "tlstimeout", "activitytimeout", "keepalive",
         "cachecredentials", "access", "contenttype", "batch", "sshtransfer",
     ];
 

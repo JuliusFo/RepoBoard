@@ -62,6 +62,10 @@ public sealed class RepoScannerTests : IDisposable
     [InlineData("[remote \"origin\"]\n\turl = file://host/share/r.git\n", RepoRuns.OtherSettings)]
     [InlineData("[lfs]\n\turl = //host/share/lfs\n", RepoRuns.OtherSettings)]
     [InlineData("[core]\n\tworktree = //host/share/w\n", RepoRuns.OtherSettings)]
+    // Third review pass R1: a branch's remote may be a URL, and LFS may keep its objects on a share.
+    [InlineData("[branch \"main\"]\n\tremote = \\\\host\\share\\r.git\n", RepoRuns.OtherSettings)]
+    [InlineData("[branch \"main\"]\n\tpushRemote = ext::calc\n", RepoRuns.OtherSettings)]
+    [InlineData("[lfs]\n\tstorage = //host/share/lfs\n", RepoRuns.OtherSettings)]
     public void What_the_configuration_makes_git_run_is_named(string config, RepoRuns runs)
     {
         var candidate = Inspect(Repo("r", config));
@@ -81,6 +85,7 @@ public sealed class RepoScannerTests : IDisposable
         + "[extensions]\n\tworktreeConfig = true\n[submodule \"s\"]\n\tactive = true\n[mergetool]\n\tcmd = tool\n[diff]\n\ttool = x\n")]
     [InlineData("[lfs \"https://example.invalid/r.git/info/lfs\"]\n\taccess = basic\n[lfs]\n\tfetchexclude = big\n")]
     [InlineData("[remote \"origin\"]\n\turl = file:///C:/repos/r.git\n[remote \"local\"]\n\turl = C:/repos/r.git\n[remote \"l\"]\n\turl = file://localhost/r.git\n")]
+    [InlineData("[remote]\n\tpushDefault = origin\n[branch \"main\"]\n\tpushRemote = origin\n[lfs]\n\tstorage = C:/lfs\n")]
     public void Settings_that_run_nothing_of_the_repository_s_are_not_named(string config) =>
         Assert.Empty(Inspect(Repo("r", config)).Runs);
 
@@ -132,6 +137,39 @@ public sealed class RepoScannerTests : IDisposable
         }
 
         Assert.Equal([RepoRuns.GitDirOnShare], Inspect(repo).Runs);
+    }
+
+    /// <summary>
+    /// Links inside the git folder (third review pass R1): one to a share is named and not read – the config, the hooks, a
+    /// submodule's git folder –, one to a folder on this computer is read through, as git does.
+    /// </summary>
+    [Fact]
+    public void Links_inside_the_git_folder_are_named_on_a_share_and_read_here()
+    {
+        var share = OperatingSystem.IsWindows() ? @"\\host.invalid\share\x" : "//host.invalid/share/x";
+        var config = Repo("config");
+        File.Delete(Path.Combine(config, ".git", "config"));
+        var module = Repo("module");
+        Directory.CreateDirectory(Path.Combine(module, ".git", "modules"));
+        var local = Repo("local");
+        var elsewhere = _folder.Combine("elsewhere", "s");
+        Directory.CreateDirectory(elsewhere);
+        File.WriteAllText(Path.Combine(elsewhere, "config"), "[core]\n\tfsmonitor = calc\n");
+        Directory.CreateDirectory(Path.Combine(local, ".git", "modules"));
+        try
+        {
+            File.CreateSymbolicLink(Path.Combine(config, ".git", "config"), share);
+            Directory.CreateSymbolicLink(Path.Combine(module, ".git", "modules", "s"), share);
+            Directory.CreateSymbolicLink(Path.Combine(local, ".git", "modules", "s"), elsewhere);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Assert.Skip($"No right to create a symbolic link: {ex.Message}");
+        }
+
+        Assert.Equal([RepoRuns.GitDirOnShare], Inspect(config).Runs);
+        Assert.Equal([RepoRuns.GitDirOnShare], Inspect(module).Runs);
+        Assert.Equal([RepoRuns.FsMonitor], Inspect(local).Runs);
     }
 
     /// <summary>
