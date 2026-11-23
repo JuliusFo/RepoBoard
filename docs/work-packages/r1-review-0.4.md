@@ -64,4 +64,4 @@ Branch `wp/r1-review-0.4`, 2026-11-22, noch ohne Release.
   - 5 (K) behoben, nachgestellt: Ein `.git`-Link auf eine Freigabe ergab „keine Hinweise“, das Repo war angehakt. Der Scan liest Link für Link, ohne ihm zu folgen, und meldet die Freigabe.
   - 6 (K) behoben: `VisibleText` jetzt auch für die Branch-Namen im Worktree-Dialog. Eine Remote- oder LFS-URL auf einer Freigabe (`\\host`, `//host`, `file://host`) zählt als „weitere eigene Einstellungen“; der Hinweistext nennt das.
 - Dritter Durchgang: M-1 behoben, ein Fehler im Fix von Befund 1, nachgestellt. git schreibt für jedes Submodul `core.worktree`, und damit war jeder Klon mit Submodulen nicht angehakt. `core.worktree` gilt jetzt als harmlos, außer es zeigt auf eine Freigabe. Der Test nimmt die Konfiguration aus einem echten `git submodule add`.
-- `dotnet build -warnaserror` ohne Warnung, `dotnet test` 564 grün. Jeder neue Test scheitert gegen die alte Fassung.
+- `dotnet build -warnaserror` ohne Warnung, `dotnet test` 565 grün. Jeder neue Test scheitert gegen die alte Fassung.
