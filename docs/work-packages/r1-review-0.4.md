@@ -39,7 +39,15 @@ Branch `wp/r1-review-0.4`, 2026-11-22, noch ohne Release.
   - Nur per CDP (danach holte Windows das Testfenster nicht mehr nach vorn, der Nutzer arbeitete in einem anderen Fenster – abgebrochen wie vorgesehen): Commit-Panel und Einstellungsmenü nehmen den Fokus und schließen mit Esc; das Intervall-`<select>` übernimmt einen neuen Wert.
   - Gefunden und behoben: `Error="_error"` an `DiffBody` (und `Root="scan.Root"` am `ScanDialog`) übergab den Text wörtlich – der Diff zeigte „_error“. Regel in `ui.md`.
   - Log der Testinstanz ohne `[ERR]`/`[WRN]`.
-- **Nicht geprüft:** der Scan-Dialog im Fenster (der native Ordnerdialog ist nicht per CDP bedienbar; Logik in `ScanSelectionTests`, Scan in `RepoScannerTests`/`WorktreeTests`), die `<select>`-Felder und der Release-Link mit echter Maus, Esc im Commit-Panel mit echter Taste, „Terminal“ mit Windows Terminal, `Test-Linux.ps1`.
+- **E2E fortgesetzt (2026-11-23, nach dem Code-Review)**, Testinstanz im Scratchpad. Eingeschleuste Eingabe kam durch (`Test-InjectedInput.ps1`); echte Maus und Tasten über `Invoke-RealClick.ps1`. Den nativen Ordnerdialog bedient UI Automation bzw. Fensternachrichten an diesen Dialog (`WM_SETTEXT` ins Feld „Ordner:“, `BM_CLICK` auf „Ordner auswählen“).
+  - Scan im Fenster: Der Ordnerdialog startet im gemeinsamen Ordner der Repos (A34). Angehakt sind ein normaler Klon, ein Klon mit echtem Submodul (M-1) und einer mit `gh-resolved` (K-D). Nicht angehakt ist ein Repo mit LFS-Transfer-Agent, mit dem neuen Hinweistext. Abhaken per Maus zählt den Knopf herunter, „3 Repos hinzufügen“ nimmt genau diese drei auf.
+  - Auswahlfelder mit echter Maus und Tastatur (Klick, Pfeil runter, Enter): Auto-Sync-Intervall 10 → 15 min und Benachrichtigungen „Nur Probleme“, beide in `config.json` gespeichert. Das Update-Intervall erscheint nur in einer installierten Version.
+  - Echtes Esc schließt das Commit-Panel, das Einstellungsmenü (auch mit Fokus im Auswahlfeld) und den Worktree-Dialog; der Worktree bleibt dabei.
+  - Worktree-Dialog: Der Branch-Name zeigt `feat⟨U+202E⟩txt.exe` (Befund 6 des zweiten Durchgangs).
+  - „Terminal hier öffnen“ für den Ordner `a;echo pwned`: Windows Terminal öffnet genau einen Tab in diesem Ordner; der Teil nach `;` läuft nicht (A8). Das Fenster wurde danach gezielt geschlossen.
+  - Log der Testinstanz ohne `[ERR]`/`[WRN]`.
+  - Gefunden, vorher schon da (nicht aus R1): Auf Deutsch ist die Kopfleiste bei 1424 px Breite 1448 px breit, der Einstellungs-Knopf ist halb abgeschnitten. Steht im Backlog.
+- **Nicht geprüft:** der Link „Alle Releases“ im Update-Dialog. Der Dialog erscheint nur in einer gepackten Velopack-Testversion, ein Klick öffnet den Browser des Nutzers, und der Link ist in R1 unverändert. `Test-Linux.ps1` lief lokal nicht (Docker aus); die CI des PRs ist in allen drei Jobs grün, auch unter Linux (damit ist M-A erledigt).
 
 ## Nachtrag: Code-Review (2026-11-22)
 `/branch-code-review` vor dem Push, ein Reviewer-Agent auf `3318da0..2cd5d47`, danach ein zweiter Durchgang auf den Fix-Commits.

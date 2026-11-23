@@ -76,4 +76,5 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - `RepoState.LastFetch`/`LastAutoSync` sind `DateTimeOffset?` ohne Schutz zwischen Threads (A16, Verdacht, nicht nachgestellt): bei einem gerissenen Lesen wie `StatusReadAt` als `long` speichern.
 - Nach einem erfolgreichen Auto-Fetch steht die Fehlerzeile eines Auto-Pulls, der gleich wieder scheitert, kurz nicht da (A2, Flackern; gemeldet wird nur einmal).
 - Ein Test, der die UI-Assembly gegen WPF-Referenzen prüft wie `ArchitectureTests.Core_does_not_reference_ui_assemblies` den Core (C9; der Linux-Build fängt es heute schon).
+- Die Kopfleiste passt auf Deutsch nicht in 1440 px Fensterbreite (Seite 1424 px, Leiste 1448 px): Der Einstellungs-Knopf ist halb abgeschnitten. Die Leiste umbrechen lassen oder die Chips kürzen (E2E R1, 2026-11-23).
 - Ein vorgefertigtes Sandbox-Template, das jeder Git-Test kopiert, statt init/clone/commit/push neu (C14, nicht gemessen).
