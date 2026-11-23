@@ -86,6 +86,7 @@ public sealed class RepoScannerTests : IDisposable
     [InlineData("[lfs \"https://example.invalid/r.git/info/lfs\"]\n\taccess = basic\n[lfs]\n\tfetchexclude = big\n")]
     [InlineData("[remote \"origin\"]\n\turl = file:///C:/repos/r.git\n[remote \"local\"]\n\turl = C:/repos/r.git\n[remote \"l\"]\n\turl = file://localhost/r.git\n")]
     [InlineData("[remote]\n\tpushDefault = origin\n[branch \"main\"]\n\tpushRemote = origin\n[lfs]\n\tstorage = C:/lfs\n")]
+    [InlineData("[remote \"origin\"]\n\tgh-resolved = base\n[gui]\n\twmstate = normal\n")] // GitHub CLI, git gui
     public void Settings_that_run_nothing_of_the_repository_s_are_not_named(string config) =>
         Assert.Empty(Inspect(Repo("r", config)).Runs);
 
@@ -170,6 +171,52 @@ public sealed class RepoScannerTests : IDisposable
         Assert.Equal([RepoRuns.GitDirOnShare], Inspect(config).Runs);
         Assert.Equal([RepoRuns.GitDirOnShare], Inspect(module).Runs);
         Assert.Equal([RepoRuns.FsMonitor], Inspect(local).Runs);
+    }
+
+    /// <summary>
+    /// Local links in <c>modules</c> that lead back into it: the scan ends and, having not judged everything, does not call the
+    /// repository harmless (fourth review pass R1 – three such links made 3^8 folders).
+    /// </summary>
+    [Fact]
+    public void Links_in_a_loop_end_the_scan_and_are_not_harmless()
+    {
+        var repo = Repo("loop");
+        var a = Path.Combine(repo, ".git", "modules", "a");
+        Directory.CreateDirectory(a);
+        try
+        {
+            foreach (var name in new[] { "x", "y", "z" })
+            {
+                Directory.CreateSymbolicLink(Path.Combine(a, name), a);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Assert.Skip($"No right to create a symbolic link: {ex.Message}");
+        }
+
+        Assert.Equal([RepoRuns.OtherSettings], Inspect(repo).Runs);
+    }
+
+    /// <summary>A folder in the middle of the way to the git folder that links to a share: named, not read (fourth review pass R1).</summary>
+    [Fact]
+    public void A_link_to_a_share_on_the_way_to_the_git_folder_is_named()
+    {
+        var repo = _folder.Combine("scan", "through");
+        Directory.CreateDirectory(repo);
+        var share = OperatingSystem.IsWindows() ? @"\\host.invalid\share\x" : "//host.invalid/share/x";
+        try
+        {
+            Directory.CreateSymbolicLink(Path.Combine(repo, "sub"), share);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Assert.Skip($"No right to create a symbolic link: {ex.Message}");
+        }
+
+        File.WriteAllText(Path.Combine(repo, ".git"), "gitdir: sub/real\n");
+
+        Assert.Equal([RepoRuns.GitDirOnShare], Inspect(repo).Runs);
     }
 
     /// <summary>

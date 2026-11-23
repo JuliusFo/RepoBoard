@@ -34,6 +34,12 @@ public static class RepoScanner
             return new ScanCandidate(repo, repo, false, [RepoRuns.GitDirOnShare]);
         }
 
+        // A folder on the way to them that links to a share (gitdir: sub/link/real): the same, unread (fourth review pass R1).
+        if (!IO.Paths.IsShare(repo) && (LinkedToShareOnTheWayFrom(repo, gitDir) || LinkedToShareOnTheWayFrom(repo, common)))
+        {
+            return new ScanCandidate(repo, repo, false, [RepoRuns.GitDirOnShare]);
+        }
+
         var board = repo;
         // A linked worktree: its git folder lies in <repository>/.git/worktrees/<name>, the repository is the common folder's parent.
         if (gitDir is not null && common is not null && !IO.Paths.Same(gitDir, common)
@@ -110,12 +116,19 @@ public static class RepoScanner
             yield break;
         }
 
-        foreach (var module in GitFolders(System.IO.Path.Combine(common, "modules"), 0))
+        var budget = new WalkBudget();
+        foreach (var module in GitFolders(System.IO.Path.Combine(common, "modules"), 0, budget))
         {
             foreach (var runs in FolderRuns(module, module))
             {
                 yield return runs;
             }
+        }
+
+        // More than a repository's submodules ever hold – links in a loop or to a disk: not judged, so not harmless.
+        if (budget.Exhausted)
+        {
+            yield return RepoRuns.OtherSettings;
         }
 
         var gitmodules = System.IO.Path.Combine(repo, ".gitmodules");
@@ -165,11 +178,26 @@ public static class RepoScanner
         }
     }
 
+    /// <summary>How many entries below <c>modules</c> a scan looks at: local links are followed, as git does.</summary>
+    private sealed class WalkBudget
+    {
+        private int _left = 1000;
+
+        public bool Exhausted { get; private set; }
+
+        public bool Take()
+        {
+            Exhausted |= --_left < 0;
+            return !Exhausted;
+        }
+    }
+
     /// <summary>
     /// The git folders below <paramref name="modules"/>: a folder with a <c>config</c>, then its own <c>modules</c>. A link to
-    /// a share comes back unread – <see cref="FolderRuns"/> names it.
+    /// a share comes back unread – <see cref="FolderRuns"/> names it. Every entry, not only folders: under Linux a link
+    /// whose target is not there (<c>//host/share</c> is a local path there) is no folder for <c>GetDirectories</c>.
     /// </summary>
-    private static IEnumerable<string> GitFolders(string modules, int depth)
+    private static IEnumerable<string> GitFolders(string modules, int depth, WalkBudget budget)
     {
         if (depth >= 2 * MaxSubmoduleDepth)
         {
@@ -182,26 +210,35 @@ public static class RepoScanner
             yield break;
         }
 
-        string[] children;
+        string[] entries;
         try
         {
-            children = Directory.Exists(modules) ? Directory.GetDirectories(modules) : [];
+            entries = Directory.Exists(modules) ? Directory.GetFileSystemEntries(modules) : [];
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             yield break;
         }
 
-        foreach (var child in children)
+        foreach (var entry in entries)
         {
-            if (LinkedToShare(child))
+            if (!budget.Take())
             {
-                yield return child;
+                yield break;
             }
-            else if (File.Exists(System.IO.Path.Combine(child, "config")))
+
+            if (LinkedToShare(entry))
             {
-                yield return child;
-                foreach (var nested in GitFolders(System.IO.Path.Combine(child, "modules"), depth + 1))
+                yield return entry;
+            }
+            else if (!Directory.Exists(entry))
+            {
+                continue;
+            }
+            else if (File.Exists(System.IO.Path.Combine(entry, "config")))
+            {
+                yield return entry;
+                foreach (var nested in GitFolders(System.IO.Path.Combine(entry, "modules"), depth + 1, budget))
                 {
                     yield return nested;
                 }
@@ -209,7 +246,7 @@ public static class RepoScanner
             else
             {
                 // A name with a slash: modules/lib/foo.
-                foreach (var nested in GitFolders(child, depth + 1))
+                foreach (var nested in GitFolders(entry, depth + 1, budget))
                 {
                     yield return nested;
                 }
@@ -247,6 +284,22 @@ public static class RepoScanner
     /// </summary>
     private static bool LinkedToShare(string path) =>
         !IO.Paths.IsShare(path) && LinkTargetOf(path) is { } target && IO.Paths.IsShare(target);
+
+    /// <summary>
+    /// A folder on the way to <paramref name="path"/> is a link to a share: from the repository down when the path lies in it,
+    /// else from the drive (a worktree's git folder lies in its repository elsewhere).
+    /// </summary>
+    private static bool LinkedToShareOnTheWayFrom(string repo, string? path)
+    {
+        if (path is null)
+        {
+            return false;
+        }
+
+        var full = IO.Paths.Full(path);
+        var start = IO.Paths.IsUnder(full, IO.Paths.Full(repo)) ? IO.Paths.Full(repo) : System.IO.Path.GetPathRoot(full) ?? full;
+        return LinkedToShareOnTheWay(start, full);
+    }
 
     /// <summary>A folder from <paramref name="root"/> down to <paramref name="path"/> (both full) is a link to a share.</summary>
     private static bool LinkedToShareOnTheWay(string root, string path)
@@ -419,7 +472,7 @@ public static class RepoScanner
             "url" or "pushurl" or "storage" => IsShareUrl(value) ? RepoRuns.OtherSettings : null,
             _ => HarmlessLfs.Contains(name) ? null : RepoRuns.OtherSettings,
         },
-        "extensions" or "user" or "gc" or "pull" or "push" or "fetch" or "http" or "color" or "advice"
+        "extensions" or "user" or "gui" or "gc" or "pull" or "push" or "fetch" or "http" or "color" or "advice"
             or "status" or "log" or "init" or "index" or "pack" or "rerere" or "maintenance" or "receive" or "checkout"
             or "difftool" or "mergetool" => null, // the tools run only with git difftool/mergetool, which RepoBoard never calls
         "merge" or "diff" => name is "ff" or "renames" or "renamelimit" or "conflictstyle" or "tool" or "algorithm" ? null : RepoRuns.OtherSettings,
@@ -480,6 +533,7 @@ public static class RepoScanner
     [
         "fetch", "push", "tagopt", "prune", "prunetags", "skipdefaultupdate", "skipfetchall", "mirror", "promisor",
         "partialclonefilter", "followremotehead",
+        "gh-resolved", // GitHub CLI (gh repo set-default, gh pr checkout)
     ];
 
     private static bool HasOwnHooks(string hooks)
