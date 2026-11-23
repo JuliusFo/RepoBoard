@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Security
-- “Scan folder” no longer runs git in what it finds before you agree: it lists the repositories with what each one’s own configuration would run on RepoBoard’s git calls – a program on every status (`core.fsmonitor`), hooks, an ssh command, included configuration – and whether a worktree’s repository lies outside the folder. Only plain repositories inside the folder are ticked; you tick the others.
+- “Scan folder” no longer runs git in what it finds before you agree: it lists the repositories with what each one’s own configuration would run on RepoBoard’s git calls – a program on every status (`core.fsmonitor`), hooks, an ssh command, included configuration, any other setting it does not know as harmless (a filter, a diff driver, an LFS transfer agent, a remote on another computer’s share …), also in submodules, and a git folder on another computer’s share, which it does not read – and whether a worktree’s repository lies outside the folder. Only plain repositories inside the folder are ticked; you tick the others.
 - Unicode direction controls in a diff or commit message show as ⟨U+202E⟩ instead of reordering the line (“Trojan Source”).
 - A commit whose subject or author holds the old field separators can no longer add a made-up commit to the history or shift the fields of its row.
 - Opening a folder whose name contains “;” in Windows Terminal no longer runs the rest of the name as a command.

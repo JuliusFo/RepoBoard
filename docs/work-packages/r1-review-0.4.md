@@ -40,3 +40,27 @@ Branch `wp/r1-review-0.4`, 2026-11-22, noch ohne Release.
   - Gefunden und behoben: `Error="_error"` an `DiffBody` (und `Root="scan.Root"` am `ScanDialog`) übergab den Text wörtlich – der Diff zeigte „_error“. Regel in `ui.md`.
   - Log der Testinstanz ohne `[ERR]`/`[WRN]`.
 - **Nicht geprüft:** der Scan-Dialog im Fenster (der native Ordnerdialog ist nicht per CDP bedienbar; Logik in `ScanSelectionTests`, Scan in `RepoScannerTests`/`WorktreeTests`), die `<select>`-Felder und der Release-Link mit echter Maus, Esc im Commit-Panel mit echter Taste, „Terminal“ mit Windows Terminal, `Test-Linux.ps1`.
+
+## Nachtrag: Code-Review (2026-11-22)
+`/branch-code-review` vor dem Push, ein Reviewer-Agent auf `3318da0..2cd5d47`, danach ein zweiter Durchgang auf den Fix-Commits.
+- **Entscheidung des Nutzers, erster Durchgang:** „Alle fixen“.
+  - M1 behoben: `Parallel.ForEachAsync` bricht sein Token beim ersten Fehler ab, und das beendete git in den anderen Repos (Fast-Forward mitten im Checkout). `EachAsync` fängt je Repo und reicht den Token des Aufrufers weiter; Test mit zwei Repos.
+  - M2 behoben: Der Scan prüft eine Positivliste. Eine unbekannte Einstellung (Filter, Diff-Treiber, Credential-Helper, `ext::`-Remote) heißt „weitere eigene Einstellungen“ und ist nicht angehakt. `config.worktree` wird mitgelesen.
+  - M3 behoben: Ein Git-Ordner auf einer fremden Freigabe wird erst gelesen, wenn der Nutzer das Repo angehakt hat (eigener Hinweis).
+  - K1 behoben: Der Takt wartet nicht mehr auf den Auto-Sync; es läuft ein Durchlauf zur Zeit.
+  - K2 behoben: `CountAsync` lehnt Bereiche mit führendem `-` ab.
+  - K3 behoben: „2 Monate“ bzw. „2 Jahre“ als Mindestwert.
+  - K4: zuerst nicht nachgestellt, im zweiten Durchgang (Befund 4) doch.
+  - K5 behoben: Shift im E2E-Skript wird immer losgelassen.
+  - K6 behoben: `VisibleText` auch für Pfade, Branch-Namen, Autoren, Refs, Hunk-Köpfe und die Aktivität.
+  - K7 behoben: verwaiste Doc-Kommentare entfernt.
+  - K8 behoben: git ≥ 2.27 im README.
+  - K9 behoben: Ein Worktree ohne `.git` hat im Aufräum-Dialog keinen eigenen Status mehr.
+- **Entscheidung des Nutzers, zweiter Durchgang:** „Alle fixen“.
+  - 1 (M) behoben: Der Scan liest auch die Konfiguration von Submodulen (`.git/modules/**`, alte Submodule über die Pfade aus `.gitmodules`, nur innerhalb des Repos, keine Links). `git status` startet in jedem ausgecheckten Submodul ein eigenes git.
+  - 2 (M) behoben: In `[lfs]` gelten nur bekannte Schlüssel als harmlos. `customtransfer`, `extension` und `standalonetransferagent` starten Programme.
+  - 3 (K) behoben: Ein Fehler in einem Durchlauf über viele Repos kommt mit Stacktrace ins Log (optionaler `ILogger` am `BoardService`).
+  - 4 (K) behoben, nachgestellt: Ein Stresstest (zwei Threads nehmen die Sperre und geben sie wieder frei) scheiterte 3 von 3 Mal. Endet die erste Instanz zwischen dem gescheiterten Öffnen und `File.Exists` (die Datei verschwindet mit der Sperre, und solange Windows sie löscht, scheitert das Öffnen mit „Zugriff verweigert“), startete die zweite ohne Sperre. `TryAcquire` versucht es dann erneut. Damit ist auch K4 erledigt; die Begründung im ersten Durchgang („FileShare.None“) traf nicht zu.
+  - 5 (K) behoben, nachgestellt: Ein `.git`-Link auf eine Freigabe ergab „keine Hinweise“, das Repo war angehakt. Der Scan liest Link für Link, ohne ihm zu folgen, und meldet die Freigabe.
+  - 6 (K) behoben: `VisibleText` jetzt auch für die Branch-Namen im Worktree-Dialog. Eine Remote- oder LFS-URL auf einer Freigabe (`\\host`, `//host`, `file://host`) zählt als „weitere eigene Einstellungen“; der Hinweistext nennt das.
+- `dotnet build -warnaserror` ohne Warnung, `dotnet test` 563 grün. Jeder neue Test scheitert gegen die alte Fassung.
