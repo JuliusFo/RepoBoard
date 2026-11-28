@@ -8,14 +8,6 @@ Der Nutzer wollte die Ideenliste als Pakete abgelegt haben (2026-11-20). Zuschni
 
 ### Gruppe A – nötig für den Alltag
 
-#### WP-06 Änderungen verwerfen und Stash
-Branch `wp/06-discard-stash`.
-- Änderungen einer Datei bzw. aller verwerfen (`restore --worktree`, neue Dateien in den Papierkorb statt `clean`).
-- Stash: Liste, anlegen (mit Nachricht, optional mit neuen Dateien), anwenden, pop, löschen.
-- Optional je Repo: Auto-Stash um den Auto-Pull (stash → fast-forward → pop; bei Konflikt beim pop bleibt der Stash und es kommt eine Meldung).
-- Invariante: neuer ADR (Ausnahme zu `CLAUDE.md` §2), Rückfrage mit Dateiliste, Tests je Fall.
-- Offen: Papierkorb oder echtes Löschen für neue Dateien? Auto-Stash überhaupt (er ändert den Worktree im Hintergrund)?
-
 #### WP-08 Branches aufräumen
 Branch `wp/08-branch-cleanup`.
 - Lokalen Branch löschen (`branch -d`, nur gemergt), Remote-Branch löschen (`push --delete`), alle Branches mit Upstream „gone“ auf einmal (Liste, Häkchen).

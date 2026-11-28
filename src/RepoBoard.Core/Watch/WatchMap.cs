@@ -139,6 +139,8 @@ internal sealed class WatchMap
                 [] => [],
                 // Shared: a commit, fetch, new branch or upstream changes ahead and behind in every worktree too.
                 [var first, ..] when SharedState.Contains(first) && ChangesStatus(parts) => [inGit.Main, .. inGit.Main.Worktrees],
+                // The stash list (WP-06): dropping an entry below the newest rewrites only its reflog. Shared like the refs.
+                ["logs", "refs", "stash"] => [inGit.Main, .. inGit.Main.Worktrees],
                 // A worktree added or removed, or one whose git folder is not known yet.
                 ["worktrees", _] => [inGit.Main],
                 ["worktrees", _, .. var rest] => ChangesStatus(rest) ? [inGit.Main] : [],

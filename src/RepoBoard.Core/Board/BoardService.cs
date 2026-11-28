@@ -14,7 +14,9 @@ namespace RepoBoard.Core.Board;
 /// thread; the UI marshals itself.
 /// </summary>
 /// <param name="logger">Where a surprise in one repository of a run over many goes, with its stack trace (code review R1).</param>
-public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider time, ILogger<BoardService>? logger = null)
+/// <param name="recycleBin">Where discarded new files go (WP-06, ADR 0016); without one they stay and the board says why.</param>
+public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider time, ILogger<BoardService>? logger = null,
+    IRecycleBin? recycleBin = null)
 {
     public const int MaxParallelNetwork = 4;
 
@@ -394,7 +396,9 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             var (log, more) = status.IsInitial ? ([], false) : await git.LogAsync(repo.Path, repo.LogLength, repo.LogAll, ct);
             // Unknown (null) keeps amend off as pushed does, with its own reason (review 0.4.0, A38).
             var onRemote = status.IsInitial ? true : await git.IsOnRemoteAsync(repo.Path, "HEAD", ct);
-            repo.Details = new RepoDetails(branches, log, CommitGraph.Build(log), more, onRemote);
+            // The stash is the repository's: every worktree shows the same list (WP-06).
+            var stashes = await git.StashesAsync(repo.Path, ct) ?? [];
+            repo.Details = new RepoDetails(branches, log, CommitGraph.Build(log), more, onRemote, stashes);
         }
     }
 
@@ -1117,6 +1121,196 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     /// <summary>True if git still finds conflict markers in a conflicted file; null if it cannot tell. Only reads.</summary>
     public Task<bool?> HasConflictMarkersAsync(RepoState repo, string path, CancellationToken ct) =>
         Task.Run(() => git.HasConflictMarkersAsync(repo.Path, path, ct), ct);
+
+    // ---------- discard and stash (WP-06, ADR 0016) ----------
+
+    /// <summary>
+    /// Discards the unstaged changes of <paramref name="files"/> (ADR 0016, the exception to CLAUDE.md §2): changed tracked
+    /// files into a new stash entry, from where "Apply" brings them back; new files to the recycle bin. The UI asks first and
+    /// lists the files. Checked inside the gate with a fresh status: each file still has an unstaged change "Discard" offers
+    /// (<see cref="StashCheck.CanDiscard"/>) – another session may have committed or staged it meanwhile (review WP-04).
+    /// What a file holds by then goes into the entry or the recycle bin with it: nothing is lost unseen.
+    /// </summary>
+    public Task<bool> DiscardChangesAsync(RepoState repo, IReadOnlyList<string> files, CancellationToken ct)
+    {
+        ActivityNote? note = null;
+        return RunAsync(repo, SyncText.Op_Discard, network: false, async c =>
+        {
+            var (result, done) = await DiscardChangesCoreAsync(repo, files, c);
+            note = done;
+            return result;
+        }, () => note, ct);
+    }
+
+    private async Task<(GitResult Result, ActivityNote? Note)> DiscardChangesCoreAsync(RepoState repo, IReadOnlyList<string> files,
+        CancellationToken c)
+    {
+        if (files.Count == 0)
+        {
+            return (GitResult.Failed(SyncText.Discard_Nothing), null);
+        }
+
+        var (status, read) = await git.StatusAsync(repo.Path, c);
+        if (status is null)
+        {
+            return (read, null);
+        }
+
+        var offered = status.Changes.Where(StashCheck.CanDiscard).ToDictionary(f => f.Path, StringComparer.Ordinal);
+        if (files.Any(f => !offered.ContainsKey(f)))
+        {
+            return (GitResult.Failed(SyncText.Operation_FilesChanged), null);
+        }
+
+        if (StashCheck.Discard(status, files) is { } blocked)
+        {
+            return (GitResult.Failed(blocked), null);
+        }
+
+        var tracked = files.Where(f => !offered[f].Untracked).Distinct(StringComparer.Ordinal).ToList();
+        var untracked = files.Where(f => offered[f].Untracked).Distinct(StringComparer.Ordinal).ToList();
+
+        // What the recycle bin needs is checked before anything is stashed: a discard happens whole or not at all, as far as
+        // RepoBoard can tell beforehand.
+        var root = Paths.Full(repo.Path);
+        List<string> full = [];
+        foreach (var path in untracked)
+        {
+            var file = Paths.Full(Path.Combine(root, path));
+            if (!Paths.IsUnder(file, root) || Paths.Same(file, root))
+            {
+                return (GitResult.Failed(TextFormat.Format(SyncText.Discard_NotInRepo, path)), null);
+            }
+
+            full.Add(file);
+        }
+
+        if (full.Count > 0 && recycleBin is null)
+        {
+            return (GitResult.Failed(SyncText.Discard_NoRecycleBin), null);
+        }
+
+        string? message = null;
+        if (tracked.Count > 0)
+        {
+            message = TextFormat.Format(SyncText.Discard_StashMessage, TextCut.Cut(string.Join(", ", tracked), 120));
+            var stashed = await git.DiscardIntoStashAsync(repo.Path, message, tracked, c);
+            if (!stashed.Success)
+            {
+                return (stashed, null);
+            }
+        }
+
+        if (full.Count > 0 && await recycleBin!.RecycleAsync(full, c) is { } failed)
+        {
+            var text = message is null
+                ? TextFormat.Format(SyncText.Discard_RecycleFailed, failed)
+                : TextFormat.Format(SyncText.Discard_RecycleFailedAfterStash, failed, message);
+            return (GitResult.Failed(text), null);
+        }
+
+        var done = message is null ? SyncText.Discarded_Recycled
+            : full.Count == 0 ? TextFormat.Format(SyncText.Discarded_Stashed, message)
+            : TextFormat.Format(SyncText.Discarded_Both, message);
+        return (new GitResult(0, "", ""), Info(done));
+    }
+
+    /// <summary>
+    /// Stashes every change (<paramref name="includeUntracked"/>: new files too) with <paramref name="message"/> (git's own
+    /// "WIP on …" if empty). The index and the files go back to HEAD; "Apply" brings them back.
+    /// </summary>
+    public Task<bool> StashAsync(RepoState repo, string message, bool includeUntracked, CancellationToken ct)
+    {
+        var text = message.Trim();
+        return RunAsync(repo, SyncText.Op_Stash, network: false, async c =>
+            {
+                var (status, read) = await git.StatusAsync(repo.Path, c);
+                if (status is null)
+                {
+                    return read;
+                }
+
+                if (await git.GitDirAsync(repo.Path, c) is not { } gitDir)
+                {
+                    return GitResult.Failed(SyncText.Pick_Unknown);
+                }
+
+                return StashCheck.Create(status, GitClient.OperationIn(gitDir), includeUntracked) is { } blocked
+                    ? GitResult.Failed(blocked)
+                    : await git.StashAsync(repo.Path, text, includeUntracked, c);
+            },
+            () => Info(text.Length == 0 ? SyncText.Stashed : TextFormat.Format(SyncText.StashedAs, text)), ct);
+    }
+
+    /// <summary>
+    /// Applies a stash entry to the worktree; <paramref name="pop"/> drops it afterwards – only once git applied it without a
+    /// conflict, as <c>stash pop</c> does. The entry is the one the page showed (by its commit, wherever it is in the list
+    /// now). On a conflict the entry stays and the files show as conflicts of the opened row.
+    /// </summary>
+    public Task<bool> ApplyStashAsync(RepoState repo, StashEntry entry, bool pop, CancellationToken ct) =>
+        RunAsync(repo, pop ? SyncText.Op_PopStash : SyncText.Op_ApplyStash, network: false, async c =>
+            {
+                var (status, read) = await git.StatusAsync(repo.Path, c);
+                if (status is null)
+                {
+                    return read;
+                }
+
+                if (await git.GitDirAsync(repo.Path, c) is not { } gitDir)
+                {
+                    return GitResult.Failed(SyncText.Pick_Unknown);
+                }
+
+                if (StashCheck.Apply(status, GitClient.OperationIn(gitDir)) is { } blocked)
+                {
+                    return GitResult.Failed(blocked);
+                }
+
+                if ((await FindStashAsync(repo, entry.Id, c)).Failed is { } gone)
+                {
+                    return gone;
+                }
+
+                var applied = await git.ApplyStashAsync(repo.Path, entry.Id, c);
+                if (!applied.Success)
+                {
+                    var (after, _) = await git.StatusAsync(repo.Path, c);
+                    return after is { Conflicts: > 0 } ? GitResult.Failed(SyncText.Stash_ApplyConflicts) : applied;
+                }
+
+                if (!pop)
+                {
+                    return applied;
+                }
+
+                // Found again: another session may have stashed while git applied, and the entry moved down.
+                var (position, failed) = await FindStashAsync(repo, entry.Id, c);
+                var dropped = failed ?? await git.DropStashAsync(repo.Path, position, c);
+                return dropped.Success ? dropped : GitResult.Failed(TextFormat.Format(SyncText.Stash_PopNotDropped, dropped.Message));
+            },
+            () => Info(TextFormat.Format(pop ? SyncText.StashPopped : SyncText.StashApplied, entry.Message)), ct);
+
+    /// <summary>
+    /// Drops a stash entry (ADR 0016): its changes are lost to RepoBoard, so the UI asks first and lists its files. Checked
+    /// inside the gate: the entry is still in the list – by its commit, at whatever position it has now.
+    /// </summary>
+    public Task<bool> DropStashAsync(RepoState repo, StashEntry entry, CancellationToken ct) =>
+        RunAsync(repo, SyncText.Op_DropStash, network: false, async c =>
+            {
+                var (position, failed) = await FindStashAsync(repo, entry.Id, c);
+                return failed ?? await git.DropStashAsync(repo.Path, position, c);
+            },
+            () => Info(TextFormat.Format(SyncText.StashDropped, entry.Message)), ct);
+
+    /// <summary>The files of a stash entry, for its list and the question before a drop; null if git fails. Only reads.</summary>
+    public Task<IReadOnlyList<string>?> StashFilesAsync(RepoState repo, StashEntry entry, CancellationToken ct) =>
+        Task.Run(() => git.StashFilesAsync(repo.Path, entry.Id, ct), ct);
+
+    /// <summary>Where the entry with commit <paramref name="id"/> is in the stash list now; a failure if it is gone.</summary>
+    private async Task<(int Position, GitResult? Failed)> FindStashAsync(RepoState repo, string id, CancellationToken c) =>
+        await git.StashesAsync(repo.Path, c) is not { } list ? (-1, GitResult.Failed(SyncText.Pick_Unknown))
+        : list.FirstOrDefault(e => e.Id == id) is { } found ? (found.Position, null)
+        : (-1, GitResult.Failed(SyncText.Stash_Gone));
 
     /// <summary>
     /// A local branch by name; a remote one ("upstream/main") as a new local branch that tracks exactly it. git's guess from

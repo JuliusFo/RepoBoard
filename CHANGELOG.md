@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 ## [Unreleased]
 
 ### Added
+- Discard changes (WP-06): hover an unstaged file for its discard button, or use “Discard all” in the head of the unstaged files. RepoBoard asks first with every file and where its changes go: changed tracked files go back to their staged version (or the last commit’s) and their changes are kept as an entry in the stash list, from where “Apply” brings them back; new files go to the recycle bin. Staged changes stay. If a file was staged or committed in the meantime, nothing is discarded.
+- Stash (WP-06): below the commit box, stash all changes with an optional message, with new files if you tick it. The stash list shows each entry with its time and – on a click – its files, with “Apply” (keeps the entry), “Pop” (drops it, unless a conflict comes up) and drop (asks first). An entry is found by its commit, so a stash made meanwhile in another worktree or terminal does not make a click hit the wrong entry.
 - Finish a merge or rebase (WP-07): an unfinished merge, rebase, cherry-pick or revert – started in RepoBoard, the IDE or the terminal – shows as a bar above the files of the opened row: what runs, the rebase’s step (“commit 2 of 5”) and how many conflicts are left. “Continue” commits what is staged with git’s message and goes on (a rebase stops again at the next conflict), “Skip” leaves out the commit it stopped at, “Abort” goes back to the state before; skip and abort ask first and list every changed file that may go back, and do nothing if the operation or the files changed since. Conflicted files have their own group with the kind of conflict, “Open” (VS Code, with its merge editor) and “Resolved”, which asks first if git still finds conflict markers in the file.
 - Merge and rebase: hover a branch in an opened row for “Merge” (into the current branch – a fast-forward, or a merge commit with git’s message) and “Rebase” (the current branch onto it). Only with no staged, changed or conflicted files and no ignored file git would overwrite; a rebase only of commits no remote has, so never a force push.
 
@@ -50,6 +52,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - Review 0.4.0 (R1): `Paths` for path comparisons, `PickCheck` for the commit tools’ rules, `DiffBody`, `CommitText`, `UpdateComponent`, FerretSharp leftovers removed; the CI builds the self-contained release publish before a tag; tests for the auto-sync cases of ADR 0003, config states, `GitRunner`, the scanner and more.
 - git’s messages show as a terminal shows them: a progress line git rewrote (“Rebasing (1/2)”) no longer runs into the error after it.
 - `OperationInfo` reads an unfinished operation from the git folder, with a key per step that abort and skip check inside the gate (ADR 0015). git never opens an editor for RepoBoard (`GIT_EDITOR=:`); merge, rebase and continue run with a three-minute limit, enough for signing.
+- Discard and stash (ADR 0016): `StashCheck` holds the rules for buttons and gate, `IRecycleBin` is the host’s recycle bin (`SHFileOperation` with undo, Windows asks before a permanent delete); the file watcher also reads the stash’s reflog, which alone changes when an older entry is dropped.
 
 ## [0.4.0] - 2026-11-22
 

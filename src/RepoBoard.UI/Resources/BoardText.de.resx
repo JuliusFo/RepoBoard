@@ -717,4 +717,81 @@ Log: {1}</value>
   <data name="Scan_Runs_GitDirOnShare" xml:space="preserve">
     <value>sein Git-Ordner liegt auf der Freigabe eines anderen Rechners – erst nach dem Anhaken gelesen</value>
   </data>
+  <data name="Discard_Hint" xml:space="preserve">
+    <value>Änderungen an dieser Datei verwerfen …</value>
+  </data>
+  <data name="Discard_All" xml:space="preserve">
+    <value>Alle verwerfen</value>
+  </data>
+  <data name="Discard_All_Hint" xml:space="preserve">
+    <value>Alle nicht gestagten Änderungen verwerfen …</value>
+  </data>
+  <data name="Discard_TitleOne" xml:space="preserve">
+    <value>Änderungen an {0} Datei verwerfen?</value>
+  </data>
+  <data name="Discard_TitleOther" xml:space="preserve">
+    <value>Änderungen an {0} Dateien verwerfen?</value>
+  </data>
+  <data name="Discard_TextStash" xml:space="preserve">
+    <value>Die Dateien gehen auf ihren gestagten Stand zurück, sonst auf den des letzten Commits. Ihre Änderungen bleiben in der Stash-Liste – „Anwenden“ dort holt sie zurück.</value>
+  </data>
+  <data name="Discard_TextRecycle" xml:space="preserve">
+    <value>Die neuen Dateien kommen in den Papierkorb.</value>
+  </data>
+  <data name="Discard_TextBoth" xml:space="preserve">
+    <value>Geänderte Dateien gehen auf ihren gestagten Stand zurück, sonst auf den des letzten Commits; ihre Änderungen bleiben in der Stash-Liste, wo „Anwenden“ sie zurückholt. Neue Dateien kommen in den Papierkorb.</value>
+  </data>
+  <data name="Discard_Confirm" xml:space="preserve">
+    <value>Verwerfen</value>
+  </data>
+  <data name="Stash_Head" xml:space="preserve">
+    <value>Stash ({0})</value>
+    <comment>{0} = number of stash entries</comment>
+  </data>
+  <data name="Stash_Shared_Hint" xml:space="preserve">
+    <value>Der Stash gehört zum Repository: alle seine Worktrees teilen diese Liste.</value>
+  </data>
+  <data name="Stash_Message_Placeholder" xml:space="preserve">
+    <value>Nachricht für den Stash (optional)</value>
+  </data>
+  <data name="Stash_WithNew" xml:space="preserve">
+    <value>Mit neuen Dateien</value>
+  </data>
+  <data name="Stash_WithNew_Hint" xml:space="preserve">
+    <value>Auch neue Dateien in den Stash legen – sie verlassen den Ordner, bis der Eintrag angewendet wird</value>
+  </data>
+  <data name="Stash_Create" xml:space="preserve">
+    <value>Stashen</value>
+  </data>
+  <data name="Stash_Create_Hint" xml:space="preserve">
+    <value>Alle Änderungen in einen neuen Stash-Eintrag legen; die Dateien gehen auf den letzten Commit zurück</value>
+  </data>
+  <data name="Stash_Apply" xml:space="preserve">
+    <value>Anwenden</value>
+  </data>
+  <data name="Stash_Apply_Hint" xml:space="preserve">
+    <value>Die Änderungen dieses Eintrags anwenden; er bleibt in der Liste</value>
+  </data>
+  <data name="Stash_Pop" xml:space="preserve">
+    <value>Pop</value>
+    <comment>Button: apply a stash entry and drop it (git's own word)</comment>
+  </data>
+  <data name="Stash_Pop_Hint" xml:space="preserve">
+    <value>Die Änderungen anwenden und den Eintrag löschen – bei einem Konflikt bleibt er</value>
+  </data>
+  <data name="Stash_Drop_Hint" xml:space="preserve">
+    <value>Diesen Eintrag löschen …</value>
+  </data>
+  <data name="Stash_Files_Hint" xml:space="preserve">
+    <value>Dateien dieses Eintrags zeigen oder verbergen</value>
+  </data>
+  <data name="Stash_DropTitle" xml:space="preserve">
+    <value>Stash-Eintrag löschen?</value>
+  </data>
+  <data name="Stash_DropText" xml:space="preserve">
+    <value>„{0}“ verlässt die Stash-Liste samt seinen Änderungen an diesen Dateien. RepoBoard kann ihn nicht zurückholen.</value>
+  </data>
+  <data name="Stash_DropConfirm" xml:space="preserve">
+    <value>Löschen</value>
+  </data>
 </root>

@@ -7,6 +7,7 @@ using RepoBoard.App.Services;
 using RepoBoard.Core;
 using RepoBoard.Core.Board;
 using RepoBoard.Core.Git;
+using RepoBoard.Core.IO;
 using RepoBoard.Core.Repos;
 using RepoBoard.Core.Resources;
 using RepoBoard.Core.Sync;
@@ -92,6 +93,7 @@ public partial class App : Application
         builder.Services.AddSingleton(services => new ConfigStore(_paths.ConfigFile, services.GetRequiredService<TimeProvider>()));
         builder.Services.AddSingleton<BoardService>();
         builder.Services.AddSingleton<IDesktop, WpfDesktop>();
+        builder.Services.AddSingleton<IRecycleBin, ShellRecycleBin>();
         builder.Services.AddSingleton<IAutostart, RegistryAutostart>();
         builder.Services.AddSingleton<BoardNavigation>();
         builder.Services.AddSingleton<IAppUpdater>(new VelopackUpdater(_args));

@@ -64,6 +64,15 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - `CommitAsync` prüft im Tor nicht auf eine laufende Operation, nur die UI sperrt die Commit-Box: ein Commit über einen veralteten Status mitten im Rebase legt einen Commit zu viel an (Review WP-07, vorher schon da).
 - Ein Rebase eines Branches, dessen Commits schon auf einem *anderen* Remote-Branch liegen (jemand hat darauf aufgebaut), ist ebenfalls gesperrt – genauer wäre nur der eigene Upstream.
 
+## Verwerfen und Stash (Fortsetzung von WP-06)
+
+- Auto-Stash um den Auto-Pull je Repo (stash → Fast-Forward → pop; bei Konflikt beim pop bleibt der Eintrag, Meldung). Nicht in WP-06 (Entscheidung des Nutzers, 2026-11-28): er ändert den Worktree im Hintergrund, und einen Konflikt beim pop sieht niemand.
+- Nur einen Teil einer Datei verwerfen (Hunk, Zeilen) aus der Diff-Ansicht, wie das Stagen (ADR 0012) – mit Sicherung.
+- Stash mit `--index` anwenden (auch den gestagten Stand zurückholen); heute wird alles zu nicht gestagten Änderungen, wie gits Standard.
+- Eine gestagte und weiter geänderte Datei, verworfen und wieder angewendet, kann einen Konflikt geben (git wendet gegen HEAD an, ADR 0016). Eine Rücknahme gegen den Index wäre sauberer – eigener Weg nötig.
+- Stash-Eintrag als Branch auschecken (`stash branch`), den Diff eines Eintrags zeigen (heute nur seine Dateien).
+- Der Stash-Abschnitt nimmt der Dateiliste Platz (sie zeigt nur noch etwa vier Dateien): einklappbar oder höhere Pane? (Frage an den Nutzer, E2E WP-06.)
+
 ## Dateiwächter (Fortsetzung von WP-03)
 
 - Die Ordner, deren Änderungen nichts auslösen (`bin`, `obj`, `node_modules`, `.vs`, `.idea`, `TestResults`), sind fest: stattdessen die ignorierten Pfade von git fragen (`check-ignore --stdin`) oder die Liste einstellbar machen.
