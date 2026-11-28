@@ -305,23 +305,8 @@
     private static string UnstagedKey(FileChange file) => "u:" + file.Path;
     private static string ConflictKey(FileChange file) => "c:" + file.Path;
 
-    /// <summary>
-    /// What "Stage all" stages: everything (empty) – but with conflicts only the other files, a conflict is marked resolved on
-    /// its own (WP-07); null if nothing else is left.
-    /// </summary>
-    private IReadOnlyList<string>? StageAllPaths =>
-        Status is not { Conflicts: > 0 } status ? []
-        : status.Changes.Where(c => c.IsUnstaged && !c.Conflict).Select(c => c.Path).ToList() is { Count: > 0 } others ? others
-        : null;
-
-    /// <summary>
-    /// What "Unstage all" unstages: everything (empty) – but with conflicts only the staged files: unstaging a conflicted file
-    /// would put HEAD's version into the index and let "Continue" drop the other side (WP-07); null if nothing is staged.
-    /// </summary>
-    private IReadOnlyList<string>? UnstageAllPaths =>
-        Status is not { Conflicts: > 0 } status ? []
-        : status.Changes.Where(c => c.IsStaged).Select(c => c.Path).ToList() is { Count: > 0 } staged ? staged
-        : null;
+    private IReadOnlyList<string>? StageAllPaths => OperationTools.StageAllPaths(Repo);
+    private IReadOnlyList<string>? UnstageAllPaths => OperationTools.UnstageAllPaths(Repo);
 
     private enum QuestionKind { Abort, Skip, Markers }
 
@@ -341,18 +326,21 @@
         var name = PullCheck.Name(op.Kind);
         var files = BoardService.DiscardedFiles(status);
         _question = kind == QuestionKind.Abort
-            ? new Question(kind, TextFormat.Format(BoardText.Operation_AbortTitle, name), TextFormat.Format(BoardText.Operation_AbortText, name),
+            ? new Question(kind, TextFormat.Format(BoardText.Operation_AbortTitle, name), OperationTools.AbortText(op),
                 TextFormat.Format(BoardText.Operation_AbortConfirm, name), files, op.Key, null)
             : new Question(kind, BoardText.Operation_SkipTitle, TextFormat.Format(BoardText.Operation_SkipText, OperationTools.SkippedCommit(op)),
                 BoardText.Operation_SkipConfirm, files, op.Key, null);
     }
 
-    /// <summary>"Resolved": stages the file, after a question if git still finds conflict markers in it.</summary>
+    /// <summary>
+    /// "Resolved": stages the file, after a question if git still finds conflict markers in it – or cannot tell (review WP-07).
+    /// </summary>
     private Task MarkResolved(FileChange file) => GuardAsync(async () =>
     {
-        if (await Board.HasConflictMarkersAsync(Repo, file.Path, default) == true)
+        if (await Board.HasConflictMarkersAsync(Repo, file.Path, default) is var markers and not false)
         {
-            _question = new Question(QuestionKind.Markers, BoardText.Conflict_MarkersTitle, TextFormat.Format(BoardText.Conflict_MarkersText, file.Path),
+            var text = markers is true ? BoardText.Conflict_MarkersText : BoardText.Conflict_MarkersUnknownText;
+            _question = new Question(QuestionKind.Markers, BoardText.Conflict_MarkersTitle, TextFormat.Format(text, file.Path),
                 BoardText.Conflict_MarkersConfirm, null, "", file.Path);
             return;
         }

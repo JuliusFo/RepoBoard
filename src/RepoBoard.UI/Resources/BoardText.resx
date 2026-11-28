@@ -725,4 +725,11 @@ Log: {1}</value>
     <value>Back</value>
     <comment>Button: close a question without doing what it asks about, where Cancel would read as the action itself (Abort)</comment>
   </data>
+  <data name="Operation_AbortTextRebase" xml:space="preserve">
+    <value>The repository goes back to the state before the rebase. What you resolved is lost, and every change to these files goes back with it; new files stay:</value>
+  </data>
+  <data name="Conflict_MarkersUnknownText" xml:space="preserve">
+    <value>git could not check {0} for conflict markers. Mark it as resolved anyway?</value>
+    <comment>{0} = path of the file</comment>
+  </data>
 </root>

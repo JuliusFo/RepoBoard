@@ -645,4 +645,10 @@ Log: {1}</value>
   <data name="Dialog_Back" xml:space="preserve">
     <value>Zurück</value>
   </data>
+  <data name="Operation_AbortTextRebase" xml:space="preserve">
+    <value>Das Repository geht auf den Stand vor dem Rebase zurück. Was du gelöst hast, geht verloren, und jede Änderung an diesen Dateien geht mit zurück; neue Dateien bleiben:</value>
+  </data>
+  <data name="Conflict_MarkersUnknownText" xml:space="preserve">
+    <value>git konnte {0} nicht auf Konfliktmarker prüfen. Trotzdem als gelöst markieren?</value>
+  </data>
 </root>

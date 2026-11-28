@@ -54,6 +54,33 @@ public static class OperationTools
         : status.Changes.Any(c => !c.Untracked) ? SyncText.Pick_Changes
         : null;
 
+    /// <summary>
+    /// What "Stage all" stages: everything (empty) – but with conflicts only the other files, a conflict is marked resolved on
+    /// its own; null if nothing else is left.
+    /// </summary>
+    public static IReadOnlyList<string>? StageAllPaths(RepoState repo) =>
+        repo.Status is not { Conflicts: > 0 } status ? []
+        : status.Changes.Where(c => c.IsUnstaged && !c.Conflict).Select(c => c.Path).ToList() is { Count: > 0 } others ? others
+        : null;
+
+    /// <summary>
+    /// What "Unstage all" unstages: everything (empty); nothing while an operation is unfinished (null) – it would put HEAD's
+    /// version of every file into the index, and "Continue" would then commit a merge without the other side, so the branch
+    /// counts as merged while its changes are missing (review WP-07). With conflicts but no operation (a stash that did not
+    /// apply cleanly) only the staged files.
+    /// </summary>
+    public static IReadOnlyList<string>? UnstageAllPaths(RepoState repo) =>
+        repo.Operation is not null ? null
+        : repo.Status is not { Conflicts: > 0 } status ? []
+        : status.Changes.Where(c => c.IsStaged).Select(c => c.Path).ToList() is { Count: > 0 } staged ? staged
+        : null;
+
+    /// <summary>The text of the abort question: a rebase resets every tracked change, the others keep what they can.</summary>
+    public static string AbortText(OperationInfo info) =>
+        info.Kind == GitOperation.Rebase
+            ? BoardText.Operation_AbortTextRebase
+            : TextFormat.Format(BoardText.Operation_AbortText, PullCheck.Name(info.Kind));
+
     /// <summary>What kind of conflict a file has, from the two letters of <c>git status</c> (as git names it).</summary>
     public static string ConflictKind(FileChange file) => (file.Index, file.WorkTree) switch
     {

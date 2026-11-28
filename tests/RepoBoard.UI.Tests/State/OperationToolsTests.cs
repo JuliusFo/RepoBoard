@@ -67,6 +67,41 @@ public sealed class OperationToolsTests
         Assert.Equal(TextFormat.Format(SyncText.Pick_Operation, SyncText.Operation_Rebase), OperationTools.MergeBlocker(Repo(operation: GitOperation.Rebase)));
     }
 
+    [Fact]
+    public void Stage_all_leaves_conflicts_alone_and_unstage_all_waits_for_the_operation()
+    {
+        Assert.Equal([], OperationTools.StageAllPaths(Repo([Changed])));
+        Assert.Equal(["b.txt", "n.txt"], OperationTools.StageAllPaths(Repo([Conflict, Changed, New], GitOperation.Merge)));
+        Assert.Null(OperationTools.StageAllPaths(Repo([Conflict], GitOperation.Merge)));
+
+        Assert.Equal([], OperationTools.UnstageAllPaths(Repo([StagedOnly])));
+        // Review WP-07: with every conflict resolved, unstaging all would let "Continue" commit a merge without the other side.
+        Assert.Null(OperationTools.UnstageAllPaths(Repo([StagedOnly], GitOperation.Merge)));
+        Assert.Equal(["c.txt"], OperationTools.UnstageAllPaths(Repo([Conflict, StagedOnly]))); // a stash that did not apply cleanly
+    }
+
+    [Fact]
+    public void Only_the_rebase_question_says_every_change_goes_back()
+    {
+        Assert.Equal(BoardText.Operation_AbortTextRebase, OperationTools.AbortText(new OperationInfo(GitOperation.Rebase, "k", null, null, null, null, null)));
+        Assert.Equal(TextFormat.Format(BoardText.Operation_AbortText, SyncText.Operation_Merge),
+            OperationTools.AbortText(new OperationInfo(GitOperation.Merge, "k", null, null, null, null, null)));
+    }
+
+    [Fact]
+    public void The_editor_gets_only_files_inside_the_repository()
+    {
+        var root = Path.GetPathRoot(Path.GetTempPath())!; // a repository at a drive's root (review WP-07)
+        var repo = Path.Combine(Path.GetTempPath(), "repo");
+
+        Assert.Equal(Path.Combine(root, "a.txt"), EditorPath.FileIn(root, "a.txt"));
+        Assert.Equal(Path.Combine(repo, "src", "a.txt"), EditorPath.FileIn(repo, "src/a.txt"));
+        Assert.Equal(Path.Combine(repo, "..x"), EditorPath.FileIn(repo, "..x"));
+        Assert.Null(EditorPath.FileIn(repo, "../other/a.txt"));
+        Assert.Null(EditorPath.FileIn(repo, "."));
+        Assert.Null(EditorPath.FileIn(repo, Path.Combine(Path.GetTempPath(), "elsewhere.txt")));
+    }
+
     [Theory]
     [InlineData('U', 'U', nameof(BoardText.Conflict_BothModified))]
     [InlineData('A', 'A', nameof(BoardText.Conflict_BothAdded))]

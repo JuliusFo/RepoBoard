@@ -46,12 +46,7 @@ internal sealed class WpfDesktop : IDesktop
         var start = new ProcessStartInfo("cmd.exe") { ArgumentList = { "/c", "code", Checked(path) }, UseShellExecute = false, CreateNoWindow = true };
         if (file is not null)
         {
-            var full = Path.GetFullPath(Path.Combine(path, file));
-            if (!full.StartsWith(Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException($"The file is not inside the repository: {file}");
-            }
-
+            var full = EditorPath.FileIn(path, file) ?? throw new InvalidOperationException($"The file is not inside the repository: {file}");
             start.ArgumentList.Add(Checked(full));
         }
 
