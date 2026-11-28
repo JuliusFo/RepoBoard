@@ -27,6 +27,7 @@ public sealed class GitRunnerTests : IDisposable
         Assert.False(click.ContainsKey("GCM_INTERACTIVE"));
         Assert.Equal("0", click["GIT_TERMINAL_PROMPT"]);
         Assert.Equal("0", click["GIT_OPTIONAL_LOCKS"]);
+        Assert.Equal(":", click["GIT_EDITOR"]); // "--continue" never waits for an editor (WP-07)
     }
 
     /// <summary>Review 0.4.0, A20: a hook's or terminal's git variables point every call at their repository.</summary>

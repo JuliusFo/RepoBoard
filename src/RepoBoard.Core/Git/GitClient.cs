@@ -609,17 +609,21 @@ public sealed class GitClient(GitRunner runner)
     /// Merges <paramref name="branch"/> into HEAD: a fast-forward if possible, otherwise a merge commit with git's message
     /// (<c>merge.ff</c> of the user applies). On a conflict git stops and leaves the merge unfinished. The name goes into the
     /// message ("Merge branch 'feature'"), so the caller passes the short name once it is checked
-    /// (<see cref="IsBranchNameAsync"/>) and names the branch's commit, or else <see cref="RefOf"/>.
+    /// (<see cref="IsBranchNameAsync"/>) and names the branch's commit, or else <see cref="RefOf"/>. Never with the user's
+    /// <c>merge.autoStash</c>: it would put overlapping local changes back with conflict markers (review 0.4.0, A1).
     /// </summary>
     public Task<GitResult> MergeAsync(string repo, string branch, CancellationToken ct) =>
         branch.Length > 0 && !branch.StartsWith('-')
-            ? Writing(repo, ct, "merge", "--no-edit", branch)
+            ? Writing(repo, ct, "merge", "--no-edit", "--no-autostash", branch)
             : Task.FromResult(GitResult.Failed(TextFormat.Format(SyncText.InvalidBranchName, branch)));
 
-    /// <summary>Replays the commits of HEAD's branch onto <paramref name="branchRef"/> (<see cref="RefOf"/>); never interactive.</summary>
+    /// <summary>
+    /// Replays the commits of HEAD's branch onto <paramref name="branchRef"/> (<see cref="RefOf"/>); never interactive, never
+    /// with the user's <c>rebase.autoStash</c> (as <see cref="MergeAsync"/>).
+    /// </summary>
     public Task<GitResult> RebaseAsync(string repo, string branchRef, CancellationToken ct) =>
         branchRef.StartsWith("refs/", StringComparison.Ordinal)
-            ? Writing(repo, ct, "rebase", branchRef)
+            ? Writing(repo, ct, "rebase", "--no-autostash", branchRef)
             : Task.FromResult(GitResult.Failed(TextFormat.Format(SyncText.InvalidBranchName, branchRef)));
 
     /// <summary>

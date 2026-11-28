@@ -383,5 +383,32 @@ public sealed class OperationTests : IDisposable
         Assert.Equal(kind == GitOperation.CherryPick ? "a.txt: two" : "Revert \"a.txt: two\"", info.Subject);
     }
 
+    /// <summary>
+    /// Review 0.4.0, A1 for merge and rebase: with the user's autostash git stashes overlapping local changes, merges or
+    /// rebases, and puts them back with conflict markers. The board refuses changed files before git runs; git must refuse
+    /// too – a file saved between that check and git's start stays as it is.
+    /// </summary>
+    [Theory]
+    [InlineData(false, "merge.autoStash")]
+    [InlineData(true, "rebase.autoStash")]
+    public async Task The_users_autostash_never_puts_local_changes_back_with_conflicts(bool rebase, string setting)
+    {
+        GitSandbox.Git(_git.Mine, "switch", "-c", "feature");
+        GitSandbox.Commit(_git.Mine, "a.txt", "feature");
+        GitSandbox.Git(_git.Mine, "switch", "main");
+        GitSandbox.Git(_git.Mine, "config", setting, "true");
+        File.WriteAllText(Mine("a.txt"), "my unsaved work");
+        var before = Head();
+
+        var result = rebase
+            ? await _client.RebaseAsync(_git.Mine, "refs/heads/feature", Ct)
+            : await _client.MergeAsync(_git.Mine, "feature", Ct);
+
+        Assert.False(result.Success);
+        Assert.Equal("my unsaved work", File.ReadAllText(Mine("a.txt")));
+        Assert.Equal("", GitSandbox.Git(_git.Mine, "stash", "list"));
+        Assert.Equal(before, Head());
+    }
+
     public void Dispose() => _git.Dispose();
 }

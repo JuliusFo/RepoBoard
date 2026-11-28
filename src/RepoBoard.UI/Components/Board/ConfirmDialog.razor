@@ -9,7 +9,7 @@
         <button class="btn icon-only ghost" title="@BoardText.Dialog_Close" @onclick="OnCancel">@Icons.Close</button>
     </header>
     <div class="dialog-body">
-        <p>@Text</p>
+        <p>@VisibleText.Of(Text)</p>
         @if (Files is { } files)
         {
             @if (files.Count == 0)
@@ -21,7 +21,7 @@
                 <div class="wt-ignored confirm-files">
                     @foreach (var file in files)
                     {
-                        <code>@file</code>
+                        <code>@VisibleText.Of(file)</code>
                     }
                 </div>
             }
@@ -57,12 +57,15 @@
 
     private ElementReference _dialog;
 
-    /// <summary>The focus moves into the question, so Esc cancels it – never Enter, which would confirm what was not read.</summary>
+    /// <summary>
+    /// The focus moves into the question, so Esc cancels it – never Enter, which would confirm what was not read; quietly, as
+    /// every dialog (review 0.4.0, A27, A30).
+    /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await _dialog.FocusAsync();
+            await FocusQuietlyAsync(_dialog);
         }
     }
 

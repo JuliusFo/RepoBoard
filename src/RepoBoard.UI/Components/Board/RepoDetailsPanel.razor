@@ -23,7 +23,7 @@
             var continueBlocker = OperationTools.ContinueBlocker(Repo);
             var name = PullCheck.Name(op.Kind);
             <div class="operation-bar">
-                <div class="op-title">@Icons.Warning <span title="@OperationTools.Title(op)">@OperationTools.Title(op)</span></div>
+                <div class="op-title">@Icons.Warning <span title="@VisibleText.Of(OperationTools.Title(op))">@VisibleText.Of(OperationTools.Title(op))</span></div>
                 <div class="op-line">
                     @if (Status is { Conflicts: > 0 } open)
                     {
@@ -68,7 +68,7 @@
                         var kind = OperationTools.ConflictKind(file);
                         <div class="file conflict @(IsSelected(selected, file, false) ? "selected" : "")" @key="ConflictKey(file)">
                             <span class="letter l-U" title="@kind">U</span>
-                            <button class="path" title="@($"{file.Path} – {kind}")" @onclick="() => Select(file, false)"><span>@file.Path</span></button>
+                            <button class="path" title="@($"{VisibleText.Of(file.Path)} – {kind}")" @onclick="() => Select(file, false)"><span>@VisibleText.Of(file.Path)</span></button>
                             <button class="btn small ghost" title="@BoardText.Conflict_Open_Hint" disabled="@(file is { Index: 'D', WorkTree: 'D' })"
                                     @onclick="() => Guard(() => Desktop.OpenInEditor(Repo.Path, file.Path))">@Icons.Code @BoardText.Conflict_Open</button>
                             <button class="btn small ghost" title="@BoardText.Conflict_Resolved_Hint" disabled="@(Repo.Busy is not null)"
