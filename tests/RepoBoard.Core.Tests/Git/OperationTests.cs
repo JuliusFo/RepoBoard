@@ -50,6 +50,8 @@ public sealed class OperationTests : IDisposable
     public async Task A_merge_stops_at_a_conflict_and_continues_with_gits_message()
     {
         Diverge();
+        // A tag of the branch's name on the same commit: git would resolve the tag ("Merge tag 'feature'"; review WP-07).
+        GitSandbox.Git(_git.Mine, "tag", "-a", "-m", "release", "feature", "feature");
         var before = Head();
         var repo = await OpenMineAsync();
 
@@ -57,8 +59,8 @@ public sealed class OperationTests : IDisposable
 
         var info = Assert.IsType<OperationInfo>(repo.Unfinished);
         Assert.Equal(GitOperation.Merge, info.Kind);
-        Assert.Equal("Merge branch 'feature'", info.Subject); // the full ref still reads as the branch
-        Assert.Equal(Head("feature"), info.Commit);
+        Assert.Equal("Merge branch 'refs/heads/feature'", info.Subject); // the full ref, as a tag "feature" exists
+        Assert.Equal(Head("refs/heads/feature"), info.Commit);
         Assert.Equal(1, repo.Status!.Conflicts);
         Assert.Contains(SyncText.Operation_Stopped.Split(':')[0], repo.Error, StringComparison.Ordinal);
 
@@ -74,7 +76,21 @@ public sealed class OperationTests : IDisposable
 
         Assert.Null(repo.Unfinished);
         Assert.Null(repo.Error);
-        Assert.Equal([before, Head("feature")], GitSandbox.Git(_git.Mine, "log", "-1", "--format=%P").Trim().Split(' '));
+        Assert.Equal([before, Head("refs/heads/feature")], GitSandbox.Git(_git.Mine, "log", "-1", "--format=%P").Trim().Split(' '));
+        Assert.Equal("Merge branch 'refs/heads/feature'", GitSandbox.Git(_git.Mine, "log", "-1", "--format=%s").Trim());
+    }
+
+    [Fact]
+    public async Task A_merge_names_the_branch_by_its_short_name_when_no_tag_is_in_the_way()
+    {
+        GitSandbox.Git(_git.Mine, "switch", "-c", "feature");
+        GitSandbox.Commit(_git.Mine, "f.txt", "feature");
+        GitSandbox.Git(_git.Mine, "switch", "main");
+        GitSandbox.Commit(_git.Mine, "m.txt", "main");
+        var repo = await OpenMineAsync();
+
+        Assert.True(await _board.MergeAsync(repo, Branch(repo, "feature"), Ct), repo.Error);
+
         Assert.Equal("Merge branch 'feature'", GitSandbox.Git(_git.Mine, "log", "-1", "--format=%s").Trim());
     }
 
@@ -141,6 +157,68 @@ public sealed class OperationTests : IDisposable
         Assert.Equal(before, Head());
         Assert.Equal("main", File.ReadAllText(Mine("a.txt")));
         Assert.Equal("untracked, stays", File.ReadAllText(Mine("new.txt")));
+    }
+
+    /// <summary>
+    /// Review WP-07: git resets every staged file on an abort – a new file the user staged meanwhile ("Stage all") would be
+    /// deleted. It stays; a new file the merge itself brought goes with it.
+    /// </summary>
+    [Fact]
+    public async Task Abort_keeps_a_new_file_staged_meanwhile_but_not_the_operations_own()
+    {
+        GitSandbox.Git(_git.Mine, "switch", "-c", "feature");
+        GitSandbox.Commit(_git.Mine, "a.txt", "feature");
+        GitSandbox.Commit(_git.Mine, "brought.txt", "from the branch");
+        GitSandbox.Git(_git.Mine, "switch", "main");
+        GitSandbox.Commit(_git.Mine, "a.txt", "main");
+        var repo = await OpenMineAsync();
+        Assert.False(await _board.MergeAsync(repo, Branch(repo, "feature"), Ct));
+        File.WriteAllText(Mine("mine.txt"), "my new work");
+        Assert.True(await _board.StageAsync(repo, ["mine.txt"], Ct), repo.Error);
+        var files = BoardService.DiscardedFiles(repo.Status!);
+        Assert.Equal(["a.txt"], files); // neither new file goes back as the user's work
+
+        Assert.True(await _board.AbortAsync(repo, repo.Unfinished!.Key, files, Ct), repo.Error);
+
+        Assert.Equal("my new work", File.ReadAllText(Mine("mine.txt")));
+        Assert.Contains(repo.Status!.Changes, c => c is { Path: "mine.txt", Untracked: true });
+        Assert.False(File.Exists(Mine("brought.txt")));
+    }
+
+    /// <summary>Review WP-07: a commit made in the terminal while the question was open would be dropped by the abort.</summary>
+    [Fact]
+    public async Task Abort_of_a_rebase_keeps_out_once_a_commit_was_made_meanwhile()
+    {
+        Diverge(commits: 2);
+        GitSandbox.Git(_git.Mine, "switch", "feature");
+        var repo = await OpenMineAsync();
+        Assert.False(await _board.RebaseAsync(repo, Branch(repo, "main"), Ct));
+        var asked = repo.Unfinished!.Key;
+        File.WriteAllText(Mine("a.txt"), "resolved in the terminal");
+        GitSandbox.Git(_git.Mine, "add", "a.txt");
+        GitSandbox.Git(_git.Mine, "commit", "-q", "-m", "committed in the terminal");
+
+        Assert.False(await _board.AbortAsync(repo, asked, [], Ct));
+
+        Assert.Contains(TextFormat.Format(SyncText.Operation_Changed, SyncText.Operation_Rebase), repo.Error, StringComparison.Ordinal);
+        Assert.Equal("committed in the terminal", GitSandbox.Git(_git.Mine, "log", "-1", "--format=%s").Trim());
+    }
+
+    /// <summary>Review WP-07: a resolution that keeps none of the commit's changes can only be skipped – the message says so.</summary>
+    [Fact]
+    public async Task Continuing_an_empty_resolution_points_to_skip()
+    {
+        Diverge();
+        var picked = Head("feature");
+        Assert.False(GitSandbox.TryGit(_git.Mine, "cherry-pick", picked));
+        GitSandbox.Git(_git.Mine, "checkout", "--ours", "--", "a.txt");
+        GitSandbox.Git(_git.Mine, "add", "a.txt");
+        var repo = await OpenMineAsync();
+
+        Assert.False(await _board.ContinueAsync(repo, GitOperation.CherryPick, Ct));
+
+        Assert.Contains(SyncText.Continue_Empty, repo.Error, StringComparison.Ordinal);
+        Assert.Equal(GitOperation.CherryPick, repo.Operation);
     }
 
     [Fact]

@@ -360,4 +360,7 @@
   <data name="Skip_Merge" xml:space="preserve">
     <value>ein Merge hat keinen Commit zum Überspringen</value>
   </data>
+  <data name="Continue_Empty" xml:space="preserve">
+    <value>nichts mehr zu committen: die Lösung hat keine Änderung des Commits behalten – mit „Überspringen“ beenden</value>
+  </data>
 </root>

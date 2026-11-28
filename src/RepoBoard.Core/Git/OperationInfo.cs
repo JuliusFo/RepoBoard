@@ -7,7 +7,7 @@ namespace RepoBoard.Core.Git;
 /// </summary>
 /// <param name="Kind">Which operation.</param>
 /// <param name="Key">Names this operation at this step: the commit it brings in (rebase: the branch's commit before it and the
-/// step).</param>
+/// step) and HEAD.</param>
 /// <param name="Subject">First line of the message git prepared – "Merge branch 'x'", the picked or reverted commit's subject,
 /// the subject of the commit a rebase stopped at; null if git wrote none.</param>
 /// <param name="Commit">The commit it brings in or stopped at (full id); null if git does not say.</param>
@@ -36,17 +36,25 @@ public sealed record OperationInfo(GitOperation Kind, string Key, string? Subjec
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // git is just writing or removing them: still unfinished (auto-pull keeps out), but with a key no click matches.
-            return new OperationInfo(kind, $"{kind}:?", null, null, null, null, null);
+            // git is just writing or removing them: still unfinished (auto-pull keeps out), but with a key no click matches –
+            // not even one from another read that failed the same way (review WP-07).
+            return new OperationInfo(kind, $"{kind}:?{Guid.NewGuid():N}", null, null, null, null, null);
         }
     }
+
+    /// <summary>
+    /// What HEAD is (the file, so a commit id while a rebase runs detached): part of every key. A commit made meanwhile in
+    /// the terminal – at an "edit" stop, or "git commit" instead of continue – changes it, and an abort would drop that
+    /// commit (review WP-07).
+    /// </summary>
+    private static string? Head(string gitDir) => FirstLine(Text(gitDir, "HEAD"));
 
     /// <summary>Merge, cherry-pick, revert: the commit in the marker file, the message git prepared in MERGE_MSG.</summary>
     private static OperationInfo Picked(GitOperation kind, string gitDir, string headFile)
     {
         // MERGE_HEAD of an octopus merge holds one commit per line.
         var commit = FirstLine(Text(gitDir, headFile));
-        return new OperationInfo(kind, $"{kind}:{commit}", FirstLine(Text(gitDir, "MERGE_MSG")), commit, null, null, null);
+        return new OperationInfo(kind, $"{kind}:{commit}:{Head(gitDir)}", FirstLine(Text(gitDir, "MERGE_MSG")), commit, null, null, null);
     }
 
     /// <summary>
@@ -66,7 +74,7 @@ public sealed record OperationInfo(GitOperation Kind, string Key, string? Subjec
         // Where it stopped: REBASE_HEAD (git 2.17) – also when it stopped at an "edit" without a conflict.
         var commit = FirstLine(Text(gitDir, "REBASE_HEAD")) ?? (isMerge ? FirstLine(Text(folder, "stopped-sha")) : null);
         var subject = FirstLine(Text(folder, isMerge ? "message" : "final-commit")) ?? FirstLine(Text(gitDir, "MERGE_MSG"));
-        return new OperationInfo(GitOperation.Rebase, $"Rebase:{original}:{step}:{commit}", subject, commit, branch, step, steps);
+        return new OperationInfo(GitOperation.Rebase, $"Rebase:{original}:{step}:{commit}:{Head(gitDir)}", subject, commit, branch, step, steps);
     }
 
     private static string? Text(string folder, string file)

@@ -846,10 +846,13 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         }
         else
         {
-            // The short name makes git's message "Merge branch 'feature'" – unless a tag of that name would win over the branch.
-            var name = await git.IsBranchNameAsync(repo.Path, branch.Name, c) && await git.CommitOfAsync(repo.Path, branch.Name, c) == target
-                ? branch.Name
-                : branchRef;
+            // The short name makes git's message "Merge branch 'feature'" – unless a tag of that name exists: git resolves the
+            // tag first, even on the same commit ("Merge tag …", and an annotated tag forces a merge commit; review WP-07).
+            var name = await git.IsBranchNameAsync(repo.Path, branch.Name, c)
+                && await git.CommitOfAsync(repo.Path, branch.Name, c) == target
+                && await git.CommitOfAsync(repo.Path, "refs/tags/" + branch.Name, c) is null
+                    ? branch.Name
+                    : branchRef;
             result = await git.MergeAsync(repo.Path, name, c);
         }
 
@@ -889,9 +892,17 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             }
 
             var result = await git.ContinueAsync(repo.Path, info.Kind, c);
-            return result.Success || GitClient.OperationIn(gitDir) is null
-                ? result
-                : GitResult.Failed(TextFormat.Format(SyncText.Operation_Stopped, result.Message));
+            if (result.Success || GitClient.OperationIn(gitDir) is null)
+            {
+                return result;
+            }
+
+            // Nothing left to commit (the resolution kept none of the commit's changes): another "Continue" fails the same way,
+            // only "Skip" ends it – a merge commits even then (review WP-07).
+            var (after, _) = await git.StatusAsync(repo.Path, c);
+            return GitResult.Failed(info.Kind != GitOperation.Merge && after is { Conflicts: 0 } && !after.Changes.Any(f => f.IsStaged)
+                ? SyncText.Continue_Empty
+                : TextFormat.Format(SyncText.Operation_Stopped, result.Message));
         }, () => Info(TextFormat.Format(SyncText.Continued, PullCheck.Name(expected))), ct);
 
     /// <summary>
@@ -920,9 +931,14 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             () => Info(TextFormat.Format(SyncText.Skipped, commit)), ct);
     }
 
-    /// <summary>The files an abort or skip puts back: every change but a new file, which git leaves alone.</summary>
+    /// <summary>
+    /// The files an abort or skip may put back: every change but a new file – untracked ones git leaves alone, and a staged
+    /// new file unchanged since is either the operation's own (it goes with it) or one of the user's, which
+    /// <see cref="DiscardAsync"/> unstages first so that it stays (review WP-07).
+    /// </summary>
     public static IReadOnlyList<string> DiscardedFiles(RepoStatus status) =>
-        [.. status.Changes.Where(f => !f.Untracked).Select(f => f.Path).Distinct().Order(StringComparer.Ordinal)];
+        [.. status.Changes.Where(f => !f.Untracked && !(f is { Index: 'A', WorkTree: '.', Conflict: false }))
+            .Select(f => f.Path).Distinct().Order(StringComparer.Ordinal)];
 
     private async Task<GitResult> DiscardAsync(RepoState repo, string expectedKey, IReadOnlyCollection<string> expectedFiles, bool skip,
         CancellationToken c)
@@ -943,6 +959,11 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             return GitResult.Failed(SyncText.Operation_FilesChanged);
         }
 
+        if (await KeepNewFilesAsync(repo, info, c) is { } kept)
+        {
+            return kept;
+        }
+
         if (!skip)
         {
             return await git.AbortAsync(repo.Path, info.Kind, c);
@@ -952,6 +973,33 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         return result.Success || GitClient.OperationIn(gitDir) is null
             ? result
             : GitResult.Failed(TextFormat.Format(SyncText.Operation_Stopped, result.Message));
+    }
+
+    /// <summary>
+    /// Before an abort or skip (review WP-07): a new file the user staged during the operation would be deleted with it – git
+    /// resets every staged file (<c>reset --merge</c>, a rebase <c>reset --hard</c>). Staged new files the operation itself
+    /// does not bring are unstaged first: untracked, git leaves them alone (or refuses rather than overwrite them). If git
+    /// cannot tell what the operation brings, every staged new file is unstaged – a leftover file rather than a lost one.
+    /// Null if nothing failed.
+    /// </summary>
+    private async Task<GitResult?> KeepNewFilesAsync(RepoState repo, OperationInfo info, CancellationToken c)
+    {
+        var added = await git.AddedInIndexAsync(repo.Path, c);
+        if (added is null)
+        {
+            return GitResult.Failed(SyncText.Pick_Unknown);
+        }
+
+        if (added.Count == 0)
+        {
+            return null;
+        }
+
+        var brought = info.Commit is { } commit && GitClient.IsCommitId(commit)
+            ? await git.AddedByAsync(repo.Path, info.Kind, commit, c) ?? []
+            : [];
+        var mine = added.Except(brought, StringComparer.Ordinal).ToList();
+        return mine.Count == 0 ? null : await git.UntrackAsync(repo.Path, mine, c) is { Success: false } failed ? failed : null;
     }
 
     /// <summary>The unfinished operation and the status, both read fresh inside the gate; a failure if there is none.</summary>

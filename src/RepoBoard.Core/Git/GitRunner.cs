@@ -86,9 +86,10 @@ public class GitRunner(string executable = "git")
 
         // Never a console prompt (there is no console); status takes no optional index lock, so it never collides with the
         // IDE or a terminal working in the same repository. Never an editor either (WP-07): "--continue" would open one for
-        // the message and wait for nobody to close it – "true" keeps the message git prepared.
+        // the message and wait for nobody to close it. ":" is git's own "no editor" – it starts no process and keeps the
+        // message git prepared, also where no "true" program exists (MinGit; review WP-07).
         start.Environment["GIT_TERMINAL_PROMPT"] = "0";
-        start.Environment["GIT_EDITOR"] = "true";
+        start.Environment["GIT_EDITOR"] = ":";
         start.Environment["GIT_OPTIONAL_LOCKS"] = "0";
         if (mode == GitCallMode.Background)
         {

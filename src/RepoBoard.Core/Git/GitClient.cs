@@ -89,15 +89,34 @@ public sealed class GitClient(GitRunner runner)
     private const string LiteralPaths = "--literal-pathspecs";
 
     public Task<GitResult> StageAsync(string repo, IEnumerable<string> paths, CancellationToken ct) =>
-        Local(repo, ct, [LiteralPaths, "add", "-A", "--", .. paths]);
+        InBatchesAsync(paths, batch => Local(repo, ct, [LiteralPaths, "add", "-A", "--", .. batch]));
+
+    /// <summary>
+    /// One call per part of <paramref name="paths"/> (<see cref="Batches"/>), up to the first failure: "Stage all" during a
+    /// conflict names every file, more than a Windows command line takes (review WP-07).
+    /// </summary>
+    private static async Task<GitResult> InBatchesAsync(IEnumerable<string> paths, Func<List<string>, Task<GitResult>> run)
+    {
+        var result = new GitResult(0, "", "");
+        foreach (var batch in Batches([.. paths], 16_000))
+        {
+            result = await run(batch);
+            if (!result.Success)
+            {
+                break;
+            }
+        }
+
+        return result;
+    }
 
     public Task<GitResult> StageAllAsync(string repo, CancellationToken ct) => Local(repo, ct, "add", "-A");
 
     /// <summary>Takes files out of the index; before the first commit there is no HEAD to restore from.</summary>
     public Task<GitResult> UnstageAsync(string repo, IEnumerable<string> paths, bool initial, CancellationToken ct) =>
-        initial
-            ? Local(repo, ct, [LiteralPaths, "rm", "--cached", "-r", "-q", "--", .. paths])
-            : Local(repo, ct, [LiteralPaths, "restore", "--staged", "--", .. paths]);
+        InBatchesAsync(paths, batch => initial
+            ? Local(repo, ct, [LiteralPaths, "rm", "--cached", "-r", "-q", "--", .. batch])
+            : Local(repo, ct, [LiteralPaths, "restore", "--staged", "--", .. batch]));
 
     /// <summary>
     /// Applies part of a hunk to the index (WP-25, ADR 0012): always <c>--cached</c>, so the worktree is never touched; git
@@ -552,7 +571,44 @@ public sealed class GitClient(GitRunner runner)
     /// asks first and checks that it is still the operation the question named (<see cref="OperationInfo.Key"/>).
     /// </summary>
     public Task<GitResult> AbortAsync(string repo, GitOperation operation, CancellationToken ct) =>
-        Local(repo, ct, Command(operation), "--abort");
+        // The longer limit too: ended halfway, a reset leaves a half-restored worktree and index.lock (review WP-07).
+        Writing(repo, ct, Command(operation), "--abort");
+
+    /// <summary>The files staged as new against HEAD (<c>diff --cached --diff-filter=A</c>); null if git fails.</summary>
+    public async Task<IReadOnlyList<string>?> AddedInIndexAsync(string repo, CancellationToken ct)
+    {
+        var result = await Local(repo, ct, "diff", "--cached", "--name-only", "-z", "--no-renames", "--diff-filter=A", "--no-ext-diff", "HEAD", "--");
+        return result.Success ? result.Output.Split('\0', StringSplitOptions.RemoveEmptyEntries) : null;
+    }
+
+    /// <summary>
+    /// The files the unfinished <paramref name="operation"/> brings as new: a merge those added on the other side since the
+    /// merge base, a cherry-pick or rebase step those its commit adds, a revert those its commit deleted. Null if git fails
+    /// (a root commit has no parent).
+    /// </summary>
+    public async Task<IReadOnlyList<string>?> AddedByAsync(string repo, GitOperation operation, string commit, CancellationToken ct)
+    {
+        if (!IsCommitId(commit))
+        {
+            return null;
+        }
+
+        string[] range = operation switch
+        {
+            GitOperation.Merge => ["HEAD..." + commit],
+            GitOperation.Revert => [commit, commit + "^"],
+            _ => [commit + "^", commit],
+        };
+        var result = await Local(repo, ct, ["diff", "--name-only", "-z", "--no-renames", "--diff-filter=A", "--no-ext-diff", .. range, "--"]);
+        return result.Success ? result.Output.Split('\0', StringSplitOptions.RemoveEmptyEntries) : null;
+    }
+
+    /// <summary>
+    /// Takes new files out of the index, never out of the worktree (<c>rm --cached</c>): untracked, an abort or skip leaves them
+    /// alone (review WP-07).
+    /// </summary>
+    public Task<GitResult> UntrackAsync(string repo, IReadOnlyList<string> paths, CancellationToken ct) =>
+        InBatchesAsync(paths, batch => Local(repo, ct, [LiteralPaths, "rm", "--cached", "-q", "--", .. batch]));
 
     /// <summary>
     /// True if git still finds conflict markers in the conflicted file <paramref name="path"/> (<c>diff --check</c>, which

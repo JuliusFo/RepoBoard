@@ -416,4 +416,7 @@
   <data name="Skip_Merge" xml:space="preserve">
     <value>a merge has no commit to skip</value>
   </data>
+  <data name="Continue_Empty" xml:space="preserve">
+    <value>nothing left to commit: the resolution kept none of the commit’s changes – end it with “Skip”</value>
+  </data>
 </root>
