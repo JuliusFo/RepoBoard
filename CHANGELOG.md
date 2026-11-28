@@ -5,6 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ## [Unreleased]
 
+### Added
+- Finish a merge or rebase (WP-07): an unfinished merge, rebase, cherry-pick or revert – started in RepoBoard, the IDE or the terminal – shows as a bar above the files of the opened row: what runs, the rebase’s step (“commit 2 of 5”) and how many conflicts are left. “Continue” commits what is staged with git’s message and goes on (a rebase stops again at the next conflict), “Skip” leaves out the commit it stopped at, “Abort” goes back to the state before; skip and abort ask first and list every file that goes back, and do nothing if the operation or the files changed since. Conflicted files have their own group with the kind of conflict, “Open” (VS Code, with its merge editor) and “Resolved”, which asks first if git still finds conflict markers in the file.
+- Merge and rebase: hover a branch in an opened row for “Merge” (into the current branch – a fast-forward, or a merge commit with git’s message) and “Rebase” (the current branch onto it). Only with no staged, changed or conflicted files and no ignored file git would overwrite; a rebase only of commits no remote has, so never a force push.
+
+### Changed
+- A revert or cherry-pick that stops at a conflict is finished in the row now instead of the IDE or terminal; a cherry-pick that comes out empty (after a squash merge) ends with “Skip”.
+- While an operation is unfinished, the commit box is closed (“Continue” commits), and “Stage all” and “Unstage all” leave conflicted files alone.
+
+### Internal
+- `OperationInfo` reads an unfinished operation from the git folder, with a key per step that abort and skip check inside the gate (ADR 0014). git never opens an editor for RepoBoard (`GIT_EDITOR=true`); merge, rebase and continue run with a three-minute limit, enough for signing.
+
 ## [0.4.0] - 2026-11-22
 
 ### Added

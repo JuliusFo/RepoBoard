@@ -44,7 +44,7 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 ## Historie (Fortsetzung von WP-09)
 
 - Amend eines gepushten Commits mit `push --force-with-lease` – eigene Rückfrage, ADR (Ausnahme zu `CLAUDE.md` §2).
-- Revert und Cherry-Pick von Merge-Commits (`-m 1`), mehrere Commits auf einmal; Abbrechen und Fortsetzen eines angehaltenen kommt mit WP-07.
+- Revert und Cherry-Pick von Merge-Commits (`-m 1`), mehrere Commits auf einmal.
 - Konflikt vorher erkennen (`git merge-tree --write-tree`, wie WP-17) statt erst beim Revert/Cherry-Pick.
 - `git log --topo-order` geht ohne Commit-Graph-Datei die ganze Historie durch, mit jedem Status bei offener Zeile: bei sehr großen Repos messen; ggf. nur neu lesen, wenn sich HEAD oder Refs geändert haben.
 - Graph: Spuren nach links rücken lassen (wie `git log --graph`), mehr als acht Spuren (seitlich scrollen), Spuren je Branch einfärben statt je Spalte.
@@ -52,7 +52,17 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - „Alle Branches“ je Repo merken (Konfiguration Version 2).
 - Ignorierte Dateien überschreibt git auch beim Branchwechsel (`SwitchAsync`) und beim Fast-Forward von Auto-Pull, ebenso lokal geänderte Dateien mit `skip-worktree`/`assume-unchanged` – dort wie bei Revert/Cherry-Pick vorher prüfen (Review WP-09, vorher schon da).
 - Commit, Amend, Revert und Cherry-Pick laufen mit 30 s Zeitlimit (`Local`): wartet eine gpg-Passphrase (pinentry) länger, bricht `GitRunner` git mitten im Schreiben ab – für Befehle, die signieren können, ein längeres Limit (Review WP-09, vorher schon da).
-- Leerer Cherry-Pick nach Squash: auf Wunsch `--skip` selbst ausführen (Nutzer wollte zunächst nur die Meldung, 2026-11-22).
+
+## Merge, Rebase und Konflikte (Fortsetzung von WP-07)
+
+- Konfliktdatei im Mergetool öffnen (`git mergetool -- <pfad>`): wartet, bis das Werkzeug zu ist, und nimmt ohne `merge.tool` vimdiff (hängt ohne Konsole) – nur bei gesetztem `merge.tool` und dann in einem Terminalfenster? Der Befehlstext müsste aus `GitClient` kommen (ADR 0002). Nicht in WP-07 (Entscheidung des Nutzers, 2026-11-28).
+- „Unsere/ihre Version nehmen“ (`checkout --ours/--theirs -- <pfad>`): überschreibt eine teilweise gelöste Datei im Worktree – eigene Methode, Rückfrage, ADR (`CLAUDE.md` §2). Nicht in WP-07.
+- Nachricht beim Fortsetzen bearbeiten (heute die von git vorbereitete, `GIT_EDITOR=true`); auch die Nachricht eines selbst gestarteten Merges.
+- Diff einer Konfliktdatei (combined diff, `git diff` auf dem unmerged Pfad) statt nur des Hinweises.
+- Interaktiver Rebase (Commits umsortieren, squashen, umbenennen).
+- Merge/Rebase in mehreren Repos auf einmal (mit WP-15).
+- „Mergen“ und „Rebasen“ erscheinen nur beim Überfahren eines Branches; immer sichtbar oder in ein Menü? (Vorschlag, nicht bestätigt.)
+- Ein Rebase eines Branches, dessen Commits schon auf einem *anderen* Remote-Branch liegen (jemand hat darauf aufgebaut), ist ebenfalls gesperrt – genauer wäre nur der eigene Upstream.
 
 ## Dateiwächter (Fortsetzung von WP-03)
 
