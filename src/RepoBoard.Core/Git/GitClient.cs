@@ -605,10 +605,52 @@ public sealed class GitClient(GitRunner runner)
 
     /// <summary>
     /// Takes new files out of the index, never out of the worktree (<c>rm --cached</c>): untracked, an abort or skip leaves them
-    /// alone (review WP-07).
+    /// alone (review WP-07). <c>-f</c> because git refuses a file edited again after staging ("staged content different from
+    /// both the file and the HEAD"); with <c>--cached</c> it still only touches the index (second review pass).
     /// </summary>
     public Task<GitResult> UntrackAsync(string repo, IReadOnlyList<string> paths, CancellationToken ct) =>
-        InBatchesAsync(paths, batch => Local(repo, ct, [LiteralPaths, "rm", "--cached", "-q", "--", .. batch]));
+        InBatchesAsync(paths, batch => Local(repo, ct, [LiteralPaths, "rm", "--cached", "-f", "-q", "--", .. batch]));
+
+    /// <summary>
+    /// Which of <paramref name="paths"/> differ in the index from the version the unfinished <paramref name="operation"/> brings
+    /// (<paramref name="commit"/>; a revert brings its parent's): a new file of the operation the user edited and staged again
+    /// (second review pass WP-07). Null if git fails.
+    /// </summary>
+    public async Task<IReadOnlyList<string>?> DifferFromIncomingAsync(string repo, GitOperation operation, string commit,
+        IReadOnlyList<string> paths, CancellationToken ct)
+    {
+        if (!IsCommitId(commit))
+        {
+            return null;
+        }
+
+        var rev = operation == GitOperation.Revert ? commit + "^" : commit;
+        var differ = new List<string>();
+        foreach (var batch in Batches(paths, 16_000))
+        {
+            var result = await Local(repo, ct, [LiteralPaths, "diff", "--cached", "--name-only", "-z", "--no-renames", "--no-ext-diff", rev, "--", .. batch]);
+            if (!result.Success)
+            {
+                return null;
+            }
+
+            differ.AddRange(result.Output.Split('\0', StringSplitOptions.RemoveEmptyEntries));
+        }
+
+        return differ;
+    }
+
+    /// <summary>True if the ref exists, whatever it points to (a tag may name a tree or blob); null if git cannot tell.</summary>
+    public async Task<bool?> RefExistsAsync(string repo, string fullRef, CancellationToken ct)
+    {
+        if (!fullRef.StartsWith("refs/", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var result = await Local(repo, ct, "show-ref", "--verify", "--quiet", fullRef);
+        return result.ExitCode switch { 0 => true, 1 => false, _ => null };
+    }
 
     /// <summary>
     /// True if git still finds conflict markers in the conflicted file <paramref name="path"/> (<c>diff --check</c>, which

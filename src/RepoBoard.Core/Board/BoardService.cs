@@ -850,7 +850,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             // tag first, even on the same commit ("Merge tag …", and an annotated tag forces a merge commit; review WP-07).
             var name = await git.IsBranchNameAsync(repo.Path, branch.Name, c)
                 && await git.CommitOfAsync(repo.Path, branch.Name, c) == target
-                && await git.CommitOfAsync(repo.Path, "refs/tags/" + branch.Name, c) is null
+                && await git.RefExistsAsync(repo.Path, "refs/tags/" + branch.Name, c) == false
                     ? branch.Name
                     : branchRef;
             result = await git.MergeAsync(repo.Path, name, c);
@@ -900,14 +900,15 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             // Nothing left to commit (the resolution kept none of the commit's changes): another "Continue" fails the same way,
             // only "Skip" ends it – a merge commits even then (review WP-07).
             var (after, _) = await git.StatusAsync(repo.Path, c);
-            return GitResult.Failed(info.Kind != GitOperation.Merge && after is { Conflicts: 0 } && !after.Changes.Any(f => f.IsStaged)
+            // Only with nothing changed at all: a resolution the user unstaged again wants staging, not skipping (second review pass).
+            return GitResult.Failed(info.Kind != GitOperation.Merge && after is { Conflicts: 0 } && after.Changes.All(f => f.Untracked)
                 ? SyncText.Continue_Empty
                 : TextFormat.Format(SyncText.Operation_Stopped, result.Message));
         }, () => Info(TextFormat.Format(SyncText.Continued, PullCheck.Name(expected))), ct);
 
     /// <summary>
     /// Ends the unfinished operation and goes back to the state before it (ADR 0014): what was resolved is lost, so the UI
-    /// asks first, listing the changed files (<see cref="DiscardedFiles"/>). Checked inside the gate: it is still the
+    /// asks first, listing the changed files (<see cref="DiscardedFilesAsync"/>). Checked inside the gate: it is still the
     /// operation the question named (<paramref name="expectedKey"/>, <see cref="OperationInfo.Key"/>) and the changed files
     /// are still <paramref name="expectedFiles"/> – another session may have gone on meanwhile (review WP-04).
     /// </summary>
@@ -932,13 +933,43 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     }
 
     /// <summary>
-    /// The files an abort or skip may put back: every change but a new file – untracked ones git leaves alone, and a staged
-    /// new file unchanged since is either the operation's own (it goes with it) or one of the user's, which
-    /// <see cref="DiscardAsync"/> unstages first so that it stays (review WP-07).
+    /// The files an abort or skip of the unfinished operation may put back, for its question (<see cref="AbortAsync"/>,
+    /// <see cref="SkipAsync"/>); null if none runs or git fails. Only reads, on the thread pool.
     /// </summary>
-    public static IReadOnlyList<string> DiscardedFiles(RepoStatus status) =>
-        [.. status.Changes.Where(f => !f.Untracked && !(f is { Index: 'A', WorkTree: '.', Conflict: false }))
-            .Select(f => f.Path).Distinct().Order(StringComparer.Ordinal)];
+    public Task<IReadOnlyList<string>?> DiscardedFilesAsync(RepoState repo, CancellationToken ct) => Task.Run(async () =>
+    {
+        var (info, status, _, failed) = await UnfinishedAsync(repo, ct);
+        return failed is null ? await DiscardedCoreAsync(repo, info, status, ct) : null;
+    }, ct);
+
+    /// <summary>
+    /// Every change but a new file: an untracked one git leaves alone, and a new file staged as it is in the worktree is one
+    /// of the user's – <see cref="KeepNewFilesAsync"/> unstages it first, so it stays (review WP-07) – or the operation's own,
+    /// which goes with it; listed only if the user changed it from the version the operation brings (second review pass).
+    /// </summary>
+    private async Task<IReadOnlyList<string>?> DiscardedCoreAsync(RepoState repo, OperationInfo info, RepoStatus status, CancellationToken c)
+    {
+        static bool StagedNew(FileChange f) => f is { Index: 'A', WorkTree: '.', Conflict: false };
+
+        var listed = status.Changes.Where(f => !f.Untracked && !StagedNew(f)).Select(f => f.Path).ToHashSet(StringComparer.Ordinal);
+        var staged = status.Changes.Where(StagedNew).Select(f => f.Path).ToList();
+        if (staged.Count > 0 && info.Commit is { } commit && await git.AddedByAsync(repo.Path, info.Kind, commit, c) is { } brought)
+        {
+            // Without what the operation brings, KeepNewFilesAsync keeps every staged new file: none of them goes back.
+            var own = staged.Intersect(brought, StringComparer.Ordinal).ToList();
+            if (own.Count > 0)
+            {
+                if (await git.DifferFromIncomingAsync(repo.Path, info.Kind, commit, own, c) is not { } changed)
+                {
+                    return null;
+                }
+
+                listed.UnionWith(changed);
+            }
+        }
+
+        return [.. listed.Order(StringComparer.Ordinal)];
+    }
 
     private async Task<GitResult> DiscardAsync(RepoState repo, string expectedKey, IReadOnlyCollection<string> expectedFiles, bool skip,
         CancellationToken c)
@@ -954,7 +985,12 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             return GitResult.Failed(TextFormat.Format(SyncText.Operation_Changed, PullCheck.Name(info.Kind)));
         }
 
-        if (!DiscardedFiles(status).SequenceEqual(expectedFiles.Distinct().Order(StringComparer.Ordinal)))
+        if (await DiscardedCoreAsync(repo, info, status, c) is not { } files)
+        {
+            return GitResult.Failed(SyncText.Pick_Unknown);
+        }
+
+        if (!files.SequenceEqual(expectedFiles.Distinct().Order(StringComparer.Ordinal)))
         {
             return GitResult.Failed(SyncText.Operation_FilesChanged);
         }

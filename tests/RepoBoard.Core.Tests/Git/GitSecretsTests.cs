@@ -30,8 +30,9 @@ public sealed class GitSecretsTests
     [Fact]
     public void The_message_shown_to_the_user_is_masked()
     {
-        // A progress line ends with \r and the next message follows on it, as a terminal overwrites it (E2E WP-07).
-        var result = new GitResult(128, "", "hint: ignored\r\nRebasing (1/2)\rfatal: unable to access 'https://jane:secret@example.com/r.git/': 403\r\n");
+        // A progress line ends with \r and the next message follows on it, as a terminal overwrites it (E2E WP-07); with TERM
+        // set, git clears the line with ESC[K first (second review pass WP-07).
+        var result = new GitResult(128, "", "hint: ignored\r\nRebasing (1/2)\r\u001b[Kfatal: unable to access 'https://jane:secret@example.com/r.git/': 403\r\n");
 
         Assert.Equal("fatal: unable to access 'https://jane:***@example.com/r.git/': 403", result.Message);
     }

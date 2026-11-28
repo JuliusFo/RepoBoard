@@ -122,10 +122,10 @@ public sealed class OperationTests : IDisposable
         Assert.NotEqual(first.Key, second.Key);
 
         // Skipping it with the key of the step before does nothing.
-        Assert.False(await _board.SkipAsync(repo, first.Key, BoardService.DiscardedFiles(repo.Status!), Ct));
+        Assert.False(await _board.SkipAsync(repo, first.Key, (await _board.DiscardedFilesAsync(repo, Ct))!, Ct));
         Assert.Equal(second.Key, repo.Unfinished!.Key);
 
-        Assert.True(await _board.SkipAsync(repo, second.Key, BoardService.DiscardedFiles(repo.Status!), Ct), repo.Error);
+        Assert.True(await _board.SkipAsync(repo, second.Key, (await _board.DiscardedFilesAsync(repo, Ct))!, Ct), repo.Error);
 
         Assert.Null(repo.Unfinished);
         Assert.Equal("feature", repo.Status!.Branch);
@@ -142,7 +142,7 @@ public sealed class OperationTests : IDisposable
         var repo = await OpenMineAsync();
         Assert.False(await _board.MergeAsync(repo, Branch(repo, "feature"), Ct));
         var key = repo.Unfinished!.Key;
-        IReadOnlyList<string> files = BoardService.DiscardedFiles(repo.Status!);
+        var files = (await _board.DiscardedFilesAsync(repo, Ct))!;
         Assert.Equal(["a.txt"], files);
 
         // Another session went on meanwhile: a new conflicted or changed file, or another operation.
@@ -175,13 +175,40 @@ public sealed class OperationTests : IDisposable
         Assert.False(await _board.MergeAsync(repo, Branch(repo, "feature"), Ct));
         File.WriteAllText(Mine("mine.txt"), "my new work");
         Assert.True(await _board.StageAsync(repo, ["mine.txt"], Ct), repo.Error);
-        var files = BoardService.DiscardedFiles(repo.Status!);
+        var files = (await _board.DiscardedFilesAsync(repo, Ct))!;
         Assert.Equal(["a.txt"], files); // neither new file goes back as the user's work
 
         Assert.True(await _board.AbortAsync(repo, repo.Unfinished!.Key, files, Ct), repo.Error);
 
         Assert.Equal("my new work", File.ReadAllText(Mine("mine.txt")));
         Assert.Contains(repo.Status!.Changes, c => c is { Path: "mine.txt", Untracked: true });
+        Assert.False(File.Exists(Mine("brought.txt")));
+    }
+
+    /// <summary>
+    /// Second review pass WP-07: a new file of the merge the user adapted and staged goes back too – the question names it; a
+    /// new file of the user's edited again after staging does not stop the abort ("rm --cached" refused it without -f).
+    /// </summary>
+    [Fact]
+    public async Task Abort_names_an_adapted_file_of_the_merge_and_keeps_a_new_file_edited_after_staging()
+    {
+        GitSandbox.Git(_git.Mine, "switch", "-c", "feature");
+        GitSandbox.Commit(_git.Mine, "a.txt", "feature");
+        GitSandbox.Commit(_git.Mine, "brought.txt", "from the branch");
+        GitSandbox.Git(_git.Mine, "switch", "main");
+        GitSandbox.Commit(_git.Mine, "a.txt", "main");
+        var repo = await OpenMineAsync();
+        Assert.False(await _board.MergeAsync(repo, Branch(repo, "feature"), Ct));
+        File.WriteAllText(Mine("brought.txt"), "adapted");
+        File.WriteAllText(Mine("mine.txt"), "staged");
+        Assert.True(await _board.StageAsync(repo, ["brought.txt", "mine.txt"], Ct), repo.Error);
+        File.WriteAllText(Mine("mine.txt"), "edited after staging");
+        var files = (await _board.DiscardedFilesAsync(repo, Ct))!;
+        Assert.Equal(["a.txt", "brought.txt", "mine.txt"], files);
+
+        Assert.True(await _board.AbortAsync(repo, repo.Unfinished!.Key, files, Ct), repo.Error);
+
+        Assert.Equal("edited after staging", File.ReadAllText(Mine("mine.txt")));
         Assert.False(File.Exists(Mine("brought.txt")));
     }
 
@@ -211,9 +238,15 @@ public sealed class OperationTests : IDisposable
         Diverge();
         var picked = Head("feature");
         Assert.False(GitSandbox.TryGit(_git.Mine, "cherry-pick", picked));
-        GitSandbox.Git(_git.Mine, "checkout", "--ours", "--", "a.txt");
+        // A resolution unstaged again wants staging, not skipping (second review pass).
+        File.WriteAllText(Mine("a.txt"), "resolved");
         GitSandbox.Git(_git.Mine, "add", "a.txt");
+        GitSandbox.Git(_git.Mine, "restore", "--staged", "a.txt");
         var repo = await OpenMineAsync();
+        Assert.False(await _board.ContinueAsync(repo, GitOperation.CherryPick, Ct));
+        Assert.DoesNotContain(SyncText.Continue_Empty, repo.Error, StringComparison.Ordinal);
+
+        GitSandbox.Git(_git.Mine, "checkout", "HEAD", "--", "a.txt"); // resolved as "ours": nothing left of the commit
 
         Assert.False(await _board.ContinueAsync(repo, GitOperation.CherryPick, Ct));
 

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
+using System.Text.RegularExpressions;
 using RepoBoard.Core.Resources;
 
 namespace RepoBoard.Core.Git;
@@ -22,13 +23,19 @@ public sealed record GitResult(int ExitCode, string Output, string Error)
             // Of a line git rewrote with \r (progress: "Rebasing (1/2)\rerror: …") only the last part, as a terminal shows it.
             var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries)
                 .Select(l => l.TrimEnd('\r'))
-                .Select(l => l[(l.LastIndexOf('\r') + 1)..].Trim())
+                .Select(l => Csi.Replace(l[(l.LastIndexOf('\r') + 1)..], "").Trim())
                 .Where(l => l.Length > 0 && !l.StartsWith("hint:", StringComparison.Ordinal));
             return GitSecrets.Redact(string.Join(Environment.NewLine, lines));
         }
     }
 
     internal static GitResult Failed(string message) => new(-1, "", message);
+
+    /// <summary>
+    /// A terminal control sequence: with TERM set, git clears a progress line with <c>\r ESC[K</c> before the next message
+    /// (second review pass WP-07).
+    /// </summary>
+    private static readonly Regex Csi = new(@"\x1b\[[0-9;?]*[ -/]*[@-~]", RegexOptions.Compiled);
 }
 
 /// <summary>How a call may ask for credentials (ADR 0003).</summary>

@@ -13,7 +13,9 @@
                 var stageAll = StageAllPaths;
                 <button class="btn small ghost" disabled="@(stageAll is null)" @onclick="() => GuardAsync(() => Board.StageAsync(Repo, stageAll!, default))">@BoardText.StageAll</button>
                 var unstageAll = UnstageAllPaths;
-                <button class="btn small ghost" disabled="@(unstageAll is null)" @onclick="() => GuardAsync(() => Board.UnstageAsync(Repo, unstageAll!, default))">@BoardText.UnstageAll</button>
+                <button class="btn small ghost" disabled="@(unstageAll is null)"
+                        title="@(Repo.Operation is { } blocking ? TextFormat.Format(SyncText.Pick_Operation, PullCheck.Name(blocking)) : null)"
+                        @onclick="() => GuardAsync(() => Board.UnstageAsync(Repo, unstageAll!, default))">@BoardText.UnstageAll</button>
             }
         </header>
         @if (Repo.Unfinished is { } op)
@@ -315,22 +317,24 @@
 
     private Question? _question;
 
-    /// <summary>Abort or skip: asks with the files that go back, as they are now; the board acts only if they still are.</summary>
-    private void Ask(QuestionKind kind, OperationInfo op)
+    /// <summary>
+    /// Abort or skip: asks with the files that may go back, as git sees them now; the board acts only if they still are (and
+    /// the operation is still the one shown, <see cref="OperationInfo.Key"/>).
+    /// </summary>
+    private Task Ask(QuestionKind kind, OperationInfo op) => GuardAsync(async () =>
     {
-        if (Status is not { } status)
+        if (await Board.DiscardedFilesAsync(Repo, default) is not { } files)
         {
             return;
         }
 
         var name = PullCheck.Name(op.Kind);
-        var files = BoardService.DiscardedFiles(status);
         _question = kind == QuestionKind.Abort
             ? new Question(kind, TextFormat.Format(BoardText.Operation_AbortTitle, name), OperationTools.AbortText(op),
                 TextFormat.Format(BoardText.Operation_AbortConfirm, name), files, op.Key, null)
             : new Question(kind, BoardText.Operation_SkipTitle, TextFormat.Format(BoardText.Operation_SkipText, OperationTools.SkippedCommit(op)),
                 BoardText.Operation_SkipConfirm, files, op.Key, null);
-    }
+    });
 
     /// <summary>
     /// "Resolved": stages the file, after a question if git still finds conflict markers in it – or cannot tell (review WP-07).
