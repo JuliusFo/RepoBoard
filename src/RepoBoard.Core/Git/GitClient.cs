@@ -781,6 +781,107 @@ public sealed class GitClient(GitRunner runner)
         };
     }
 
+    // ---------- discard and stash (WP-06, ADR 0016) ----------
+
+    /// <summary>
+    /// Discards the unstaged changes of the tracked files <paramref name="paths"/> into a new stash entry (ADR 0016, the
+    /// exception to CLAUDE.md §2): <c>stash push --keep-index</c> keeps the index, puts each file back to its staged version
+    /// (or HEAD's) and keeps what it had in the entry – "Apply" brings it back. The paths go as a file on stdin
+    /// (<c>--pathspec-from-file</c>): one entry for any number of files, whatever a command line takes; each as
+    /// <c>:(literal)</c>, since the internal checkout may start a hook (<c>--literal-pathspecs</c> would reach it, see
+    /// <see cref="LiteralPaths"/>). The caller checks the files have unstaged changes – git refuses a path that matches none.
+    /// </summary>
+    public Task<GitResult> DiscardIntoStashAsync(string repo, string message, IReadOnlyList<string> paths, CancellationToken ct) =>
+        paths.Count == 0
+            ? Task.FromResult(GitResult.Failed(SyncText.Discard_Nothing))
+            // The longer limit: ended halfway, the files are half put back (as an abort, review WP-07).
+            : runner.RunAsync(repo, ["stash", "push", "--keep-index", "--quiet", "-m", message, "--pathspec-from-file=-", "--pathspec-file-nul"],
+                GitCallMode.Interactive, GitRunner.CommitTimeout, string.Concat(paths.Select(p => ":(literal)" + p + "\0")), ct);
+
+    /// <summary>
+    /// Stashes every change (<paramref name="includeUntracked"/>: new files too, which git then removes from the worktree);
+    /// the index and the files go back to HEAD. git saves nothing and still succeeds when there is nothing to save – the
+    /// caller checks first.
+    /// </summary>
+    public Task<GitResult> StashAsync(string repo, string message, bool includeUntracked, CancellationToken ct)
+    {
+        List<string> args = ["stash", "push", "--quiet"];
+        if (includeUntracked)
+        {
+            args.Add("--include-untracked");
+        }
+
+        if (message.Length > 0)
+        {
+            args.AddRange(["-m", message]);
+        }
+
+        return runner.RunAsync(repo, args, GitCallMode.Interactive, GitRunner.CommitTimeout, null, ct);
+    }
+
+    /// <summary>The stash list, the newest first; null if git fails. Empty without a stash.</summary>
+    public async Task<IReadOnlyList<StashEntry>?> StashesAsync(string repo, CancellationToken ct)
+    {
+        var result = await Local(repo, ct, "stash", "list", "-z", "--no-show-signature", "--format=%H%x00%ct%x00%gs");
+        return result.Success ? StashEntry.ParseList(result.Output) : null;
+    }
+
+    /// <summary>
+    /// The files of a stash entry: those changed in it (staged or not) and the new files it holds (its third parent, from
+    /// <c>--include-untracked</c>); null if git fails. Not <c>stash show --include-untracked</c>: that needs git 2.32.
+    /// </summary>
+    public async Task<IReadOnlyList<string>?> StashFilesAsync(string repo, string id, CancellationToken ct)
+    {
+        if (!IsCommitId(id))
+        {
+            return null;
+        }
+
+        var changed = await Local(repo, ct, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", "--no-textconv", id + "^1", id, "--");
+        if (!changed.Success)
+        {
+            return null;
+        }
+
+        IEnumerable<string> files = changed.Output.Split('\0', StringSplitOptions.RemoveEmptyEntries);
+        var untracked = await Local(repo, ct, "rev-parse", "--quiet", "--verify", id + "^3^{tree}");
+        if (untracked.Success)
+        {
+            var added = await Local(repo, ct, "ls-tree", "-r", "--name-only", "-z", id + "^3", "--");
+            if (!added.Success)
+            {
+                return null;
+            }
+
+            files = files.Concat(added.Output.Split('\0', StringSplitOptions.RemoveEmptyEntries));
+        }
+        else if (untracked.ExitCode != 1)
+        {
+            return null;
+        }
+
+        return [.. files.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
+    }
+
+    /// <summary>
+    /// Applies a stash entry by its commit to the worktree (index changes as worktree changes, as git does by default). git
+    /// refuses rather than overwrite a local change or an untracked file; on a conflict it leaves the files conflicted and
+    /// ends with 1.
+    /// </summary>
+    public Task<GitResult> ApplyStashAsync(string repo, string id, CancellationToken ct) =>
+        IsCommitId(id)
+            ? runner.RunAsync(repo, ["stash", "apply", "--quiet", id], GitCallMode.Interactive, GitRunner.CommitTimeout, null, ct)
+            : Task.FromResult(GitResult.Failed(TextFormat.Format(SyncText.InvalidCommit, id)));
+
+    /// <summary>
+    /// Removes the entry at <paramref name="position"/> from the stash list (ADR 0016): its changes are lost to RepoBoard. The
+    /// caller asks first and checks that the position still holds the entry the question named.
+    /// </summary>
+    public Task<GitResult> DropStashAsync(string repo, int position, CancellationToken ct) =>
+        position >= 0
+            ? Local(repo, ct, "stash", "drop", "--quiet", $"stash@{{{position}}}")
+            : Task.FromResult(GitResult.Failed(SyncText.Stash_Gone));
+
     // ---------- worktrees (WP-04, ADR 0010) ----------
 
     /// <summary>The worktrees of the repository, the main one first; null if git fails.</summary>

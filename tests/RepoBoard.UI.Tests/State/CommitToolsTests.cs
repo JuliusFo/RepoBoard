@@ -13,7 +13,7 @@ public sealed class CommitToolsTests
         GitOperation? operation = null) => new(new RepoEntry("/r"))
     {
         Status = new RepoStatus("main", initial ? null : "abc", "origin/main", 0, 0, changes ?? []),
-        Details = new RepoDetails([], [], [], false, onRemote),
+        Details = new RepoDetails([], [], [], false, onRemote, []),
         Unfinished = operation is { } kind ? new OperationInfo(kind, "", null, null, null, null, null) : null,
     };
 

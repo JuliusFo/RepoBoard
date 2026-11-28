@@ -45,6 +45,7 @@ public sealed class WatchMapTests
     [InlineData("repo/.git/config", "repo inner beside")] // an upstream set in a worktree (review WP-03)
     [InlineData("repo/.git/info/exclude", "repo inner beside")]
     [InlineData("repo/.git/reftable/tables.list", "repo inner beside")] // refs stored as reftable (review WP-03)
+    [InlineData("repo/.git/logs/refs/stash", "repo inner beside")] // an older stash entry dropped: only its reflog changes (WP-06)
     [InlineData("repo/.git/MERGE_HEAD", "repo")]
     [InlineData("repo/.git/sequencer/todo", "repo")]
     [InlineData("repo/.git/modules/lib/foo/HEAD", "repo")] // a submodule's commit changes its parent's status

@@ -431,4 +431,95 @@
     <value>The folder {0} does not exist.</value>
     <comment>{0} = folder path</comment>
   </data>
+  <data name="Op_Discard" xml:space="preserve">
+    <value>Discard</value>
+    <comment>Operation: discard the unstaged changes of files (WP-06)</comment>
+  </data>
+  <data name="Op_Stash" xml:space="preserve">
+    <value>Stash</value>
+    <comment>Operation: put the changes into a new stash entry</comment>
+  </data>
+  <data name="Op_ApplyStash" xml:space="preserve">
+    <value>Apply stash</value>
+    <comment>Operation: apply a stash entry, keeping it</comment>
+  </data>
+  <data name="Op_PopStash" xml:space="preserve">
+    <value>Pop stash</value>
+    <comment>Operation: apply a stash entry and drop it</comment>
+  </data>
+  <data name="Op_DropStash" xml:space="preserve">
+    <value>Drop stash</value>
+    <comment>Operation: remove an entry from the stash list</comment>
+  </data>
+  <data name="Discard_Nothing" xml:space="preserve">
+    <value>no files to discard</value>
+  </data>
+  <data name="Discard_NotInRepo" xml:space="preserve">
+    <value>{0} is not inside the repository</value>
+    <comment>{0} = file path</comment>
+  </data>
+  <data name="Discard_NoRecycleBin" xml:space="preserve">
+    <value>new files cannot go to the recycle bin here – nothing was discarded</value>
+  </data>
+  <data name="Discard_StashMessage" xml:space="preserve">
+    <value>Discarded by RepoBoard: {0}</value>
+    <comment>Message of the stash entry that keeps discarded changes; {0} = the file paths, comma-separated, cut</comment>
+  </data>
+  <data name="Discard_RecycleFailed" xml:space="preserve">
+    <value>the new files could not go to the recycle bin: {0}</value>
+    <comment>{0} = the reason from the system</comment>
+  </data>
+  <data name="Discard_RecycleFailedAfterStash" xml:space="preserve">
+    <value>the changes are in the stash list as “{1}”, but the new files could not go to the recycle bin: {0}</value>
+    <comment>{0} = the reason from the system, {1} = message of the stash entry</comment>
+  </data>
+  <data name="Discarded_Recycled" xml:space="preserve">
+    <value>Discarded – the new files are in the recycle bin</value>
+  </data>
+  <data name="Discarded_Stashed" xml:space="preserve">
+    <value>Discarded – the changes are kept in the stash list as “{0}”</value>
+    <comment>{0} = message of the stash entry</comment>
+  </data>
+  <data name="Discarded_Both" xml:space="preserve">
+    <value>Discarded – the changes are kept in the stash list as “{0}”, the new files are in the recycle bin</value>
+    <comment>{0} = message of the stash entry</comment>
+  </data>
+  <data name="Stash_Conflicts" xml:space="preserve">
+    <value>resolve the conflicts first – git cannot stash while files are conflicted</value>
+  </data>
+  <data name="Stash_OnlyNew" xml:space="preserve">
+    <value>only new files changed – tick “With new files” to stash them</value>
+  </data>
+  <data name="Stash_Nothing" xml:space="preserve">
+    <value>no changes to stash</value>
+  </data>
+  <data name="Stash_Gone" xml:space="preserve">
+    <value>the stash entry is gone – it was dropped or popped meanwhile</value>
+  </data>
+  <data name="Stash_ApplyConflicts" xml:space="preserve">
+    <value>applied with conflicts – the entry stays in the stash list; resolve the conflicts in the opened row</value>
+  </data>
+  <data name="Stash_PopNotDropped" xml:space="preserve">
+    <value>applied, but the entry could not be dropped from the stash list: {0}</value>
+    <comment>{0} = git's message</comment>
+  </data>
+  <data name="Stashed" xml:space="preserve">
+    <value>Stashed the changes</value>
+  </data>
+  <data name="StashedAs" xml:space="preserve">
+    <value>Stashed the changes as “{0}”</value>
+    <comment>{0} = message of the stash entry</comment>
+  </data>
+  <data name="StashApplied" xml:space="preserve">
+    <value>Applied “{0}” – the entry stays in the stash list</value>
+    <comment>{0} = git's subject of the stash entry</comment>
+  </data>
+  <data name="StashPopped" xml:space="preserve">
+    <value>Applied and dropped “{0}”</value>
+    <comment>{0} = git's subject of the stash entry</comment>
+  </data>
+  <data name="StashDropped" xml:space="preserve">
+    <value>Dropped “{0}” from the stash list</value>
+    <comment>{0} = git's subject of the stash entry</comment>
+  </data>
 </root>

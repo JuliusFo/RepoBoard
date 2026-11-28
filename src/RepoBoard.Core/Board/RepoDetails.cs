@@ -7,5 +7,6 @@ namespace RepoBoard.Core.Board;
 /// <param name="HasMore">The history goes on beyond <paramref name="Log"/>.</param>
 /// <param name="HeadOnRemote">HEAD is on a remote branch: amending it would need a force push. Null if git could not tell –
 /// amend stays off then too, saying why (review 0.4.0, A38).</param>
+/// <param name="Stashes">The stash list, the newest first (WP-06); the repository's, shared by its worktrees.</param>
 public sealed record RepoDetails(IReadOnlyList<BranchInfo> Branches, IReadOnlyList<CommitInfo> Log, IReadOnlyList<GraphRow> Graph,
-    bool HasMore, bool? HeadOnRemote);
+    bool HasMore, bool? HeadOnRemote, IReadOnlyList<StashEntry> Stashes);

@@ -372,4 +372,80 @@
   <data name="FolderMissing" xml:space="preserve">
     <value>Der Ordner {0} existiert nicht.</value>
   </data>
+  <data name="Op_Discard" xml:space="preserve">
+    <value>Verwerfen</value>
+  </data>
+  <data name="Op_Stash" xml:space="preserve">
+    <value>Stash</value>
+    <comment>Operation: put the changes into a new stash entry</comment>
+  </data>
+  <data name="Op_ApplyStash" xml:space="preserve">
+    <value>Stash anwenden</value>
+  </data>
+  <data name="Op_PopStash" xml:space="preserve">
+    <value>Stash anwenden und löschen</value>
+  </data>
+  <data name="Op_DropStash" xml:space="preserve">
+    <value>Stash löschen</value>
+  </data>
+  <data name="Discard_Nothing" xml:space="preserve">
+    <value>keine Dateien zum Verwerfen</value>
+  </data>
+  <data name="Discard_NotInRepo" xml:space="preserve">
+    <value>{0} liegt nicht im Repository</value>
+  </data>
+  <data name="Discard_NoRecycleBin" xml:space="preserve">
+    <value>neue Dateien können hier nicht in den Papierkorb – nichts wurde verworfen</value>
+  </data>
+  <data name="Discard_StashMessage" xml:space="preserve">
+    <value>Von RepoBoard verworfen: {0}</value>
+  </data>
+  <data name="Discard_RecycleFailed" xml:space="preserve">
+    <value>die neuen Dateien konnten nicht in den Papierkorb: {0}</value>
+  </data>
+  <data name="Discard_RecycleFailedAfterStash" xml:space="preserve">
+    <value>die Änderungen liegen als „{1}“ in der Stash-Liste, aber die neuen Dateien konnten nicht in den Papierkorb: {0}</value>
+  </data>
+  <data name="Discarded_Recycled" xml:space="preserve">
+    <value>Verworfen – die neuen Dateien liegen im Papierkorb</value>
+  </data>
+  <data name="Discarded_Stashed" xml:space="preserve">
+    <value>Verworfen – die Änderungen liegen als „{0}“ in der Stash-Liste</value>
+  </data>
+  <data name="Discarded_Both" xml:space="preserve">
+    <value>Verworfen – die Änderungen liegen als „{0}“ in der Stash-Liste, die neuen Dateien im Papierkorb</value>
+  </data>
+  <data name="Stash_Conflicts" xml:space="preserve">
+    <value>erst die Konflikte lösen – mit Konfliktdateien legt git keinen Stash an</value>
+  </data>
+  <data name="Stash_OnlyNew" xml:space="preserve">
+    <value>nur neue Dateien – „Mit neuen Dateien“ ankreuzen, um sie zu stashen</value>
+  </data>
+  <data name="Stash_Nothing" xml:space="preserve">
+    <value>keine Änderungen zum Stashen</value>
+  </data>
+  <data name="Stash_Gone" xml:space="preserve">
+    <value>der Stash-Eintrag ist weg – er wurde inzwischen gelöscht oder angewendet</value>
+  </data>
+  <data name="Stash_ApplyConflicts" xml:space="preserve">
+    <value>mit Konflikten angewendet – der Eintrag bleibt in der Stash-Liste; die Konflikte in der geöffneten Zeile lösen</value>
+  </data>
+  <data name="Stash_PopNotDropped" xml:space="preserve">
+    <value>angewendet, aber der Eintrag konnte nicht aus der Stash-Liste gelöscht werden: {0}</value>
+  </data>
+  <data name="Stashed" xml:space="preserve">
+    <value>Änderungen in den Stash gelegt</value>
+  </data>
+  <data name="StashedAs" xml:space="preserve">
+    <value>Änderungen als „{0}“ in den Stash gelegt</value>
+  </data>
+  <data name="StashApplied" xml:space="preserve">
+    <value>„{0}“ angewendet – der Eintrag bleibt in der Stash-Liste</value>
+  </data>
+  <data name="StashPopped" xml:space="preserve">
+    <value>„{0}“ angewendet und gelöscht</value>
+  </data>
+  <data name="StashDropped" xml:space="preserve">
+    <value>„{0}“ aus der Stash-Liste gelöscht</value>
+  </data>
 </root>
