@@ -522,4 +522,11 @@
     <value>Dropped “{0}” from the stash list</value>
     <comment>{0} = git's subject of the stash entry</comment>
   </data>
+  <data name="Recycle_Failed" xml:space="preserve">
+    <value>Windows could not move them (error {0})</value>
+    <comment>{0} = the error code of the shell, e.g. 0x7C</comment>
+  </data>
+  <data name="Recycle_Cancelled" xml:space="preserve">
+    <value>cancelled – nothing was deleted for good</value>
+  </data>
 </root>

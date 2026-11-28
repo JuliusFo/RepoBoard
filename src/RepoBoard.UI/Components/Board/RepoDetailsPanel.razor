@@ -92,7 +92,16 @@
                 }
                 @if (unstaged.Count > 0)
                 {
-                    <div class="files-head">@TextFormat.Format(BoardText.Unstaged_Head, unstaged.Count)</div>
+                    var discardable = unstaged.Where(StashCheck.CanDiscard).ToList();
+                    var discardAllBlocker = StashTools.DiscardBlocker(Repo, discardable);
+                    <div class="files-head with-action">
+                        <span>@TextFormat.Format(BoardText.Unstaged_Head, unstaged.Count)</span>
+                        @if (discardable.Count > 0)
+                        {
+                            <button class="btn small ghost danger-hover" disabled="@(discardAllBlocker is not null)"
+                                    title="@(discardAllBlocker ?? BoardText.Discard_All_Hint)" @onclick="() => AskDiscard(discardable)">@BoardText.Discard_All</button>
+                        }
+                    </div>
                     @foreach (var file in unstaged)
                     {
                         <div class="file @(IsSelected(selected, file, false) ? "selected" : "")" @key="UnstagedKey(file)">
@@ -101,6 +110,13 @@
                                 <span class="letter l-@LetterClass(file.Letter(false))">@file.Letter(false)</span>
                             </label>
                             <button class="path" title="@BoardText.Diff_Show_Hint" @onclick="() => Select(file, false)"><span>@VisibleText.Of(file.Path)</span></button>
+                            @if (StashCheck.CanDiscard(file))
+                            {
+                                @* Shows on hover and focus, as merge and rebase in the branch list (WP-07). *@
+                                var discardBlocker = StashTools.DiscardBlocker(Repo, [file]);
+                                <button class="btn small ghost icon-only danger-hover f-discard" disabled="@(discardBlocker is not null)"
+                                        title="@(discardBlocker ?? BoardText.Discard_Hint)" @onclick="() => AskDiscard([file])">@Icons.Undo</button>
+                            }
                         </div>
                     }
                 }
@@ -132,6 +148,63 @@
                 <button class="btn" disabled="@(!CanCommit)" @onclick="() => Commit(push: true)">@(_draft.On ? BoardText.Amend_CommitPush : BoardText.CommitPush)</button>
             </div>
         </div>
+        @{
+            var stashes = Repo.Details?.Stashes ?? [];
+        }
+        @if (stashes.Count > 0 || Status is { IsClean: false })
+        {
+            @* The stash (WP-06): stash the changes, the list with apply, pop and drop. *@
+            var createBlocker = StashTools.CreateBlocker(Repo, _stashUntracked);
+            var applyBlocker = StashTools.ApplyBlocker(Repo);
+            <div class="stash">
+                <div class="files-head" title="@BoardText.Stash_Shared_Hint">@TextFormat.Format(BoardText.Stash_Head, stashes.Count)</div>
+                @if (Status is { IsClean: false })
+                {
+                    <form class="stash-new" @onsubmit="StashChanges">
+                        <input placeholder="@BoardText.Stash_Message_Placeholder" @bind="_stashMessage" @bind:event="oninput" />
+                        <label title="@BoardText.Stash_WithNew_Hint">
+                            <input type="checkbox" checked="@_stashUntracked" @onchange="e => _stashUntracked = e.Value is true" />
+                            @BoardText.Stash_WithNew
+                        </label>
+                        <button class="btn small" type="submit" disabled="@(createBlocker is not null)"
+                                title="@(createBlocker ?? BoardText.Stash_Create_Hint)">@BoardText.Stash_Create</button>
+                    </form>
+                }
+                <div class="stash-list">
+                    @foreach (var entry in stashes)
+                    {
+                        var open = _openStash == entry.Id;
+                        <div class="stash-item" @key="entry.Id">
+                            <button class="s-msg" title="@BoardText.Stash_Files_Hint" @onclick="() => ToggleStash(entry)">
+                                @(open ? Icons.ChevronDown : Icons.ChevronRight) <span title="@VisibleText.Of(entry.Message)">@VisibleText.Of(entry.Message)</span>
+                            </button>
+                            <span class="b-when" title="@RelativeTime.Exact(entry.Created)">@(entry.Created is null ? "" : RelativeTime.Text(entry.Created, Now))</span>
+                            <button class="btn small ghost" disabled="@(applyBlocker is not null)" title="@(applyBlocker ?? BoardText.Stash_Apply_Hint)"
+                                    @onclick="() => GuardAsync(() => Board.ApplyStashAsync(Repo, entry, pop: false, default))">@BoardText.Stash_Apply</button>
+                            <button class="btn small ghost" disabled="@(applyBlocker is not null)" title="@(applyBlocker ?? BoardText.Stash_Pop_Hint)"
+                                    @onclick="() => GuardAsync(() => Board.ApplyStashAsync(Repo, entry, pop: true, default))">@BoardText.Stash_Pop</button>
+                            <button class="btn small ghost icon-only danger-hover" title="@BoardText.Stash_Drop_Hint" @onclick="() => AskDrop(entry)">@Icons.Trash</button>
+                        </div>
+                        @if (open)
+                        {
+                            <div class="stash-files">
+                                @if (_stashFiles is null)
+                                {
+                                    <span class="muted">@BoardText.Loading</span>
+                                }
+                                else
+                                {
+                                    @foreach (var file in _stashFiles)
+                                    {
+                                        <code>@VisibleText.Of(file)</code>
+                                    }
+                                }
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        }
     </section>
 
     @if (selected is { } diff)
@@ -230,7 +303,8 @@
 @if (_question is { } question)
 {
     <ConfirmDialog Title="@question.Title" Text="@question.Text" Files="question.Files" ConfirmLabel="@question.Confirm"
-                   Danger="question.Kind != QuestionKind.Markers" CancelLabel="@(question.Kind == QuestionKind.Markers ? null : BoardText.Dialog_Back)"
+                   Danger="question.Kind != QuestionKind.Markers"
+                   CancelLabel="@(question.Kind is QuestionKind.Abort or QuestionKind.Skip ? BoardText.Dialog_Back : null)"
                    OnConfirm="Confirm" OnCancel="() => _question = null" />
 }
 
@@ -328,10 +402,63 @@
     private IReadOnlyList<string>? StageAllPaths => OperationTools.StageAllPaths(Repo);
     private IReadOnlyList<string>? UnstageAllPaths => OperationTools.UnstageAllPaths(Repo);
 
-    private enum QuestionKind { Abort, Skip, Markers }
+    private enum QuestionKind { Abort, Skip, Markers, Discard, DropStash }
 
-    /// <summary>An open question (WP-07) with what the board checks again when it is confirmed (ADR 0015).</summary>
-    private sealed record Question(QuestionKind Kind, string Title, string Text, string Confirm, IReadOnlyList<string>? Files, string Key, string? Path);
+    /// <summary>
+    /// An open question (WP-07, WP-06) with what the board checks again when it is confirmed (ADR 0015, ADR 0016): the key of
+    /// the operation, the files, the stash entry.
+    /// </summary>
+    private sealed record Question(QuestionKind Kind, string Title, string Text, string Confirm, IReadOnlyList<string>? Files, string Key,
+        string? Path, StashEntry? Stash = null);
+
+    private string _stashMessage = "";
+    private bool _stashUntracked;
+
+    /// <summary>The stash entry whose files are shown (by its commit), and those files once read.</summary>
+    private string? _openStash;
+
+    private IReadOnlyList<string>? _stashFiles;
+
+    /// <summary>Discard: asks with every file and where its changes go (ADR 0016); the board acts only on files that still have them.</summary>
+    private void AskDiscard(IReadOnlyList<FileChange> files) =>
+        _question = new Question(QuestionKind.Discard,
+            TextFormat.Plural(files.Count, BoardText.Discard_TitleOne, BoardText.Discard_TitleOther), StashTools.DiscardText(files),
+            BoardText.Discard_Confirm, [.. files.Select(f => f.Path)], "", null);
+
+    /// <summary>Drop: asks with the entry's files; the board drops the entry by its commit, wherever it is in the list by then.</summary>
+    private Task AskDrop(StashEntry entry) => GuardAsync(async () =>
+    {
+        var files = await Board.StashFilesAsync(Repo, entry, default);
+        _question = new Question(QuestionKind.DropStash, BoardText.Stash_DropTitle, TextFormat.Format(BoardText.Stash_DropText, entry.Message),
+            BoardText.Stash_DropConfirm, files, entry.Id, null, entry);
+    });
+
+    private Task StashChanges() => GuardAsync(async () =>
+    {
+        if (await Board.StashAsync(Repo, _stashMessage, _stashUntracked, default))
+        {
+            _stashMessage = "";
+        }
+    });
+
+    /// <summary>A click on an entry shows its files; on the open one, hides them.</summary>
+    private Task ToggleStash(StashEntry entry) => GuardAsync(async () =>
+    {
+        if (_openStash == entry.Id)
+        {
+            _openStash = null;
+            return;
+        }
+
+        _openStash = entry.Id;
+        _stashFiles = null;
+        var files = await Board.StashFilesAsync(Repo, entry, default);
+        // Only if it is still the open one: a click on another entry meanwhile wins.
+        if (_openStash == entry.Id)
+        {
+            _stashFiles = files ?? [];
+        }
+    });
 
     private Question? _question;
 
@@ -382,6 +509,8 @@
         {
             QuestionKind.Abort => Board.AbortAsync(Repo, question.Key, question.Files!, default),
             QuestionKind.Skip => Board.SkipAsync(Repo, question.Key, question.Files!, default),
+            QuestionKind.Discard => Board.DiscardChangesAsync(Repo, question.Files!, default),
+            QuestionKind.DropStash => Board.DropStashAsync(Repo, question.Stash!, default),
             _ => Board.MarkResolvedAsync(Repo, question.Path!, default),
         });
     });

@@ -808,4 +808,86 @@ Log: {1}</value>
   <data name="Scan_Runs_GitDirOnShare" xml:space="preserve">
     <value>its git folder lies on another computer’s share – not read before you tick it</value>
   </data>
+  <data name="Discard_Hint" xml:space="preserve">
+    <value>Discard the changes to this file…</value>
+  </data>
+  <data name="Discard_All" xml:space="preserve">
+    <value>Discard all</value>
+    <comment>Button in the head of the unstaged files</comment>
+  </data>
+  <data name="Discard_All_Hint" xml:space="preserve">
+    <value>Discard every change that is not staged…</value>
+  </data>
+  <data name="Discard_TitleOne" xml:space="preserve">
+    <value>Discard the changes to {0} file?</value>
+    <comment>{0} = number of files</comment>
+  </data>
+  <data name="Discard_TitleOther" xml:space="preserve">
+    <value>Discard the changes to {0} files?</value>
+    <comment>{0} = number of files</comment>
+  </data>
+  <data name="Discard_TextStash" xml:space="preserve">
+    <value>The files go back to their staged version, or the last commit’s. Their changes are kept in the stash list – “Apply” there brings them back.</value>
+  </data>
+  <data name="Discard_TextRecycle" xml:space="preserve">
+    <value>The new files go to the recycle bin.</value>
+  </data>
+  <data name="Discard_TextBoth" xml:space="preserve">
+    <value>Changed files go back to their staged version, or the last commit’s; their changes are kept in the stash list, where “Apply” brings them back. New files go to the recycle bin.</value>
+  </data>
+  <data name="Discard_Confirm" xml:space="preserve">
+    <value>Discard</value>
+  </data>
+  <data name="Stash_Head" xml:space="preserve">
+    <value>Stash ({0})</value>
+    <comment>{0} = number of stash entries</comment>
+  </data>
+  <data name="Stash_Shared_Hint" xml:space="preserve">
+    <value>The stash belongs to the repository: all its worktrees share this list.</value>
+  </data>
+  <data name="Stash_Message_Placeholder" xml:space="preserve">
+    <value>Stash message (optional)</value>
+  </data>
+  <data name="Stash_WithNew" xml:space="preserve">
+    <value>With new files</value>
+  </data>
+  <data name="Stash_WithNew_Hint" xml:space="preserve">
+    <value>Stash new files too – they leave the folder until the entry is applied</value>
+  </data>
+  <data name="Stash_Create" xml:space="preserve">
+    <value>Stash</value>
+    <comment>Button: put the changes into a new stash entry</comment>
+  </data>
+  <data name="Stash_Create_Hint" xml:space="preserve">
+    <value>Put every change aside into a new stash entry; the files go back to the last commit</value>
+  </data>
+  <data name="Stash_Apply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="Stash_Apply_Hint" xml:space="preserve">
+    <value>Apply the changes of this entry; it stays in the list</value>
+  </data>
+  <data name="Stash_Pop" xml:space="preserve">
+    <value>Pop</value>
+    <comment>Button: apply a stash entry and drop it (git's own word)</comment>
+  </data>
+  <data name="Stash_Pop_Hint" xml:space="preserve">
+    <value>Apply the changes and drop the entry – it stays if a conflict comes up</value>
+  </data>
+  <data name="Stash_Drop_Hint" xml:space="preserve">
+    <value>Drop this entry…</value>
+  </data>
+  <data name="Stash_Files_Hint" xml:space="preserve">
+    <value>Show or hide the files of this entry</value>
+  </data>
+  <data name="Stash_DropTitle" xml:space="preserve">
+    <value>Drop the stash entry?</value>
+  </data>
+  <data name="Stash_DropText" xml:space="preserve">
+    <value>“{0}” leaves the stash list with its changes to these files. RepoBoard cannot bring it back.</value>
+    <comment>{0} = git's subject of the stash entry</comment>
+  </data>
+  <data name="Stash_DropConfirm" xml:space="preserve">
+    <value>Drop</value>
+  </data>
 </root>

@@ -315,6 +315,34 @@ code { font-family: var(--mono); font-size: 12px; }
 .file.conflict .btn.small { height: 22px; flex: none; }
 .confirm-files { max-height: 200px; margin-bottom: 4px; }
 
+/* Discard (WP-06): in the head of the unstaged files, and per file on hover and focus as merge and rebase in the branch list. */
+.files-head.with-action { display: flex; align-items: center; gap: 6px; }
+.files-head.with-action > span { margin-right: auto; }
+.files-head .btn.small { height: 20px; font-weight: 400; }
+.file .f-discard { display: none; height: 20px; flex: none; padding: 0 4px; }
+.file:hover .f-discard, .file:focus-within .f-discard { display: inline-flex; }
+
+/* The stash (WP-06): below the commit box, the list scrolls on its own. */
+.stash { margin-top: 8px; display: flex; flex-direction: column; min-height: 0; }
+.stash-new { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.stash-new input:not([type]) {
+  flex: 1; min-width: 0; height: 24px; padding: 0 8px; border-radius: 6px;
+  border: 1px solid var(--border-strong); background: var(--surface-2); outline: 0;
+}
+.stash-new input:not([type]):focus { border-color: var(--accent); }
+.stash-new label { display: flex; align-items: center; gap: 4px; font-size: 12px; white-space: nowrap; cursor: pointer; }
+.stash-list { overflow: auto; max-height: 130px; }
+.stash-item { display: flex; align-items: center; gap: 6px; min-height: 26px; padding: 0 4px; border-radius: 4px; }
+.stash-item:hover { background: var(--hover); }
+.stash-item .btn.small { height: 20px; flex: none; }
+.s-msg {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; padding: 0; border: 0; background: transparent;
+  cursor: pointer; text-align: left; color: var(--text);
+}
+.s-msg > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: isolate; }
+.stash-files { display: flex; flex-direction: column; gap: 1px; padding: 2px 4px 4px 24px; font-size: 12px; }
+.stash-files code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* the diff of a selected file, in place of branches and history (WP-05) */
 .details.diff-open { grid-template-columns: minmax(260px, 1fr) 2.4fr; }
 .diff-pane { max-height: 560px; outline: 0; }

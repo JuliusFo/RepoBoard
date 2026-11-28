@@ -448,4 +448,10 @@
   <data name="StashDropped" xml:space="preserve">
     <value>„{0}“ aus der Stash-Liste gelöscht</value>
   </data>
+  <data name="Recycle_Failed" xml:space="preserve">
+    <value>Windows konnte sie nicht verschieben (Fehler {0})</value>
+  </data>
+  <data name="Recycle_Cancelled" xml:space="preserve">
+    <value>abgebrochen – nichts wurde endgültig gelöscht</value>
+  </data>
 </root>
