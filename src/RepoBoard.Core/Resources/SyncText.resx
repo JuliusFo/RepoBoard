@@ -323,14 +323,6 @@
   <data name="CherryPick_InHead" xml:space="preserve">
     <value>the commit is already in the current branch</value>
   </data>
-  <data name="Revert_Stopped" xml:space="preserve">
-    <value>stopped – finish it in the IDE or terminal (git revert --continue, or --abort): {0}</value>
-    <comment>{0} = git's message</comment>
-  </data>
-  <data name="CherryPick_Stopped" xml:space="preserve">
-    <value>stopped – finish it in the IDE or terminal (git cherry-pick --continue, or --abort): {0}</value>
-    <comment>{0} = git's message</comment>
-  </data>
   <data name="CherryPick_Applied" xml:space="preserve">
     <value>the current branch already has this change (picked before)</value>
   </data>
@@ -339,9 +331,89 @@
     <comment>{0} = path of the ignored file</comment>
   </data>
   <data name="CherryPick_Empty" xml:space="preserve">
-    <value>nothing to pick: the branch already has this change (perhaps through a squash merge) – end the cherry-pick in the IDE or terminal with git cherry-pick --skip</value>
+    <value>nothing to pick: the branch already has this change (perhaps through a squash merge) – end the cherry-pick with “Skip”</value>
   </data>
   <data name="Amend_HeadMoved" xml:space="preserve">
     <value>the last commit changed since its message was filled in – tick “Amend last commit” again</value>
+  </data>
+  <data name="Op_Merge" xml:space="preserve">
+    <value>Merge</value>
+    <comment>Operation: merge another branch into the current one</comment>
+  </data>
+  <data name="Op_Rebase" xml:space="preserve">
+    <value>Rebase</value>
+    <comment>Operation: replay the current branch's commits onto another branch</comment>
+  </data>
+  <data name="Op_Continue" xml:space="preserve">
+    <value>Continue</value>
+    <comment>Operation: go on with a stopped merge, rebase, cherry-pick or revert</comment>
+  </data>
+  <data name="Op_Abort" xml:space="preserve">
+    <value>Abort</value>
+    <comment>Operation: end a stopped merge, rebase, cherry-pick or revert and go back to the state before it</comment>
+  </data>
+  <data name="Op_Skip" xml:space="preserve">
+    <value>Skip</value>
+    <comment>Operation: leave out the commit a rebase, cherry-pick or revert stopped at</comment>
+  </data>
+  <data name="Op_MarkResolved" xml:space="preserve">
+    <value>Mark resolved</value>
+    <comment>Operation: stage a conflicted file as resolved</comment>
+  </data>
+  <data name="Merged" xml:space="preserve">
+    <value>Merged {0} into {1}</value>
+    <comment>{0} = the merged branch, {1} = the current branch</comment>
+  </data>
+  <data name="Rebased" xml:space="preserve">
+    <value>Rebased {0} onto {1}</value>
+    <comment>{0} = the current branch, {1} = the branch it was rebased onto</comment>
+  </data>
+  <data name="Continued" xml:space="preserve">
+    <value>{0} completed</value>
+    <comment>{0} = the operation (Operation_…)</comment>
+  </data>
+  <data name="Aborted" xml:space="preserve">
+    <value>{0} aborted – back to the state before it</value>
+    <comment>{0} = the operation (Operation_…)</comment>
+  </data>
+  <data name="Skipped" xml:space="preserve">
+    <value>Skipped the commit “{0}”</value>
+    <comment>{0} = subject or short id of the skipped commit</comment>
+  </data>
+  <data name="Resolved" xml:space="preserve">
+    <value>Marked {0} as resolved</value>
+    <comment>{0} = path of the file</comment>
+  </data>
+  <data name="Merge_BranchGone" xml:space="preserve">
+    <value>the branch {0} no longer exists</value>
+    <comment>{0} = branch name</comment>
+  </data>
+  <data name="Rebase_Pushed" xml:space="preserve">
+    <value>the rebase would rewrite commits a remote already has ({0}) – pushing them again would need a force push</value>
+    <comment>{0} = number of commits (CommitsOne/CommitsOther)</comment>
+  </data>
+  <data name="Operation_Stopped" xml:space="preserve">
+    <value>stopped – resolve the conflicts in the opened row, then “Continue” (or “Abort”): {0}</value>
+    <comment>{0} = git's message</comment>
+  </data>
+  <data name="Operation_Gone" xml:space="preserve">
+    <value>no merge, rebase, cherry-pick or revert is in progress anymore</value>
+  </data>
+  <data name="Operation_Changed" xml:space="preserve">
+    <value>the {0} went on since you were asked – check it again</value>
+    <comment>{0} = the operation (Operation_…)</comment>
+  </data>
+  <data name="Operation_FilesChanged" xml:space="preserve">
+    <value>files changed since you were asked – check the list again</value>
+  </data>
+  <data name="Continue_Conflicts" xml:space="preserve">
+    <value>resolve every conflict first ({0} left)</value>
+    <comment>{0} = number of conflicted files</comment>
+  </data>
+  <data name="Continue_Unstaged" xml:space="preserve">
+    <value>stage the changed files first – a rebase goes on only with all of them in the index</value>
+  </data>
+  <data name="Skip_Merge" xml:space="preserve">
+    <value>a merge has no commit to skip</value>
   </data>
 </root>

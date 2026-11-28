@@ -49,6 +49,12 @@ public class GitRunner(string executable = "git")
     public static readonly TimeSpan LocalTimeout = TimeSpan.FromSeconds(30);
     public static readonly TimeSpan NetworkTimeout = TimeSpan.FromMinutes(3);
 
+    /// <summary>
+    /// For local commands that write commits and may sign each of them – merge, rebase, continue (WP-07): a gpg passphrase
+    /// in pinentry must not run into <see cref="LocalTimeout"/>, which would end git halfway through.
+    /// </summary>
+    public static readonly TimeSpan CommitTimeout = TimeSpan.FromMinutes(3);
+
     public virtual async Task<GitResult> RunAsync(string workingDirectory, IReadOnlyList<string> args, GitCallMode mode,
         TimeSpan timeout, string? input, CancellationToken cancellationToken)
     {
@@ -76,8 +82,10 @@ public class GitRunner(string executable = "git")
         }
 
         // Never a console prompt (there is no console); status takes no optional index lock, so it never collides with the
-        // IDE or a terminal working in the same repository.
+        // IDE or a terminal working in the same repository. Never an editor either (WP-07): "--continue" would open one for
+        // the message and wait for nobody to close it – "true" keeps the message git prepared.
         start.Environment["GIT_TERMINAL_PROMPT"] = "0";
+        start.Environment["GIT_EDITOR"] = "true";
         start.Environment["GIT_OPTIONAL_LOCKS"] = "0";
         if (mode == GitCallMode.Background)
         {

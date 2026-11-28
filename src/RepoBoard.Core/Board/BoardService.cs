@@ -332,7 +332,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         if (repo.GitDir is { } dir)
         {
             repo.LastFetch = GitClient.LastFetchIn(dir);
-            repo.Operation = GitClient.OperationIn(dir);
+            repo.Unfinished = OperationInfo.Read(dir);
         }
 
         if (!repo.IsWorktree)
@@ -636,8 +636,8 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     /// may stay – git refuses to overwrite one), no ignored file at a path of the commit (git overwrites those without a
     /// word; review WP-09), not a merge commit, a revert only of a commit HEAD contains and a cherry-pick only of one it
     /// does not, nor its change (<see cref="GitClient.IsAppliedAsync"/>). If git stops – at a conflict, or with a
-    /// cherry-pick that came out empty – the operation stays unfinished for the IDE or terminal (decision of the user,
-    /// 2026-11-22) and the message says how to go on.
+    /// cherry-pick that came out empty – the operation stays unfinished, never aborted or skipped on its own (decision of
+    /// the user, 2026-11-22); the row offers to continue, skip or abort it (WP-07).
     /// </summary>
     private async Task<GitResult> PickAsync(RepoState repo, CommitDetails commit, bool revert, CancellationToken c)
     {
@@ -690,7 +690,8 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             return GitResult.Failed(SyncText.CherryPick_Applied);
         }
 
-        if (await IgnoredInTheWayAsync(repo, commit, c) is { } blocked)
+        string[] paths = [.. commit.Files.SelectMany(f => f.OriginalPath is { } from ? [from, f.Path] : new[] { f.Path }).Distinct()];
+        if (await IgnoredInTheWayAsync(repo, paths, c) is { } blocked)
         {
             return blocked;
         }
@@ -706,21 +707,21 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         var (after, _) = await git.StatusAsync(repo.Path, c);
         return GitResult.Failed(!revert && after is { Conflicts: 0 } && after.Changes.All(f => f.Untracked)
             ? SyncText.CherryPick_Empty
-            : TextFormat.Format(revert ? SyncText.Revert_Stopped : SyncText.CherryPick_Stopped, result.Message));
+            : TextFormat.Format(SyncText.Operation_Stopped, result.Message));
     }
 
     /// <summary>
-    /// An ignored file git would overwrite without a word (review WP-09): at a path of the commit (also inside an ignored
-    /// folder where the commit needs a file – the path as pathspec finds the folder's files), or where the commit needs a
-    /// folder (<c>foo</c> for <c>foo/bar</c>; second review pass). For a folder only a file of exactly that name counts: an
-    /// ignored folder above a path (<c>node_modules</c>) is no obstacle. Null if nothing is in the way.
+    /// An ignored file git would overwrite without a word (review WP-09): at one of <paramref name="paths"/> – a commit's, or
+    /// those a merge or rebase changes (WP-07) –, also inside an ignored folder where a file is needed (the path as pathspec
+    /// finds the folder's files), or where a folder is needed (<c>foo</c> for <c>foo/bar</c>; second review pass). For a
+    /// folder only a file of exactly that name counts: an ignored folder above a path (<c>node_modules</c>) is no obstacle.
+    /// Null if nothing is in the way.
     /// </summary>
-    private async Task<GitResult?> IgnoredInTheWayAsync(RepoState repo, CommitDetails commit, CancellationToken c)
+    private async Task<GitResult?> IgnoredInTheWayAsync(RepoState repo, IReadOnlyList<string> paths, CancellationToken c)
     {
-        string[] paths = [.. commit.Files.SelectMany(f => f.OriginalPath is { } from ? [from, f.Path] : new[] { f.Path }).Distinct()];
         // Only folders where a file lies in the worktree: mostly none, so git is asked for few of them.
         string[] files = [.. paths.SelectMany(Folders).Distinct().Where(f => File.Exists(Path.Combine(repo.Path, f)))];
-        if (paths.Length == 0)
+        if (paths.Count == 0)
         {
             return null; // without a pathspec git would list every ignored file
         }
@@ -744,6 +745,242 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
             }
         }
     }
+
+    // ---------- merge, rebase and unfinished operations (WP-07, ADR 0014) ----------
+
+    /// <summary>Merges <paramref name="branch"/> into the current branch; see <see cref="StartAsync"/>.</summary>
+    public Task<bool> MergeAsync(RepoState repo, BranchInfo branch, CancellationToken ct)
+    {
+        var head = repo.Status?.Head;
+        return RunAsync(repo, SyncText.Op_Merge, network: false, c => StartAsync(repo, branch, rebase: false, c),
+            () => Info(repo.Status?.Head == head ? SyncText.AlreadyUpToDate
+                : TextFormat.Format(SyncText.Merged, branch.Name, repo.Status?.Branch ?? "HEAD")), ct);
+    }
+
+    /// <summary>Rebases the current branch onto <paramref name="branch"/>; see <see cref="StartAsync"/>.</summary>
+    public Task<bool> RebaseAsync(RepoState repo, BranchInfo branch, CancellationToken ct)
+    {
+        var head = repo.Status?.Head;
+        return RunAsync(repo, SyncText.Op_Rebase, network: false, c => StartAsync(repo, branch, rebase: true, c),
+            () => Info(repo.Status?.Head == head ? SyncText.AlreadyUpToDate
+                : TextFormat.Format(SyncText.Rebased, repo.Status?.Branch ?? "HEAD", branch.Name)), ct);
+    }
+
+    /// <summary>
+    /// Merge or rebase (WP-07, ADR 0014), checked inside the gate right before git runs – as a revert or cherry-pick (ADR 0013):
+    /// a branch checked out, at least one commit, no unfinished operation, no staged, changed or conflicted file (so that an
+    /// abort of a stopped one loses nothing of the user's; new files may stay – git refuses to overwrite one), no ignored file
+    /// git would overwrite where the merge or rebase changes something. A rebase also only rewrites commits no remote has
+    /// (pushing them again would need a force push, which RepoBoard never does). If git stops at a conflict the operation
+    /// stays unfinished; the row shows it with "Continue" and "Abort".
+    /// </summary>
+    private async Task<GitResult> StartAsync(RepoState repo, BranchInfo branch, bool rebase, CancellationToken c)
+    {
+        var (status, read) = await git.StatusAsync(repo.Path, c);
+        if (status is null)
+        {
+            return read;
+        }
+
+        var gitDir = await git.GitDirAsync(repo.Path, c);
+        if (gitDir is null)
+        {
+            return GitResult.Failed(SyncText.Pick_Unknown);
+        }
+
+        if (GitClient.OperationIn(gitDir) is { } running)
+        {
+            return GitResult.Failed(TextFormat.Format(SyncText.Pick_Operation, PullCheck.Name(running)));
+        }
+
+        if (status.IsInitial)
+        {
+            return GitResult.Failed(SyncText.Pick_Initial);
+        }
+
+        if (status.IsDetached)
+        {
+            return GitResult.Failed(SyncText.Blocker_Detached);
+        }
+
+        if (status.Changes.Any(f => !f.Untracked))
+        {
+            return GitResult.Failed(SyncText.Pick_Changes);
+        }
+
+        var branchRef = GitClient.RefOf(branch);
+        if (await git.CommitOfAsync(repo.Path, branchRef, c) is not { } target)
+        {
+            return GitResult.Failed(TextFormat.Format(SyncText.Merge_BranchGone, branch.Name));
+        }
+
+        if (rebase)
+        {
+            var pushed = await git.CountPushedToRewriteAsync(repo.Path, branchRef, c);
+            if (pushed is null)
+            {
+                return GitResult.Failed(SyncText.Pick_Unknown);
+            }
+
+            if (pushed > 0)
+            {
+                return GitResult.Failed(TextFormat.Format(SyncText.Rebase_Pushed, Commits(pushed.Value)));
+            }
+        }
+
+        var paths = await git.ChangedPathsAsync(repo.Path, branchRef, mergeBase: !rebase, c);
+        if (paths is null)
+        {
+            return GitResult.Failed(SyncText.Pick_Unknown);
+        }
+
+        if (await IgnoredInTheWayAsync(repo, paths, c) is { } blocked)
+        {
+            return blocked;
+        }
+
+        GitResult result;
+        if (rebase)
+        {
+            result = await git.RebaseAsync(repo.Path, branchRef, c);
+        }
+        else
+        {
+            // The short name makes git's message "Merge branch 'feature'" – unless a tag of that name would win over the branch.
+            var name = await git.IsBranchNameAsync(repo.Path, branch.Name, c) && await git.CommitOfAsync(repo.Path, branch.Name, c) == target
+                ? branch.Name
+                : branchRef;
+            result = await git.MergeAsync(repo.Path, name, c);
+        }
+
+        return result.Success || GitClient.OperationIn(gitDir) is null
+            ? result
+            : GitResult.Failed(TextFormat.Format(SyncText.Operation_Stopped, result.Message));
+    }
+
+    /// <summary>
+    /// Goes on with the unfinished operation once every conflict is resolved (WP-07): commits the index with git's message, a
+    /// rebase replays the commits still to come. Checked inside the gate: it is still <paramref name="expected"/>, no
+    /// conflict is left, and for a rebase nothing is changed outside the index (git would refuse). If git stops again – the
+    /// next commit of a rebase conflicts too – the row shows the new step.
+    /// </summary>
+    public Task<bool> ContinueAsync(RepoState repo, GitOperation expected, CancellationToken ct) =>
+        RunAsync(repo, SyncText.Op_Continue, network: false, async c =>
+        {
+            var (info, status, gitDir, failed) = await UnfinishedAsync(repo, c);
+            if (failed is not null)
+            {
+                return failed;
+            }
+
+            if (info.Kind != expected)
+            {
+                return GitResult.Failed(TextFormat.Format(SyncText.Operation_Changed, PullCheck.Name(expected)));
+            }
+
+            if (status.Conflicts > 0)
+            {
+                return GitResult.Failed(TextFormat.Format(SyncText.Continue_Conflicts, status.Conflicts));
+            }
+
+            if (info.Kind == GitOperation.Rebase && status.Changes.Any(f => !f.Untracked && f.WorkTree != '.'))
+            {
+                return GitResult.Failed(SyncText.Continue_Unstaged);
+            }
+
+            var result = await git.ContinueAsync(repo.Path, info.Kind, c);
+            return result.Success || GitClient.OperationIn(gitDir) is null
+                ? result
+                : GitResult.Failed(TextFormat.Format(SyncText.Operation_Stopped, result.Message));
+        }, () => Info(TextFormat.Format(SyncText.Continued, PullCheck.Name(expected))), ct);
+
+    /// <summary>
+    /// Ends the unfinished operation and goes back to the state before it (ADR 0014): what was resolved is lost, so the UI
+    /// asks first, listing the changed files (<see cref="DiscardedFiles"/>). Checked inside the gate: it is still the
+    /// operation the question named (<paramref name="expectedKey"/>, <see cref="OperationInfo.Key"/>) and the changed files
+    /// are still <paramref name="expectedFiles"/> – another session may have gone on meanwhile (review WP-04).
+    /// </summary>
+    public Task<bool> AbortAsync(RepoState repo, string expectedKey, IReadOnlyCollection<string> expectedFiles, CancellationToken ct)
+    {
+        var name = repo.Operation is { } op ? PullCheck.Name(op) : "";
+        return RunAsync(repo, SyncText.Op_Abort, network: false,
+            c => DiscardAsync(repo, expectedKey, expectedFiles, skip: false, c),
+            () => Info(TextFormat.Format(SyncText.Aborted, name)), ct);
+    }
+
+    /// <summary>
+    /// Leaves out the commit a rebase, cherry-pick or revert stopped at and goes on (ADR 0014): what was resolved for it is
+    /// lost. Checked as <see cref="AbortAsync"/>.
+    /// </summary>
+    public Task<bool> SkipAsync(RepoState repo, string expectedKey, IReadOnlyCollection<string> expectedFiles, CancellationToken ct)
+    {
+        var commit = repo.Unfinished is { } info ? info.Subject ?? info.Commit?[..Math.Min(7, info.Commit.Length)] ?? "" : "";
+        return RunAsync(repo, SyncText.Op_Skip, network: false,
+            c => DiscardAsync(repo, expectedKey, expectedFiles, skip: true, c),
+            () => Info(TextFormat.Format(SyncText.Skipped, commit)), ct);
+    }
+
+    /// <summary>The files an abort or skip puts back: every change but a new file, which git leaves alone.</summary>
+    public static IReadOnlyList<string> DiscardedFiles(RepoStatus status) =>
+        [.. status.Changes.Where(f => !f.Untracked).Select(f => f.Path).Distinct().Order(StringComparer.Ordinal)];
+
+    private async Task<GitResult> DiscardAsync(RepoState repo, string expectedKey, IReadOnlyCollection<string> expectedFiles, bool skip,
+        CancellationToken c)
+    {
+        var (info, status, gitDir, failed) = await UnfinishedAsync(repo, c);
+        if (failed is not null)
+        {
+            return failed;
+        }
+
+        if (info.Key != expectedKey)
+        {
+            return GitResult.Failed(TextFormat.Format(SyncText.Operation_Changed, PullCheck.Name(info.Kind)));
+        }
+
+        if (!DiscardedFiles(status).SequenceEqual(expectedFiles.Distinct().Order(StringComparer.Ordinal)))
+        {
+            return GitResult.Failed(SyncText.Operation_FilesChanged);
+        }
+
+        if (!skip)
+        {
+            return await git.AbortAsync(repo.Path, info.Kind, c);
+        }
+
+        var result = await git.SkipAsync(repo.Path, info.Kind, c);
+        return result.Success || GitClient.OperationIn(gitDir) is null
+            ? result
+            : GitResult.Failed(TextFormat.Format(SyncText.Operation_Stopped, result.Message));
+    }
+
+    /// <summary>The unfinished operation and the status, both read fresh inside the gate; a failure if there is none.</summary>
+    private async Task<(OperationInfo Info, RepoStatus Status, string GitDir, GitResult? Failed)> UnfinishedAsync(RepoState repo,
+        CancellationToken c)
+    {
+        var gitDir = await git.GitDirAsync(repo.Path, c);
+        if (gitDir is null)
+        {
+            return (null!, null!, "", GitResult.Failed(SyncText.Pick_Unknown));
+        }
+
+        if (OperationInfo.Read(gitDir) is not { } info)
+        {
+            return (null!, null!, gitDir, GitResult.Failed(SyncText.Operation_Gone));
+        }
+
+        var (status, read) = await git.StatusAsync(repo.Path, c);
+        return status is null ? (null!, null!, gitDir, read) : (info, status, gitDir, null);
+    }
+
+    /// <summary>Stages a conflicted file as resolved (WP-07); the UI asks first if git still finds conflict markers in it.</summary>
+    public Task<bool> MarkResolvedAsync(RepoState repo, string path, CancellationToken ct) =>
+        RunAsync(repo, SyncText.Op_MarkResolved, network: false, c => git.StageAsync(repo.Path, [path], c),
+            () => Info(TextFormat.Format(SyncText.Resolved, path)), ct);
+
+    /// <summary>True if git still finds conflict markers in a conflicted file; null if it cannot tell. Only reads.</summary>
+    public Task<bool?> HasConflictMarkersAsync(RepoState repo, string path, CancellationToken ct) =>
+        Task.Run(() => git.HasConflictMarkersAsync(repo.Path, path, ct), ct);
 
     public Task<bool> SwitchAsync(RepoState repo, BranchInfo branch, CancellationToken ct)
     {

@@ -335,7 +335,7 @@ public sealed class HistoryTests : IDisposable
     }
 
     [Fact]
-    public async Task A_conflict_leaves_the_cherry_pick_unfinished_for_the_ide_and_says_so()
+    public async Task A_conflict_leaves_the_cherry_pick_unfinished_and_says_how_to_go_on()
     {
         Feature("a.txt", "feature's line");
         GitSandbox.Commit(_git.Mine, "a.txt", "main's line");
@@ -345,8 +345,9 @@ public sealed class HistoryTests : IDisposable
         Assert.False(await _board.CherryPickAsync(repo, commit, Ct));
 
         Assert.Equal(GitOperation.CherryPick, repo.Operation);
+        Assert.Equal(commit.Id, repo.Unfinished!.Commit);
         Assert.Equal(1, repo.Status!.Conflicts);
-        Assert.Contains("cherry-pick --continue", repo.Error, StringComparison.Ordinal);
+        Assert.Contains(SyncText.Operation_Stopped.Split(':')[0], repo.Error, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -464,8 +465,12 @@ public sealed class HistoryTests : IDisposable
 
         Assert.False(await _board.CherryPickAsync(repo, commit, Ct));
 
-        Assert.Equal(GitOperation.CherryPick, repo.Operation); // stays for the IDE or terminal (decision of the user)
+        Assert.Equal(GitOperation.CherryPick, repo.Operation); // never skipped on its own (decision of the user)
         Assert.Contains(SyncText.CherryPick_Empty, repo.Error, StringComparison.Ordinal);
+
+        // "Skip", as the message says (WP-07).
+        Assert.True(await _board.SkipAsync(repo, repo.Unfinished!.Key, [], Ct), repo.Error);
+        Assert.Null(repo.Operation);
     }
 
     [Fact]
