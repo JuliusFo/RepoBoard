@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using RepoBoard.Core.Board;
+using RepoBoard.Core.IO;
 
 namespace RepoBoard.Core.Watch;
 
@@ -35,8 +36,6 @@ internal sealed class WatchMap
     private static readonly ImmutableHashSet<string> SharedState = ImmutableHashSet.Create(StringComparer.Ordinal,
         "refs", "reftable", "packed-refs", "config", "info");
 
-    private static readonly StringComparison PathComparison =
-        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
     private readonly ImmutableArray<Node> _nodes;
     private readonly ImmutableArray<Signature> _signature;
@@ -48,7 +47,7 @@ internal sealed class WatchMap
         _nodes = nodes;
         _signature = signature;
         var folders = nodes.SelectMany(n => n.GitDir is { } gitDir ? [n.Path, gitDir] : new[] { n.Path })
-            .Distinct(StringComparer.FromComparison(PathComparison)).ToList();
+            .Distinct(Paths.Comparer).ToList();
         Roots = [.. folders.Where(folder => !folders.Any(other => !SamePath(folder, other) && IsUnder(folder, other)))];
     }
 
@@ -156,7 +155,7 @@ internal sealed class WatchMap
 
         // ".git" here is a linked worktree's pointer file or a repository nested in this one, not on the board.
         var segments = Parts(changed, inTree.Path);
-        return segments.Length == 0 || segments.Any(s => s.Equals(".git", PathComparison) || IgnoredFolders.Contains(s)) ? [] : [inTree.State];
+        return segments.Length == 0 || segments.Any(s => s.Equals(".git", Paths.Comparison) || IgnoredFolders.Contains(s)) ? [] : [inTree.State];
     }
 
     /// <summary>The repositories and worktrees inside <paramref name="root"/>, folder and git folder: what a watcher on it sees.</summary>
@@ -202,11 +201,9 @@ internal sealed class WatchMap
     private static string[] Parts(string path, string root) =>
         path[root.Length..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
 
-    internal static bool IsUnder(string path, string folder) =>
-        path.StartsWith(folder, PathComparison)
-        && (path.Length == folder.Length || path[folder.Length] == Path.DirectorySeparatorChar || Path.EndsInDirectorySeparator(folder));
+    private static bool IsUnder(string path, string folder) => Paths.IsUnder(path, folder);
 
-    private static bool SamePath(string a, string b) => string.Equals(a, b, PathComparison);
+    private static bool SamePath(string a, string b) => string.Equals(a, b, Paths.Comparison);
 
     internal static string? Normalize(string? path)
     {

@@ -14,9 +14,16 @@ internal static class Icons
     public static readonly MarkupString Search = Svg(
         """<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>""");
 
-    /// <summary>Lucide <c>x</c>: hides a message or a panel (the diff), removes an entry (a repository from the board).</summary>
+    /// <summary>Lucide <c>x</c>: hides a message or closes a panel (the diff, a dialog) – nothing is removed.</summary>
     public static readonly MarkupString Close = Svg(
         """<path d="M18 6 6 18"/><path d="m6 6 12 12"/>""");
+
+    /// <summary>
+    /// Lucide <c>list-x</c>: takes a repository off the board (its folder stays). Its own icon: as an X it stood a row above
+    /// the X that hides an error (review 0.4.0, A10).
+    /// </summary>
+    public static readonly MarkupString RemoveFromBoard = Svg(
+        """<path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 18H3"/><path d="m19 10-4 4"/><path d="m15 10 4 4"/>""");
 
     /// <summary>Lucide <c>chevron-down</c>: an open row or panel.</summary>
     public static readonly MarkupString ChevronDown = Svg(
@@ -89,7 +96,7 @@ internal static class Icons
     public static readonly MarkupString Locked = Svg(
         """<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>""");
 
-    /// <summary>Lucide <c>trash-2</c>: removes a worktree – deletes its folder (unlike <see cref="Close"/>, which only takes a repository off the board).</summary>
+    /// <summary>Lucide <c>trash-2</c>: removes a worktree – deletes its folder (unlike <see cref="RemoveFromBoard"/>, which only takes a repository off the board).</summary>
     public static readonly MarkupString Trash = Svg(
         """<path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>""");
 

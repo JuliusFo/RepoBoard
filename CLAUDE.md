@@ -15,6 +15,7 @@ Diese Datei lädt in jede Session und enthält nur, was immer gilt. Die Fallen e
 | `docs/release.md` – CI, Versionierung | vor Änderungen an CI/Version und vor jedem Release |
 | `docs/e2e-testing.md`, `docs/localization.md` | vor E2E-Läufen, vor neuen Texten |
 | `docs/decisions/` – ADRs | bei Stack- oder Architekturänderungen |
+| `docs/review-X.Y.Z.md` – Gesamt-Reviews mit den Entscheidungen des Nutzers | vor dem nächsten Gesamt-Review; bei einem Befund, der wiederkommt |
 
 ## 1. Ziel
 
@@ -25,9 +26,9 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor). Erklärungen 
 ## 2. Invarianten
 
 **Lokale Arbeit geht nie verloren (ADR 0003):**
-- RepoBoard führt nichts aus, was ungesicherte Arbeit verwerfen kann: kein `reset --hard`, `clean`, `checkout -- <pfad>`, `restore` auf den Worktree, `stash drop`, `push --force`, `branch -D`. Kommt so etwas dazu (z. B. „Änderungen verwerfen“), bekommt es eine eigene enge Methode in `GitClient`, eine Rückfrage in der UI, einen ADR und Tests. Bisher so: `--abort` und `--skip` einer angehaltenen Operation (ADR 0014, Schlüssel und Dateiliste der Rückfrage im Tor geprüft).
-- **Auto-Pull ist nur ein Fast-Forward** (`merge --ff-only @{u}` nach dem Fetch) und nur, wenn `PullCheck` nichts findet: kein detached HEAD, Upstream vorhanden, kein laufendes Merge/Rebase/Cherry-Pick/Revert, keine Konflikte, nichts lokal voraus. Lokale Änderungen bleiben; überschneiden sie sich mit dem Pull, bricht git ab.
-- Was im Hintergrund läuft, fragt nie nach Zugangsdaten (`GitCallMode.Background`: `GCM_INTERACTIVE=never`, `GIT_TERMINAL_PROMPT=0`); es scheitert und meldet das einmal.
+- RepoBoard führt nichts aus, was ungesicherte Arbeit verwerfen kann: kein `reset --hard`, `clean`, `checkout -- <pfad>`, `restore` auf den Worktree, `stash drop`, `push --force`, `branch -D`. Kommt so etwas dazu (z. B. „Änderungen verwerfen“), bekommt es eine eigene enge Methode in `GitClient`, eine Rückfrage in der UI, einen ADR und Tests. Bisher so: `--abort` und `--skip` einer angehaltenen Operation (ADR 0015, Schlüssel und Dateiliste der Rückfrage im Tor geprüft).
+- **Auto-Pull ist nur ein Fast-Forward** (`merge --ff-only --no-autostash @{u}` nach dem Fetch; ohne `--no-autostash` legte das `merge.autoStash` des Nutzers lokale Änderungen mit Konfliktmarkern zurück, Review 0.4.0) und nur, wenn `PullCheck` nichts findet: kein detached HEAD, Upstream vorhanden, kein laufendes Merge/Rebase/Cherry-Pick/Revert, keine Konflikte, nichts lokal voraus. Lokale Änderungen bleiben; überschneiden sie sich mit dem Pull, bricht git ab.
+- Was im Hintergrund läuft, fragt nie nach Zugangsdaten (`GitCallMode.Background`: `GCM_INTERACTIVE=never`, `SSH_ASKPASS_REQUIRE=never`, leeres `GIT_ASKPASS`; `GIT_TERMINAL_PROMPT=0` immer – `GitRunner.EnvironmentFor`); es scheitert und meldet das einmal.
 
 **Git nur über die CLI und nur an einer Stelle (ADR 0002):**
 - Prozesse startet nur `GitRunner` (Zeitlimit, `ArgumentList`, keine Shell) und der Host für Explorer, Terminal und Editor; `ArchitectureTests` hält das fest. Jeder Befehlstext steht in `GitClient`.
@@ -54,19 +55,20 @@ Gleicher Stack wie FerretSharp (Entscheidung des Nutzers, 2026-11-20; ADR 0001).
 | Tests | **xUnit v3** auf **Microsoft Testing Platform** + NSubstitute | Kein VSTest. Git-Tests laufen gegen echte Repos im Temp-Ordner (`GitSandbox`). |
 | Persistenz | JSON (`System.Text.Json`): `AtomicJsonFile` / `VersionedJsonFile` | Keine `object`-Properties. |
 | Texte | typisierte resx, Englisch (Standard) und Deutsch (ADR 0005) | `docs/localization.md`. |
-| CI | GitHub Actions (Linux zuerst, dann Windows) | `docs/release.md`. Installer/Updates (Velopack wie FerretSharp): Roadmap. |
+| CI, Installer | GitHub Actions (Linux zuerst, dann Windows); Installer und Updates mit **Velopack** (ADR 0007) | `docs/release.md`. |
 
 ## 4. Solution-Struktur
 
 ```
 src/RepoBoard.Core/   net10.0 – reine Logik, KEIN WPF, KEINE Windows-only-APIs, baut unter Linux
   Git/ (GitRunner, GitClient, RepoStatus) Repos/ (Konfiguration, Scanner) Board/ (BoardService, RepoState, ActivityLog)
-  Sync/ (AutoSyncService, PullCheck) Watch/ (RepoWatchService, WatchMap) IO/ (aus FerretSharp) Resources/
+  Sync/ (AutoSyncService, PullCheck) Watch/ (RepoWatchService, WatchMap) IO/ (aus FerretSharp, Paths) Resources/
+  im Wurzelordner: CommandLine, AppPaths, Autostart, ProjectSite
 src/RepoBoard.UI/     net10.0 Razor Class Library, plattformneutral: Shell.razor, Components/ (Ordner = Namespace),
                       State/ (Namespace `UI.State`, testbare Logik, Host-Schnittstellen), Resources/, wwwroot/
 src/RepoBoard.App/    net10.0-windows10.0.19041.0 – schlanker WPF-Host (Program.Main, Generic Host, Serilog, Host-Dienste)
 tests/                Core.Tests, UI.Tests (State ohne Rendern), App.Tests (nur Windows: WebView-Aufnahme), Shared/ (TestFolder, GitSandbox, …)
-tools/                linux/ (Build und Tests im Linux-Container wie die CI), e2e/ (Testinstanz, echte Klicks, CDP)
+tools/                linux/ (Build und Tests im Linux-Container wie die CI), e2e/ (Testinstanz, echte Klicks, CDP), icon/ (Programmsymbol)
 ```
 
 Regeln:
@@ -85,7 +87,7 @@ Repo (`RepoEntry` in der Konfiguration, `RepoState` zur Laufzeit), Status (`Repo
 - **Commits** klein und thematisch, Conventional Commits (`feat:`, `fix:`, `test:`, `docs:`, `refactor:`). **PR-Titel und -Beschreibung** auf Englisch, Paket in Klammern am Ende: `feat: tray icon and autostart (WP-02)`.
 - **Core zuerst mit Tests, dann UI.** Testbare Logik der UI gehört in eine reine Klasse unter `UI/State`.
 - **Ordner rekursiv löschen nur über `SafeDelete.DirectoryBelow(root, path)`**, in Tests über `TestFolder`; keine `Remove-Item -Recurse`/`rm -r` in Skripten (`SafeDeleteTests` sucht danach).
-- **UI end-to-end prüfen, ohne echte Nutzerdaten anzufassen** (`docs/e2e-testing.md`): App nur mit `--data-dir=<scratch>`, Test-Repos nur im Scratch-Ordner – **nie** Fetch, Pull, Push oder Commit in den echten Repos des Nutzers unter `C:\Dev-Repos`. Mausinteraktionen mit echter Windows-Eingabe prüfen, nicht nur per CDP.
+- **UI end-to-end prüfen, ohne echte Nutzerdaten anzufassen** (`docs/e2e-testing.md`): App nur mit `--data-dir=<scratch>`, Test-Repos nur im Scratch-Ordner – **keine schreibende git-Aktion** (Fetch, Pull, Push, Commit, Stage, Branchwechsel, Revert …) in den echten Repos des Nutzers unter `C:\Dev-Repos`. Mausinteraktionen mit echter Windows-Eingabe prüfen, nicht nur per CDP.
 
 ## 7. Kontext des Nutzers
 

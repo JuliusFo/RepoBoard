@@ -4,7 +4,7 @@ description: Review the whole RepoBoard solution with parallel read-only agents 
 disable-model-invocation: true
 argument-hint: "[focus]"
 ---
-Talk to the user in German. Format and wording follow the earlier reviews: read the latest `docs/review-*.md` first; for the first review, take the format of FerretSharp's `C:\Dev-Repos\FerretSharp\docs\review-3.70.0.md`.
+Talk to the user in German. Format and wording follow the earlier reviews: read the latest `docs/review-*.md` first.
 
 ## 1. Prepare
 

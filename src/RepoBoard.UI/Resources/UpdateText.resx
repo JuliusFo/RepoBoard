@@ -155,4 +155,8 @@
   <data name="Notify_Text" xml:space="preserve">
     <value>Click to see what is new. Downloading and installing wait for your click.</value>
   </data>
+  <data name="Interval_EveryHours" xml:space="preserve">
+    <value>Every {0} hours</value>
+    <comment>{0} = number of hours, 2 or more</comment>
+  </data>
 </root>

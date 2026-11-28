@@ -74,8 +74,7 @@
     <value>No repositories yet</value>
   </data>
   <data name="Empty_Text" xml:space="preserve">
-    <value>Add single repositories or let RepoBoard look through a folder like {0}.</value>
-    <comment>{0} = an example folder path</comment>
+    <value>Add single repositories, or let RepoBoard look through a folder that holds them.</value>
   </data>
   <data name="Empty_Add" xml:space="preserve">
     <value>Add repository</value>
@@ -142,14 +141,6 @@
   </data>
   <data name="NoUpstream_Hint" xml:space="preserve">
     <value>Never pushed – a push sets the upstream</value>
-  </data>
-  <data name="Ahead_Hint" xml:space="preserve">
-    <value>{0} local commits not on {1} yet</value>
-    <comment>{0} = number of commits, {1} = upstream branch</comment>
-  </data>
-  <data name="Behind_Hint" xml:space="preserve">
-    <value>{0} commits on {1} not pulled yet</value>
-    <comment>{0} = number of commits, {1} = upstream branch</comment>
   </data>
   <data name="UpToDate" xml:space="preserve">
     <value>up to date</value>
@@ -731,5 +722,90 @@ Log: {1}</value>
   <data name="Conflict_MarkersUnknownText" xml:space="preserve">
     <value>git could not check {0} for conflict markers. Mark it as resolved anyway?</value>
     <comment>{0} = path of the file</comment>
+  </data>
+  <data name="Ahead_HintOne" xml:space="preserve">
+    <value>{0} local commit not on {1} yet</value>
+    <comment>{0} = 1, {1} = upstream branch</comment>
+  </data>
+  <data name="Ahead_HintOther" xml:space="preserve">
+    <value>{0} local commits not on {1} yet</value>
+    <comment>{0} = number of commits, {1} = upstream branch</comment>
+  </data>
+  <data name="Behind_HintOne" xml:space="preserve">
+    <value>{0} commit on {1} not pulled yet</value>
+    <comment>{0} = 1, {1} = upstream branch</comment>
+  </data>
+  <data name="Behind_HintOther" xml:space="preserve">
+    <value>{0} commits on {1} not pulled yet</value>
+    <comment>{0} = number of commits, {1} = upstream branch</comment>
+  </data>
+  <data name="Branch_Ahead" xml:space="preserve">
+    <value>{0} ahead</value>
+    <comment>{0} = number of commits the branch has that its upstream lacks (branch list)</comment>
+  </data>
+  <data name="Branch_Behind" xml:space="preserve">
+    <value>{0} behind</value>
+    <comment>{0} = number of commits of the upstream the branch lacks (branch list)</comment>
+  </data>
+  <data name="Ago_Months" xml:space="preserve">
+    <value>{0} months ago</value>
+    <comment>{0} = number of months, at least 2</comment>
+  </data>
+  <data name="Ago_Years" xml:space="preserve">
+    <value>{0} years ago</value>
+    <comment>{0} = number of years, at least 2</comment>
+  </data>
+  <data name="Scan_Title" xml:space="preserve">
+    <value>Add repositories</value>
+  </data>
+  <data name="Scan_Explain" xml:space="preserve">
+    <value>Found below {0}. RepoBoard runs git in every repository you add – with that repository's own settings and hooks, as in your terminal. A repository that runs something of its own is not ticked: tick it only if you trust it.</value>
+    <comment>{0} = the scanned folder</comment>
+  </data>
+  <data name="Scan_Runs_FsMonitor" xml:space="preserve">
+    <value>runs a program on every status (core.fsmonitor)</value>
+  </data>
+  <data name="Scan_Runs_HooksPath" xml:space="preserve">
+    <value>takes hooks from another folder (core.hooksPath)</value>
+  </data>
+  <data name="Scan_Runs_SshCommand" xml:space="preserve">
+    <value>runs its own program instead of ssh (core.sshCommand)</value>
+  </data>
+  <data name="Scan_Runs_Hooks" xml:space="preserve">
+    <value>has hooks of its own (.git/hooks)</value>
+  </data>
+  <data name="Scan_Runs_Includes" xml:space="preserve">
+    <value>includes more configuration from another file</value>
+  </data>
+  <data name="Scan_Outside" xml:space="preserve">
+    <value>a linked worktree – its repository {0} goes on the board, outside the scanned folder</value>
+    <comment>{0} = path of the repository</comment>
+  </data>
+  <data name="Scan_AddOne" xml:space="preserve">
+    <value>Add {0} repository</value>
+    <comment>{0} = 1</comment>
+  </data>
+  <data name="Scan_AddOther" xml:space="preserve">
+    <value>Add {0} repositories</value>
+    <comment>{0} = number of repositories</comment>
+  </data>
+  <data name="Editor_UnsafePath" xml:space="preserve">
+    <value>{0} cannot be passed to VS Code safely: it contains a character the command line would read as an instruction.</value>
+    <comment>{0} = folder or file path</comment>
+  </data>
+  <data name="Editor_NotFound" xml:space="preserve">
+    <value>VS Code was not found: the command “code” is not on the PATH.</value>
+  </data>
+  <data name="Error_Unexpected" xml:space="preserve">
+    <value>Unexpected error.</value>
+  </data>
+  <data name="Error_Reload" xml:space="preserve">
+    <value>Reload</value>
+  </data>
+  <data name="Scan_Runs_OtherSettings" xml:space="preserve">
+    <value>has further settings of its own that can start programs or reach other computers (a filter, a diff driver, a credential helper, an LFS transfer agent, a remote on a share …)</value>
+  </data>
+  <data name="Scan_Runs_GitDirOnShare" xml:space="preserve">
+    <value>its git folder lies on another computer’s share – not read before you tick it</value>
   </data>
 </root>

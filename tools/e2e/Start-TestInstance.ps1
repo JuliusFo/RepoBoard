@@ -34,7 +34,7 @@ param(
     [switch]$NoBuild,
     # The program below <Root>\app: current\RepoBoard.exe for an unzipped portable Velopack version (WP-10).
     [string]$Exe = 'RepoBoard.exe',
-    # More arguments for the app, for example a repoboard:// link or --import-appdata=<scratch>.
+    # More arguments for the app, for example --update-source=<folder> (docs/e2e-testing.md, Updates).
     [string[]]$AppArgs = @()
 )
 $ErrorActionPreference = 'Stop'

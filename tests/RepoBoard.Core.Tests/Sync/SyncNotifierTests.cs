@@ -100,7 +100,7 @@ public sealed class SyncNotifierTests : IDisposable
 
     private async Task<BoardService> NewBoardAsync(NotificationLevel level)
     {
-        var board = new BoardService(new GitClient(new GitRunner()), new ConfigStore(_folder.Combine("config.json"), _time), _time);
+        var board = Boards.New(_folder.Path, _time);
         await board.UpdateSettingsAsync(s => s with { Notifications = level }, Ct);
         return board;
     }

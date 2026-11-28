@@ -353,7 +353,7 @@ public sealed class OperationTests : IDisposable
         GitSandbox.Git(_git.Mine, "switch", "-c", "topic");
         GitSandbox.Commit(_git.Mine, "t.txt", "topic");
         await _board.RefreshAsync(repo, Ct);
-        Assert.True(await _board.MergeAsync(repo, new BranchInfo("origin/main", false, true, null, null, null), Ct), repo.Error);
+        Assert.True(await _board.MergeAsync(repo, new BranchInfo("origin/main", false, true, null, 0, 0, false, null), Ct), repo.Error);
         Assert.Equal("main", File.ReadAllText(Mine("a.txt")));
     }
 

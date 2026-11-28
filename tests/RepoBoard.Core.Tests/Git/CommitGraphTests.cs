@@ -5,7 +5,7 @@ namespace RepoBoard.Core.Tests.Git;
 /// <summary>The lanes of the history graph (WP-09, ADR 0013), from commits in <c>--topo-order</c>.</summary>
 public sealed class CommitGraphTests
 {
-    private static CommitInfo C(string id, params string[] parents) => new(id, id, parents, "Jo", "now", "", id);
+    private static CommitInfo C(string id, params string[] parents) => new(id, id, parents, "Jo", default, "", id);
 
     private static GraphLine In(int from, int to) => new(from, to, GraphLineKind.In);
     private static GraphLine Out(int from, int to) => new(from, to, GraphLineKind.Out);

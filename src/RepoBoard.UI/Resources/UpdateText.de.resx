@@ -138,4 +138,7 @@
   <data name="Notify_Text" xml:space="preserve">
     <value>Klicken, um die Neuerungen zu sehen. Herunterladen und Installieren erst nach deinem Klick.</value>
   </data>
+  <data name="Interval_EveryHours" xml:space="preserve">
+    <value>Alle {0} Stunden</value>
+  </data>
 </root>

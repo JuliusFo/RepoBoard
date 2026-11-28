@@ -1,6 +1,6 @@
 # ADR 0005: Oberfläche in Englisch und Deutsch
 
-- Status: übernommen aus FerretSharp (ADR 0017 dort); **Vorschlag (nicht bestätigt):** die Sprache folgt Windows
+- Status: akzeptiert (Entscheidung des Nutzers, 2026-11-22, Review 0.4.0); übernommen aus FerretSharp (ADR 0017 dort)
 - Datum: 2026-11-20
 
 ## Entscheidung

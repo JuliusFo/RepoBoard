@@ -363,4 +363,13 @@
   <data name="Continue_Empty" xml:space="preserve">
     <value>nichts mehr zu committen: die Lösung hat keine Änderung des Commits behalten – mit „Überspringen“ beenden</value>
   </data>
+  <data name="Add_Refused" xml:space="preserve">
+    <value>{0} konnte nicht hinzugefügt werden: {1}</value>
+  </data>
+  <data name="RemovedFromBoard" xml:space="preserve">
+    <value>Vom Board entfernt – der Ordner {0} bleibt.</value>
+  </data>
+  <data name="FolderMissing" xml:space="preserve">
+    <value>Der Ordner {0} existiert nicht.</value>
+  </data>
 </root>

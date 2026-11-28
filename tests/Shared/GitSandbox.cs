@@ -28,6 +28,13 @@ internal sealed class GitSandbox : IDisposable
 
         // A repository above the temp folder (dotfiles in $HOME) must not answer for a sandbox whose .git is gone (review WP-03).
         Environment.SetEnvironmentVariable("GIT_CEILING_DIRECTORIES", Path.TrimEndingDirectorySeparator(Path.GetTempPath()));
+
+        // Run from a hook or a terminal with a repository of its own, the sandbox's git calls would work on that one
+        // (GIT_DIR, GIT_INDEX_FILE …) – the same variables RepoBoard's runner leaves out (review 0.4.0, A20).
+        foreach (var name in RepoBoard.Core.Git.GitRunner.Inherited.Append("GIT_ASKPASS"))
+        {
+            Environment.SetEnvironmentVariable(name, null);
+        }
     }
 
     public GitSandbox()

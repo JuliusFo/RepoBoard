@@ -1,6 +1,6 @@
 <Project>
 
-  <!-- Localized texts (WP-29, ADR 0017): Resources/<Area>Text.resx holds the English texts, <Area>Text.de.resx the German
+  <!-- Localized texts (ADR 0005, from FerretSharp WP-29): Resources/<Area>Text.resx holds the English texts, <Area>Text.de.resx the German
        ones. The build generates a class <Area>Text (namespace <RootNamespace>.Resources) with one property per text, so a
        missing key is a compile error. Only the neutral file matches the pattern: "FooText.de.resx" does not end in "Text.resx". -->
   <ItemGroup>

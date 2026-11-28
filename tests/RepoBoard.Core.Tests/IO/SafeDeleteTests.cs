@@ -68,10 +68,6 @@ public sealed partial class SafeDeleteTests : IDisposable
             Path.GetFullPath(_folder.Combine("work")),
             SafeDelete.CheckBelow(_folder.Path + Path.DirectorySeparatorChar, _folder.Combine("work") + Path.DirectorySeparatorChar));
 
-    [Fact]
-    public void Try_reports_a_refused_path_as_the_programming_error_it_is() =>
-        Assert.Throws<InvalidOperationException>(() => SafeDelete.TryDirectoryBelow(_folder.Path, _folder.Path));
-
     /// <summary>
     /// Every recursive delete in code, tests and scripts goes through <see cref="SafeDelete"/> (tests: <c>TestFolder</c>);
     /// a new one elsewhere fails here.

@@ -19,13 +19,13 @@
     <span class="c-text">
         <span class="c-line">
             <code>@Commit.ShortId</code>
-            <span class="c-subject" title="@Commit.Subject">@Commit.Subject</span>
+            <span class="c-subject" title="@VisibleText.Of(Commit.Subject)">@VisibleText.Of(Commit.Subject)</span>
         </span>
         <span class="c-meta">
-            @Commit.Author · @Commit.When
-            @foreach (var r in Refs(Commit))
+            <span title="@RelativeTime.Exact(Commit.When)">@VisibleText.Of(Commit.Author) · @RelativeTime.Text(Commit.When, Now)</span>
+            @foreach (var r in CommitText.RefNames(Commit.Refs))
             {
-                <span class="ref">@r</span>
+                <span class="ref">@VisibleText.Of(r)</span>
             }
         </span>
     </span>
@@ -40,12 +40,15 @@
 
     [Parameter] public EventCallback OnSelect { get; set; }
 
+    /// <summary>The shell's clock: the date reads "3 min ago" and moves on with it.</summary>
+    [Parameter] public DateTimeOffset Now { get; set; }
+
     // The board reads the history anew with each status: new objects, mostly the same content.
     private string? _shown;
 
     protected override bool ShouldRender()
     {
-        var now = string.Join('\u001f', Commit.Id, Commit.When, Commit.Refs, Commit.Subject, Commit.Author, Lanes, Graph.Column,
+        var now = string.Join('\u001f', Commit.Id, RelativeTime.Text(Commit.When, Now), Commit.Refs, Commit.Subject, Commit.Author, Lanes, Graph.Column,
             string.Join(',', Graph.Lines));
         if (_shown == now)
         {
@@ -56,6 +59,4 @@
         return true;
     }
 
-    private static IEnumerable<string> Refs(CommitInfo commit) =>
-        commit.Refs.Split(", ", StringSplitOptions.RemoveEmptyEntries).Select(r => r.Replace("HEAD -> ", "", StringComparison.Ordinal));
 }

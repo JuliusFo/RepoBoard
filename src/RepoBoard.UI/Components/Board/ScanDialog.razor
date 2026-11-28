@@ -1,0 +1,70 @@
+@* The repositories a scan found, before git runs in any of them (review 0.4.0, A9): each with what its own configuration
+   would run on RepoBoard's git calls; the user ticks which go on the board. Mounted by the shell. *@
+@inherits BoardComponent
+
+<div class="modal-backdrop" @onclick="OnClose"></div>
+<div class="dialog" role="dialog" aria-modal="true" aria-label="@BoardText.Scan_Title" tabindex="-1" @ref="_dialog" @onkeydown="OnKeyDown">
+    <header>
+        <span>@BoardText.Scan_Title</span>
+        <button class="btn icon-only ghost" title="@BoardText.Dialog_Close" @onclick="OnClose">@Icons.Close</button>
+    </header>
+    <div class="dialog-body">
+        <p class="muted">@TextFormat.Format(BoardText.Scan_Explain, Root)</p>
+        <div class="pick-list">
+            @foreach (var candidate in Selection.Candidates)
+            {
+                <label class="pick-item" @key="candidate.Path">
+                    <input type="checkbox" checked="@Selection.IsSelected(candidate)" @onchange="() => Selection.Toggle(candidate)" />
+                    <span class="pick-text">
+                        <strong>@Path.GetFileName(candidate.Board)</strong>
+                        <small class="muted">@candidate.Path</small>
+                        @if (candidate.OutsideScan)
+                        {
+                            <span class="pick-warn">@Icons.Warning @TextFormat.Format(BoardText.Scan_Outside, candidate.Board)</span>
+                        }
+                        @foreach (var runs in candidate.Runs)
+                        {
+                            <span class="pick-warn">@Icons.Warning @ScanSelection.Text(runs)</span>
+                        }
+                    </span>
+                </label>
+            }
+        </div>
+    </div>
+    <footer>
+        <span class="spacer"></span>
+        <button class="btn ghost" @onclick="OnClose">@BoardText.Dialog_Cancel</button>
+        <button class="btn primary" disabled="@(Selection.Selected.Count == 0)" @onclick="AddAsync">
+            @Icons.Plus @TextFormat.Plural(Selection.Selected.Count, BoardText.Scan_AddOne, BoardText.Scan_AddOther)
+        </button>
+    </footer>
+</div>
+
+@code {
+    /// <summary>The folder that was scanned.</summary>
+    [Parameter, EditorRequired] public string Root { get; set; } = null!;
+
+    [Parameter, EditorRequired] public ScanSelection Selection { get; set; } = null!;
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private ElementReference _dialog;
+
+    /// <summary>Esc closes, so the dialog takes the keyboard when it opens (review 0.4.0, A30).</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await FocusQuietlyAsync(_dialog);
+        }
+    }
+
+    private Task OnKeyDown(KeyboardEventArgs e) => e.Key == "Escape" ? OnClose.InvokeAsync() : Task.CompletedTask;
+
+    private Task AddAsync() => GuardAsync(async () =>
+    {
+        var chosen = Selection.Selected;
+        await OnClose.InvokeAsync();
+        await Board.AddScannedAsync(Root, chosen, default);
+    });
+}

@@ -73,7 +73,7 @@
     <value>Noch keine Repositories</value>
   </data>
   <data name="Empty_Text" xml:space="preserve">
-    <value>Füge einzelne Repos hinzu oder lass einen Ordner wie {0} durchsuchen.</value>
+    <value>Füge einzelne Repos hinzu oder lass einen Ordner durchsuchen, in dem sie liegen.</value>
   </data>
   <data name="Empty_Add" xml:space="preserve">
     <value>Repo hinzufügen</value>
@@ -137,12 +137,6 @@
   </data>
   <data name="NoUpstream_Hint" xml:space="preserve">
     <value>Noch nie gepusht – Push setzt den Upstream</value>
-  </data>
-  <data name="Ahead_Hint" xml:space="preserve">
-    <value>{0} lokale Commits noch nicht auf {1}</value>
-  </data>
-  <data name="Behind_Hint" xml:space="preserve">
-    <value>{0} Commits auf {1} noch nicht gepullt</value>
   </data>
   <data name="UpToDate" xml:space="preserve">
     <value>aktuell</value>
@@ -650,5 +644,77 @@ Log: {1}</value>
   </data>
   <data name="Conflict_MarkersUnknownText" xml:space="preserve">
     <value>git konnte {0} nicht auf Konfliktmarker prüfen. Trotzdem als gelöst markieren?</value>
+  </data>
+  <data name="Ahead_HintOne" xml:space="preserve">
+    <value>{0} lokaler Commit noch nicht auf {1}</value>
+  </data>
+  <data name="Ahead_HintOther" xml:space="preserve">
+    <value>{0} lokale Commits noch nicht auf {1}</value>
+  </data>
+  <data name="Behind_HintOne" xml:space="preserve">
+    <value>{0} Commit auf {1} noch nicht gepullt</value>
+  </data>
+  <data name="Behind_HintOther" xml:space="preserve">
+    <value>{0} Commits auf {1} noch nicht gepullt</value>
+  </data>
+  <data name="Branch_Ahead" xml:space="preserve">
+    <value>{0} voraus</value>
+  </data>
+  <data name="Branch_Behind" xml:space="preserve">
+    <value>{0} hinterher</value>
+  </data>
+  <data name="Ago_Months" xml:space="preserve">
+    <value>vor {0} Monaten</value>
+  </data>
+  <data name="Ago_Years" xml:space="preserve">
+    <value>vor {0} Jahren</value>
+  </data>
+  <data name="Scan_Title" xml:space="preserve">
+    <value>Repos hinzufügen</value>
+  </data>
+  <data name="Scan_Explain" xml:space="preserve">
+    <value>Gefunden unter {0}. RepoBoard ruft in jedem Repo, das du hinzufügst, git auf – mit den Einstellungen und Hooks dieses Repos, wie im Terminal. Ein Repo, das selbst etwas ausführt, ist nicht angehakt: hake es nur an, wenn du ihm vertraust.</value>
+  </data>
+  <data name="Scan_Runs_FsMonitor" xml:space="preserve">
+    <value>führt bei jedem Status ein Programm aus (core.fsmonitor)</value>
+  </data>
+  <data name="Scan_Runs_HooksPath" xml:space="preserve">
+    <value>nimmt Hooks aus einem anderen Ordner (core.hooksPath)</value>
+  </data>
+  <data name="Scan_Runs_SshCommand" xml:space="preserve">
+    <value>führt statt ssh ein eigenes Programm aus (core.sshCommand)</value>
+  </data>
+  <data name="Scan_Runs_Hooks" xml:space="preserve">
+    <value>hat eigene Hooks (.git/hooks)</value>
+  </data>
+  <data name="Scan_Runs_Includes" xml:space="preserve">
+    <value>bindet weitere Konfiguration aus einer anderen Datei ein</value>
+  </data>
+  <data name="Scan_Outside" xml:space="preserve">
+    <value>ein verknüpfter Worktree – sein Repo {0} kommt aufs Board, außerhalb des gescannten Ordners</value>
+  </data>
+  <data name="Scan_AddOne" xml:space="preserve">
+    <value>{0} Repo hinzufügen</value>
+  </data>
+  <data name="Scan_AddOther" xml:space="preserve">
+    <value>{0} Repos hinzufügen</value>
+  </data>
+  <data name="Editor_UnsafePath" xml:space="preserve">
+    <value>{0} kann nicht sicher an VS Code übergeben werden: der Pfad enthält ein Zeichen, das die Kommandozeile als Anweisung liest.</value>
+  </data>
+  <data name="Editor_NotFound" xml:space="preserve">
+    <value>VS Code wurde nicht gefunden: der Befehl „code“ steht nicht im PATH.</value>
+  </data>
+  <data name="Error_Unexpected" xml:space="preserve">
+    <value>Unerwarteter Fehler.</value>
+  </data>
+  <data name="Error_Reload" xml:space="preserve">
+    <value>Neu laden</value>
+  </data>
+  <data name="Scan_Runs_OtherSettings" xml:space="preserve">
+    <value>hat weitere eigene Einstellungen, die Programme starten oder andere Rechner ansprechen können (Filter, Diff-Treiber, Credential-Helper, LFS-Transfer-Agent, Remote auf einer Freigabe …)</value>
+  </data>
+  <data name="Scan_Runs_GitDirOnShare" xml:space="preserve">
+    <value>sein Git-Ordner liegt auf der Freigabe eines anderen Rechners – erst nach dem Anhaken gelesen</value>
   </data>
 </root>

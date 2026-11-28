@@ -4,7 +4,7 @@
 @inherits BoardComponent
 
 <div class="modal-backdrop" @onclick="OnClose"></div>
-<div class="dialog worktree-dialog" role="dialog" aria-modal="true" aria-label="@Title">
+<div class="dialog" role="dialog" aria-modal="true" aria-label="@Title" tabindex="-1" @ref="_dialog" @onkeydown="OnKeyDown">
     <header>
         <span>@Title</span>
         <button class="btn icon-only ghost" title="@BoardText.Dialog_Close" @onclick="OnClose">@Icons.Close</button>
@@ -19,19 +19,19 @@
             <p class="muted">@BoardText.Worktrees_RemoveExplain</p>
             @if (Worktree is null && _defaultBranch is null)
             {
-                <div class="update-note failed">@BoardText.Worktrees_NoDefaultBranch</div>
+                <div class="note failed">@BoardText.Worktrees_NoDefaultBranch</div>
             }
             @if (_candidates.Count == 0)
             {
                 <p>@BoardText.Worktrees_NothingDone</p>
             }
-            <div class="wt-list">
+            <div class="pick-list">
                 @foreach (var candidate in _candidates)
                 {
                     var worktree = candidate.Worktree;
-                    <label class="wt-item @(candidate.CanRemove ? "" : "blocked")" @key="worktree">
+                    <label class="pick-item @(candidate.CanRemove ? "" : "blocked")" @key="worktree">
                         <input type="checkbox" checked="@_selected.Contains(worktree)" disabled="@(!candidate.CanRemove)" @onchange="() => Select(worktree)" />
-                        <span class="wt-text">
+                        <span class="pick-text">
                             <span class="wt-name">
                                 <strong>@worktree.Name</strong>
                                 <span class="muted">@BranchText(worktree)</span>
@@ -47,7 +47,7 @@
                             }
                             @if (candidate.Block is { } block)
                             {
-                                <span class="wt-block">@Icons.Warning @BoardService.BlockText(block)</span>
+                                <span class="pick-warn">@Icons.Warning @BoardService.BlockText(block)</span>
                             }
                             @if (candidate.Ignored.Count > 0)
                             {
@@ -66,7 +66,7 @@
             </div>
             @if (_selected.Any(w => w.IsClaudeWorktree))
             {
-                <div class="update-note">@BoardText.Worktrees_ClaudeWarning</div>
+                <div class="note">@BoardText.Worktrees_ClaudeWarning</div>
             }
         }
     </div>
@@ -88,6 +88,7 @@
 
     [Parameter] public EventCallback OnClose { get; set; }
 
+    private ElementReference _dialog;
     private IReadOnlyList<WorktreeCandidate>? _candidates;
     private string? _defaultBranch;
     private readonly HashSet<RepoState> _selected = [];
@@ -96,6 +97,17 @@
     private string Title => Worktree is { } one
         ? TextFormat.Format(BoardText.Worktrees_RemoveTitle, one.Name)
         : TextFormat.Format(BoardText.Worktrees_CleanUpTitle, Repo.Name);
+
+    /// <summary>Esc closes, so the dialog takes the keyboard when it opens (review 0.4.0, A30).</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await FocusQuietlyAsync(_dialog);
+        }
+    }
+
+    private Task OnKeyDown(KeyboardEventArgs e) => e.Key == "Escape" ? OnClose.InvokeAsync() : Task.CompletedTask;
 
     protected override async Task OnInitializedAsync()
     {
@@ -140,8 +152,8 @@
 
     private static string BranchText(RepoState worktree) =>
         (worktree.Status?.Branch ?? worktree.Worktree?.Branch) is { } branch
-            ? branch
-            : TextFormat.Format(BoardText.Detached, Short(worktree.Status?.Head ?? worktree.Worktree?.Head));
+            ? VisibleText.Of(branch) // a branch name from the repository, like the row's badge (code review R1)
+            : TextFormat.Format(BoardText.Detached, CommitText.Short(worktree.Status?.Head ?? worktree.Worktree?.Head));
 
     private string? ReasonText(WorktreeCandidate candidate) => candidate.Reason switch
     {
@@ -152,5 +164,4 @@
         _ => null,
     };
 
-    private static string? Short(string? head) => head?[..Math.Min(7, head.Length)];
 }

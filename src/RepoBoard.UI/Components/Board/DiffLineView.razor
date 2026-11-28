@@ -8,11 +8,11 @@
         {
             @if (changed)
             {
-                <mark>@text</mark>
+                <mark>@VisibleText.Of(text)</mark>
             }
             else
             {
-                @text
+                @VisibleText.Of(text)
             }
         }@if (Line.EndsWithCr)
         {

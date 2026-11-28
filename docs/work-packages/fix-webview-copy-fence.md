@@ -6,7 +6,7 @@ Beobachtung des Nutzers beim E2E von WP-05 (2026-11-21, Testinstanz 1440×900): 
 
 ## Messung
 - Aufbau: zwei Testinstanzen (`--data-dir`), Ausgangsstand `main` (0.1.0) und dieser Branch, je 8 Test-Repos im Scratch-Ordner (Bare-Remote plus Clones), Fenster 1440×900, DPR 1. `tools/e2e/Measure-PictureDelay.ps1` bewegt die Maus über `Invoke-RealClick.ps1` abwechselnd auf Zeile 1 und 5 (Hover) bzw. klickt Zeile 1 auf und zu (`-Click`) und misst am Fensterbild (`PrintWindow` mit `PW_RENDERFULLCONTENT`, alle 16,7 ms), wann die Änderung sichtbar ist; „verloren“ heißt: bis zur nächsten Bewegung bzw. zum nächsten Klick (0,9–1,4 s) nicht sichtbar.
-- Eingeschleuste Klicks waren zuerst gefiltert (Nutzer im Spiel, FACEIT), nach dem Spiel kamen sie durch.
+- Eingeschleuste Klicks waren zuerst gefiltert (Anti-Cheat-Treiber aktiv), später kamen sie durch.
 
 | | Hover verloren | Hover Median / max | Klick verloren | Klick > 100 ms | Klick max |
 |---|---|---|---|---|---|

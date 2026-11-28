@@ -14,6 +14,8 @@ public sealed class InstanceLock : IDisposable
 {
     private readonly FileStream _file;
 
+    private const int LockAttempts = 20;
+
     private InstanceLock(FileStream file) => _file = file;
 
     /// <summary>
@@ -21,6 +23,7 @@ public sealed class InstanceLock : IDisposable
     /// that process's id if it could be read.
     /// </summary>
     /// <exception cref="IOException">The folder cannot be created or written for another reason than a running instance.</exception>
+    /// <exception cref="UnauthorizedAccessException">The lock file cannot be opened, and no instance holds it.</exception>
     public static bool TryAcquire(AppPaths paths, int processId, [NotNullWhen(true)] out InstanceLock? held, out int? otherProcessId)
     {
         ArgumentNullException.ThrowIfNull(paths);
@@ -28,14 +31,40 @@ public sealed class InstanceLock : IDisposable
         held = null;
         otherProcessId = null;
         FileStream file;
-        try
+        for (var attempt = 1; ; attempt++)
         {
-            file = new FileStream(paths.InstanceLockFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.DeleteOnClose);
-        }
-        catch (IOException) when (File.Exists(paths.InstanceLockFile))
-        {
-            otherProcessId = ReadProcessId(paths);
-            return false;
+            try
+            {
+                file = new FileStream(paths.InstanceLockFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.DeleteOnClose);
+                break;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (File.Exists(paths.InstanceLockFile))
+                {
+                    var other = ReadProcessId(paths);
+                    // A lock file this account may not open (left by another account, another ACL) with no process behind it:
+                    // no instance runs – the start goes on as with an unwritable folder instead of waiting for one
+                    // (third review pass R1). A held lock fails with a sharing violation, an IOException.
+                    if (ex is UnauthorizedAccessException && !IsRunning(other))
+                    {
+                        throw;
+                    }
+
+                    otherProcessId = other;
+                    return false;
+                }
+
+                // Gone between the failed open and the look: the other instance just ended (the file goes with its lock, and
+                // while Windows deletes it an open fails with "access denied"). Once more – before, this start took it for
+                // an unwritable folder and ran without the lock (code review R1, reproduced).
+                if (attempt == LockAttempts)
+                {
+                    throw;
+                }
+
+                Thread.Sleep(10);
+            }
         }
 
         try
@@ -49,6 +78,29 @@ public sealed class InstanceLock : IDisposable
 
         held = new InstanceLock(file);
         return true;
+    }
+
+    /// <summary>A process with this id runs; one of another account counts as running (its state cannot be read).</summary>
+    private static bool IsRunning(int? processId)
+    {
+        if (processId is not { } id)
+        {
+            return false;
+        }
+
+        try
+        {
+            using var process = System.Diagnostics.Process.GetProcessById(id);
+            return !process.HasExited;
+        }
+        catch (ArgumentException)
+        {
+            return false; // no such process
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
+        {
+            return true;
+        }
     }
 
     private static int? ReadProcessId(AppPaths paths)

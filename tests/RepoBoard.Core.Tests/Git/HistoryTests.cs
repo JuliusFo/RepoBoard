@@ -3,6 +3,7 @@ using RepoBoard.Core.Board;
 using RepoBoard.Core.Git;
 using RepoBoard.Core.Repos;
 using RepoBoard.Core.Resources;
+using RepoBoard.Core.Sync;
 
 namespace RepoBoard.Core.Tests.Git;
 
@@ -15,7 +16,7 @@ public sealed class HistoryTests : IDisposable
     private readonly BoardService _board;
 
     public HistoryTests() =>
-        _board = new(_client, new ConfigStore(Path.Combine(_git.Root, "config.json"), _time), _time);
+        _board = Boards.New(_git.Root, _time);
 
     private CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -46,6 +47,26 @@ public sealed class HistoryTests : IDisposable
         var id = Head();
         GitSandbox.Git(_git.Mine, "switch", "main");
         return id;
+    }
+
+    /// <summary>
+    /// Review 0.4.0, A7: git writes the old separators (0x1E, 0x1F) in a subject and an author's name as they are – a
+    /// stranger's commit added a made-up commit to the history and shifted its own fields, and its details did not open.
+    /// </summary>
+    [Fact]
+    public async Task Separators_in_a_commit_s_text_neither_add_entries_nor_shift_fields()
+    {
+        var fake = new string('f', 40);
+        GitSandbox.Git(_git.Mine, "commit", "--allow-empty", "--author=Ev\u001fil <e@x.invalid>",
+            "-m", $"harmless\u001e{fake}\u001ffffffff\u001f\u001fMallory\u001f1 second ago\u001fHEAD -> main, tag: v9.9.9\u001fspoofed");
+        var repo = await OpenMineAsync();
+
+        var log = repo.Details!.Log;
+        Assert.Equal(2, log.Count); // the sandbox's first commit and this one
+        Assert.DoesNotContain(log, c => c.Id == fake || c.Author == "Mallory");
+        Assert.Equal(("Ev\u001fil", Head()), (log[0].Author, log[0].Id));
+        Assert.StartsWith("harmless", log[0].Subject, StringComparison.Ordinal);
+        Assert.Equal("Ev\u001fil", (await DetailsAsync(repo, "HEAD")).Author);
     }
 
     [Theory]
@@ -169,7 +190,7 @@ public sealed class HistoryTests : IDisposable
     {
         for (var i = 0; i < 20; i++)
         {
-            GitSandbox.Commit(_git.Mine, "n.txt", $"{i}");
+            GitSandbox.Git(_git.Mine, "commit", "-q", "--allow-empty", "-m", $"n {i}"); // one process each, not add + commit (review 0.4.0, C14)
         }
 
         var repo = await OpenMineAsync();
@@ -186,6 +207,26 @@ public sealed class HistoryTests : IDisposable
 
         await _board.SetWantsDetailsAsync(repo, false, Ct);
         Assert.Equal((BoardService.LogLength, true), (repo.LogLength, repo.LogAll)); // "all" stays, the length does not
+    }
+
+    /// <summary>
+    /// Review 0.4.0, A13: "all branches" while a status read held the gate – the read was skipped, the box was ticked and the
+    /// history still showed HEAD only, up to two minutes for a quiet repository.
+    /// </summary>
+    [Fact]
+    public async Task All_branches_while_a_status_is_read_shows_once_the_read_is_done()
+    {
+        var feature = Feature();
+        var repo = await OpenMineAsync();
+        Assert.DoesNotContain(repo.Details!.Log, c => c.Id == feature);
+
+        await repo.Gate.WaitAsync(Ct); // a status read of the file watcher
+        var set = _board.SetLogAsync(repo, BoardService.LogLength, all: true, Ct);
+        Assert.False(set.IsCompleted);
+        repo.Gate.Release();
+        await set;
+
+        Assert.Contains(repo.Details!.Log, c => c.Id == feature);
     }
 
     // ---------- amend ----------
@@ -277,19 +318,23 @@ public sealed class HistoryTests : IDisposable
         Assert.Contains(SyncText.CherryPick_Applied, repo.Error, StringComparison.Ordinal);
     }
 
-    public static TheoryData<string, bool> Refusals => new()
+    /// <summary>
+    /// Each with the board's own reason: git itself refuses "staged", "merge" and "not in head" and leaves "in head" as an
+    /// unfinished cherry-pick – a test that only wanted "some error" stayed green without the board's checks (review 0.4.0, C4).
+    /// </summary>
+    public static TheoryData<string, bool, string> Refusals => new()
     {
-        { "changed", true },
-        { "staged", true },
-        { "merge", true },
-        { "not in head", true },
-        { "in head", false },
-        { "operation", true },
+        { "changed", true, SyncText.Pick_Changes },
+        { "staged", true, SyncText.Pick_Changes },
+        { "merge", true, SyncText.Pick_Merge },
+        { "not in head", true, SyncText.Revert_NotInHead },
+        { "in head", false, SyncText.CherryPick_InHead },
+        { "operation", true, TextFormat.Format(SyncText.Pick_Operation, PullCheck.Name(GitOperation.Merge)) },
     };
 
     [Theory]
     [MemberData(nameof(Refusals))]
-    public async Task Revert_and_cherry_pick_keep_out_where_they_could_mix_with_work(string situation, bool revert)
+    public async Task Revert_and_cherry_pick_keep_out_where_they_could_mix_with_work(string situation, bool revert, string reason)
     {
         var feature = Feature();
         GitSandbox.Commit(_git.Mine, "b.txt", "on main");
@@ -320,7 +365,8 @@ public sealed class HistoryTests : IDisposable
 
         Assert.Equal(before, Head());
         Assert.Equal(a, File.ReadAllText(Mine("a.txt")));
-        Assert.NotNull(repo.Error);
+        Assert.Contains(reason, repo.Error, StringComparison.Ordinal);
+        Assert.Equal(situation == "operation" ? GitOperation.Merge : null, repo.Operation); // no pick left unfinished
     }
 
     [Fact]

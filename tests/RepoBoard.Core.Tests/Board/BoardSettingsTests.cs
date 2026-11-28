@@ -15,6 +15,27 @@ public sealed class BoardSettingsTests : IDisposable
     public void Dispose() => _folder.Dispose();
 
     /// <summary>
+    /// CLAUDE.md §2: a config of a newer RepoBoard stays as it is, whatever the user switches – without the board's check the
+    /// first click wrote over it (review 0.4.0, C3).
+    /// </summary>
+    [Fact]
+    public async Task A_config_of_a_newer_version_is_never_saved_over()
+    {
+        var time = new FakeTimeProvider();
+        var file = _folder.Combine("config.json");
+        const string newer = "{ \"version\": 99, \"repos\": [ { \"path\": \"/somewhere\", \"newThing\": 1 } ] }";
+        await File.WriteAllTextAsync(file, newer, Ct);
+        var board = Boards.New(_folder.Path, time);
+        await board.LoadAsync(Ct);
+
+        await board.UpdateSettingsAsync(s => s with { CloseToTray = !s.CloseToTray }, Ct);
+        await board.SetAutoSyncMinutesAsync(15, Ct);
+
+        Assert.Equal(newer, await File.ReadAllTextAsync(file, Ct));
+        Assert.Equal(15, board.AutoSyncMinutes); // holds until the app ends
+    }
+
+    /// <summary>
     /// Review WP-10: the update check saves the announced version from the thread pool while the user switches a setting.
     /// The second change must see the first, or the first is lost.
     /// </summary>
@@ -22,7 +43,7 @@ public sealed class BoardSettingsTests : IDisposable
     public async Task Two_changes_at_once_both_stay()
     {
         var time = new FakeTimeProvider();
-        var board = new BoardService(new GitClient(new GitRunner()), new ConfigStore(_folder.Combine("config.json"), time), time);
+        var board = Boards.New(_folder.Path, time);
         using var firstReading = new ManualResetEventSlim();
         using var firstMayFinish = new ManualResetEventSlim();
 
@@ -34,7 +55,10 @@ public sealed class BoardSettingsTests : IDisposable
         }, Ct), Ct);
         Assert.True(firstReading.Wait(TimeSpan.FromSeconds(10), Ct));
         var second = Task.Run(() => board.UpdateSettingsAsync(s => s with { CloseToTray = false }, Ct), Ct);
-        await Task.Delay(100, Ct); // the second change runs into the first
+        // The second change waits for the first: without the lock it ran past it and was done at once. A slow machine can
+        // only make this wait longer, never green without the lock (review 0.4.0, C6: a fixed 100 ms could pass unlocked).
+        await Task.WhenAny(second, Task.Delay(TimeSpan.FromSeconds(1), Ct));
+        Assert.False(second.IsCompleted, "the second change did not wait for the first");
         firstMayFinish.Set();
         await Task.WhenAll(first, second);
 

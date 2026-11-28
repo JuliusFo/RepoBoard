@@ -28,8 +28,10 @@ sign-in, SSH, hooks and LFS work exactly as in your terminal.
   them – with branch, ahead/behind and changes, and the same actions; worktrees made by Claude Code sessions are marked.
   Remove one, or clean up those that look done (branch merged, upstream deleted, folder gone): RepoBoard asks first,
   lists the ignored files git deletes with it, and never removes a worktree with changes. The branch always stays.
-- **Branches:** switch to a local or remote branch, create a new one; hover a branch to merge it into the current one or
-  rebase the current one onto it – only with no staged or changed files, and a rebase only of commits not pushed yet.
+- **Branches:** switch to a local branch, or to a remote one as a new local branch that tracks exactly it; create a new
+  one. The list shows how far each branch is ahead of or behind its upstream, and when it last changed. Hover a branch to
+  merge it into the current one or rebase the current one onto it – only with no staged or changed files, and a rebase
+  only of commits not pushed yet.
 - **Finish a merge or rebase:** an unfinished merge, rebase, cherry-pick or revert – started in RepoBoard, your IDE or
   your terminal – shows above the files of the opened row with where it stands (“commit 2 of 5”). Conflicted files have
   their own group: open one in VS Code (with its merge editor), then mark it resolved – RepoBoard asks if git still finds
@@ -38,10 +40,11 @@ sign-in, SSH, hooks and LFS work exactly as in your terminal.
 - **History:** the commits of the current branch – or of all branches – with a graph of their branches and merges, and
   their refs; “Load 50 more” goes further back. Click a commit for its whole message, author, parents, the files it changed
   and their diff. Revert a commit of the branch (a new commit that undoes it) or cherry-pick one of another branch onto
-  it – only with no staged or changed files; if git stops at a conflict, finish it right there (see below).
-- **Auto-fetch and auto-pull** per repository, at an interval of 1 to 60 minutes. Auto-pull only fast-forwards a branch
-  that has only fallen behind – never a merge, never over your local commits, never during a merge or rebase – and says
-  why when it keeps out. Background syncs never ask for credentials.
+  it – only with no staged or changed files; if git stops at a conflict, finish it right there (see above).
+- **Auto-fetch and auto-pull**, switched on per repository; one interval of 1 to 60 minutes for all. Auto-pull only fast-forwards a branch
+  that has only fallen behind – never a merge, never over your local commits, never during a merge or rebase, and never with
+  git’s autostash, which would put your changes back with conflict markers – and says why when it keeps out. Background
+  syncs never ask for credentials, and the same failure is reported once.
 - **Activity log** of what happened while you were not looking.
 - **Notification area:** closing the window keeps RepoBoard and auto-sync running next to the clock; the icon’s menu
   opens it, fetches all, pauses auto-sync (until the next start) and exits. Windows notifications for auto-pulls and
@@ -50,8 +53,12 @@ sign-in, SSH, hooks and LFS work exactly as in your terminal.
 - **Updates:** RepoBoard looks for a newer version at start and while it runs and tells you – in the top bar and once as
   a Windows notification – with what is new; downloading and restarting wait for your click. Switch it off or check now
   in the settings.
-- **Repositories:** add one, or scan a folder (three levels deep); open it in the Explorer, a terminal or VS Code. A
-  worktree you add or scan shows below its repository.
+- **Repositories:** add one, or scan a folder (three levels deep) and tick which to add; open one in the Explorer, a
+  terminal or VS Code; remove one from the board (its folder stays). A worktree you add or scan shows below its
+  repository.
+- **Trust:** adding a repository means trusting its configuration – RepoBoard runs git there, with that repository’s
+  hooks and settings, as your terminal would. A scan reads what each one would run (an fsmonitor, hooks, an ssh command,
+  included configuration) before git runs anywhere, and leaves those unticked.
 - English and German, light and dark.
 
 ## Install
@@ -65,7 +72,7 @@ Both update themselves. The installer is not signed: Windows SmartScreen warns o
 
 ## Requirements
 
-- Windows 10/11 with the WebView2 runtime, [Git for Windows](https://git-scm.com/download/win), .NET 10 SDK to build.
+- Windows 10/11 with the WebView2 runtime, [Git for Windows](https://git-scm.com/download/win) 2.27 or newer, .NET 10 SDK to build.
 
 ## Build and run
 
@@ -83,8 +90,10 @@ The repository list is kept in `%APPDATA%\RepoBoard\config.json`, logs in `%APPD
 
 ## Docs
 
-`CLAUDE.md` (how the project is built and worked on), `docs/architecture.md`, `docs/decisions/` (ADRs),
-`docs/roadmap.md`, `docs/backlog.md`.
+[`CLAUDE.md`](CLAUDE.md) (how the project is built and worked on), [`CHANGELOG.md`](CHANGELOG.md),
+[`docs/architecture.md`](docs/architecture.md), [`docs/decisions/`](docs/decisions) (ADRs),
+[`docs/work-packages/`](docs/work-packages/README.md) (what each package built and decided),
+[`docs/release.md`](docs/release.md), [`docs/roadmap.md`](docs/roadmap.md), [`docs/backlog.md`](docs/backlog.md).
 
 ## License
 

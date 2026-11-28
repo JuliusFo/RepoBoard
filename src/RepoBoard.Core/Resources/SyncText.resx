@@ -17,7 +17,7 @@
   </data>
   <data name="GitTimedOut" xml:space="preserve">
     <value>git {0}: no answer after {1} s, cancelled.</value>
-    <comment>{0} = the git arguments, {1} = seconds</comment>
+    <comment>{0} = the git command (commit, fetch …), {1} = seconds</comment>
   </data>
   <data name="NotARepository" xml:space="preserve">
     <value>{0} is not a Git repository.</value>
@@ -418,5 +418,17 @@
   </data>
   <data name="Continue_Empty" xml:space="preserve">
     <value>nothing left to commit: the resolution kept none of the commit’s changes – end it with “Skip”</value>
+  </data>
+  <data name="Add_Refused" xml:space="preserve">
+    <value>{0} could not be added: {1}</value>
+    <comment>{0} = folder path, {1} = git's message (e.g. about safe.directory)</comment>
+  </data>
+  <data name="RemovedFromBoard" xml:space="preserve">
+    <value>Removed from the board – the folder {0} stays.</value>
+    <comment>{0} = folder path</comment>
+  </data>
+  <data name="FolderMissing" xml:space="preserve">
+    <value>The folder {0} does not exist.</value>
+    <comment>{0} = folder path</comment>
   </data>
 </root>

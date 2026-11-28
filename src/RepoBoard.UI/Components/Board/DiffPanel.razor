@@ -3,15 +3,15 @@
 
 <section class="pane diff-pane" tabindex="-1" @ref="_pane" @onkeydown="OnKeyDown">
     <header>
-        <h3 class="diff-title" title="@Change.Path">
-            <span class="path">@Change.Path</span>
+        <h3 class="diff-title" title="@VisibleText.Of(Change.Path)">
+            <span class="path">@VisibleText.Of(Change.Path)</span>
         </h3>
         <span class="diff-side @(Staged ? "staged" : "")">@(Staged ? BoardText.Diff_Staged : BoardText.Diff_Unstaged)</span>
         <button class="btn small ghost icon-only" title="@BoardText.Diff_Close_Hint" @onclick="OnClose">@Icons.Close</button>
     </header>
     @if (Change.OriginalPath is { } from)
     {
-        <p class="muted diff-note">@TextFormat.Format(BoardText.Diff_Renamed, from)</p>
+        <p class="muted diff-note">@TextFormat.Format(BoardText.Diff_Renamed, VisibleText.Of(from))</p>
     }
 
     @if (Change.Conflict)
@@ -22,52 +22,20 @@
     {
         <p class="muted">@BoardText.Diff_NestedRepository</p>
     }
-    else if (_error is { } error)
-    {
-        <p class="diff-error">@error</p>
-    }
-    else if (_diff is null)
-    {
-        <p class="muted">@BoardText.Loading</p>
-    }
-    else if (_diff.IsBinary)
-    {
-        <p class="muted">@BoardText.Diff_Binary</p>
-    }
-    else if (_diff.IsTooLarge)
-    {
-        <p class="muted">@TextFormat.Format(BoardText.Diff_TooLarge, FileDiff.MaxFileBytes / (1024 * 1024))</p>
-    }
-    else if (_diff.HasNoTextChanges)
-    {
-        <p class="muted">@BoardText.Diff_NoTextChanges</p>
-    }
     else
     {
-        <div class="diff">
-            @for (var h = 0; h < _diff.Hunks.Count; h++)
-            {
-                var hunkIndex = h;
-                var hunk = _diff.Hunks[h];
-                var picked = _selection.CountIn(hunkIndex);
-                <div class="diff-hunk">
-                    <span class="range">@($"@@ -{hunk.OldStart},{hunk.OldCount} +{hunk.NewStart},{hunk.NewCount} @@") <span class="section">@hunk.Section</span></span>
-                    <button class="btn small hunk-stage" disabled="@(_staging || !_current || IsCutOff(hunkIndex))"
-                            title="@(IsCutOff(hunkIndex) ? SyncText.Hunk_Incomplete : picked > 0 ? BoardText.Diff_StageLines_Hint : BoardText.Diff_StageHunk_Hint)"
-                            @onclick="() => GuardAsync(() => StageAsync(hunkIndex))">@HunkLabel(picked)</button>
-                </div>
-                @for (var i = 0; i < hunk.Lines.Count; i++)
-                {
-                    var lineIndex = i;
-                    <DiffLineView Line="hunk.Lines[i]" Picked="_selection.IsPicked(hunkIndex, lineIndex)"
-                                  OnPick="shift => Pick(hunk, hunkIndex, lineIndex, shift)" />
-                }
-            }
-        </div>
-        @if (_diff.IsTruncated)
-        {
-            <p class="muted diff-note">@TextFormat.Format(BoardText.Diff_Truncated, FileDiff.MaxLines)</p>
-        }
+        <DiffBody Diff="_diff" Error="@_error">
+            <HunkTools Context="hunkIndex">
+                @{ var picked = _selection.CountIn(hunkIndex); }
+                <button class="btn small hunk-stage" disabled="@(_staging || !_current || IsCutOff(hunkIndex))"
+                        title="@(IsCutOff(hunkIndex) ? SyncText.Hunk_Incomplete : picked > 0 ? BoardText.Diff_StageLines_Hint : BoardText.Diff_StageHunk_Hint)"
+                        @onclick="() => GuardAsync(() => StageAsync(hunkIndex))">@HunkLabel(picked)</button>
+            </HunkTools>
+            <Line Context="at">
+                <DiffLineView Line="at.Hunk.Lines[at.LineIndex]" Picked="_selection.IsPicked(at.HunkIndex, at.LineIndex)"
+                              OnPick="shift => Pick(at.Hunk, at.HunkIndex, at.LineIndex, shift)" />
+            </Line>
+        </DiffBody>
     }
 </section>
 

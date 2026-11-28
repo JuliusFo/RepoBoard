@@ -10,15 +10,17 @@
   --border-strong: #d6d6de;
   --text: #1d1d22;
   --muted: #6b6b76;
-  --faint: #a4a4ae;
+  --faint: #80808a;
   --accent: #3b6fe0;
   --accent-text: #ffffff;
-  --danger: #d64545;
-  --warn: #c07a00;
-  --green: #1f8a4c;
+  /* At least 4.5:1 on their own weak fill and on the surface in the light mode too (review 0.4.0, A28). */
+  --danger: #b83232;
+  --warn: #8f5b00;
+  --green: #18753f;
   --purple: #7a5fc7;
   --knob: #ffffff;            /* the knob of a switch, on both the grey and the green track */
   --knob-shadow: rgba(0, 0, 0, .25);
+  --scrim: rgba(20, 21, 24, .35); /* behind a dialog: darker, never lighter (review 0.4.0, A29) */
   /* Light fills mixed from the tokens: the dark mode follows by itself. */
   --accent-weak: color-mix(in srgb, var(--accent) 12%, transparent);
   --danger-weak: color-mix(in srgb, var(--danger) 12%, transparent);
@@ -52,6 +54,7 @@
     --green: #3cc47a;
     --purple: #a898f0;
     --knob-shadow: rgba(0, 0, 0, .5);
+    --scrim: rgba(0, 0, 0, .5);
     color-scheme: dark;
   }
 }
@@ -185,14 +188,14 @@ code { font-family: var(--mono); font-size: 12px; }
 .btn.danger { background: var(--danger); border-color: var(--danger); color: var(--accent-text); }
 .btn.danger:hover:not(:disabled) { background: var(--danger); filter: brightness(1.08); }
 
-.wt-list { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
-.wt-item { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
-.wt-item input { margin-top: 3px; }
-.wt-item.blocked { cursor: default; background: var(--surface-2); }
-.wt-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pick-list { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.pick-item { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+.pick-item input { margin-top: 3px; }
+.pick-item.blocked { cursor: default; background: var(--surface-2); }
+.pick-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .wt-name { display: flex; align-items: center; gap: 8px; }
-.wt-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
-.wt-block { display: inline-flex; align-items: center; gap: 5px; color: var(--warn); }
+.pick-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.pick-warn { display: inline-flex; align-items: center; gap: 5px; color: var(--warn); }
 .wt-ignored { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; max-height: 120px; overflow-y: auto; }
 .wt-ignored code { padding: 0 5px; border-radius: 4px; background: var(--hover); color: var(--text); }
 
@@ -294,6 +297,8 @@ code { font-family: var(--mono); font-size: 12px; }
 .letter.l-D { color: var(--danger); }
 .letter.l-R { color: var(--accent); }
 .letter.l-U { color: var(--danger); }
+.letter.l-C { color: var(--accent); }
+.letter.l-T { color: var(--purple); }
 
 /* An unfinished merge, rebase, cherry-pick or revert (WP-07): above the files, with its buttons. */
 .operation-bar {
@@ -423,8 +428,6 @@ code { font-family: var(--mono); font-size: 12px; }
 .commit-split { display: grid; grid-template-columns: minmax(160px, 1fr) 2.6fr; gap: 8px; flex: 1; min-height: 0; margin-top: 8px; }
 .commit-split .files { overflow: auto; }
 .commit-diff { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.letter.l-C { color: var(--accent); }
-.letter.l-T { color: var(--purple); }
 
 /* ---------- activity ---------- */
 .activity { flex: none; background: var(--surface); border-top: 1px solid var(--border); }
@@ -456,7 +459,9 @@ code { font-family: var(--mono); font-size: 12px; }
 .btn.update-failed { border-color: var(--danger); color: var(--danger); background: var(--danger-weak); }
 .btn.update-failed:hover:not(:disabled) { background: var(--danger-weak); filter: brightness(1.08); }
 
-.modal-backdrop { position: fixed; inset: 0; z-index: 20; background: color-mix(in srgb, var(--text) 30%, transparent); }
+.modal-backdrop { position: fixed; inset: 0; z-index: 20; background: var(--scrim); }
+/* A dialog takes the focus only to hear Esc (review 0.4.0, A30): no ring around the whole of it. */
+.dialog:focus, .menu-panel:focus { outline: none; }
 .dialog {
   position: fixed; z-index: 21; top: 50%; left: 50%; transform: translate(-50%, -50%);
   display: flex; flex-direction: column; width: min(620px, calc(100vw - 40px)); max-height: calc(100vh - 60px);
@@ -474,8 +479,8 @@ code { font-family: var(--mono); font-size: 12px; }
 .release-notes h3 { margin: 10px 0 2px; font-size: 13px; }
 .release-notes p, .release-notes ul { margin: 4px 0; }
 .release-notes ul { padding-left: 20px; }
-.update-note { margin: 8px 0; padding: 8px 10px; border-radius: 7px; background: var(--accent-weak); color: var(--text); }
-.update-note.failed { background: var(--danger-weak); color: var(--danger); }
+.note { margin: 8px 0; padding: 8px 10px; border-radius: 7px; background: var(--accent-weak); color: var(--text); }
+.note.failed { background: var(--danger-weak); color: var(--danger); }
 .update-progress { width: 160px; height: 6px; border-radius: 3px; background: var(--accent-weak); overflow: hidden; flex: none; }
 .update-progress .bar { height: 100%; background: var(--accent); transition: width .2s; }
 

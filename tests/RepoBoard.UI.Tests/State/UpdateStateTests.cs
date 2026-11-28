@@ -25,7 +25,7 @@ public sealed class UpdateStateTests : IDisposable
     private readonly BoardService _board;
 
     public UpdateStateTests() =>
-        _board = new BoardService(new GitClient(new GitRunner()), new ConfigStore(_folder.Combine("config.json"), _time), _time);
+        _board = Boards.New(_folder.Path, _time);
 
     public void Dispose() => _folder.Dispose();
 
@@ -334,35 +334,36 @@ public sealed class UpdateStateTests : IDisposable
         Assert.Equal(2, _updater.Checks);
     }
 
-    [Fact]
-    public async Task Download_takes_the_known_version_if_the_check_before_fails()
+    /// <summary>The check right before the download fails or gets no answer: the version known from before is downloaded (one theory, review 0.4.0, C15).</summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Download_takes_the_known_version_if_the_check_before_fails(bool noAnswer)
     {
         _updater.Found = Next;
         var updates = Create();
         await updates.CheckAsync();
 
-        _updater.CheckFails = new HttpRequestException("No such host is known.");
-        await updates.DownloadAsync();
+        if (noAnswer)
+        {
+            _updater.CheckHangs = true;
+        }
+        else
+        {
+            _updater.CheckFails = new HttpRequestException("No such host is known.");
+        }
 
-        Assert.Equal([Next], _updater.Downloads);
-        Assert.Equal((UpdatePhase.Ready, null), (updates.Phase, updates.Error));
-    }
-
-    [Fact]
-    public async Task Download_takes_the_known_version_if_the_check_before_gets_no_answer()
-    {
-        _updater.Found = Next;
-        var updates = Create();
-        await updates.CheckAsync();
-
-        _updater.CheckHangs = true;
         var download = updates.DownloadAsync();
-        Assert.Equal(UpdatePhase.Downloading, updates.Phase);
-        _time.Advance(UpdateState.CheckTimeout);
+        if (noAnswer)
+        {
+            Assert.Equal(UpdatePhase.Downloading, updates.Phase);
+            _time.Advance(UpdateState.CheckTimeout);
+        }
+
         await download;
 
         Assert.Equal([Next], _updater.Downloads);
-        Assert.Equal(UpdatePhase.Ready, updates.Phase);
+        Assert.Equal((UpdatePhase.Ready, null), (updates.Phase, updates.Error));
     }
 
     [Fact]

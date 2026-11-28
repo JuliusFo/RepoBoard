@@ -9,13 +9,47 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - Finish a merge or rebase (WP-07): an unfinished merge, rebase, cherry-pick or revert – started in RepoBoard, the IDE or the terminal – shows as a bar above the files of the opened row: what runs, the rebase’s step (“commit 2 of 5”) and how many conflicts are left. “Continue” commits what is staged with git’s message and goes on (a rebase stops again at the next conflict), “Skip” leaves out the commit it stopped at, “Abort” goes back to the state before; skip and abort ask first and list every changed file that may go back, and do nothing if the operation or the files changed since. Conflicted files have their own group with the kind of conflict, “Open” (VS Code, with its merge editor) and “Resolved”, which asks first if git still finds conflict markers in the file.
 - Merge and rebase: hover a branch in an opened row for “Merge” (into the current branch – a fast-forward, or a merge commit with git’s message) and “Rebase” (the current branch onto it). Only with no staged, changed or conflicted files and no ignored file git would overwrite; a rebase only of commits no remote has, so never a force push.
 
+### Security
+- “Scan folder” no longer runs git in what it finds before you agree: it lists the repositories with what each one’s own configuration would run on RepoBoard’s git calls – a program on every status (`core.fsmonitor`), hooks, an ssh command, included configuration, any other setting it does not know as harmless (a filter, a diff driver, an LFS transfer agent, a remote on another computer’s share …), also in submodules, and a git folder on another computer’s share, which it does not read – and whether a worktree’s repository lies outside the folder. Only plain repositories inside the folder are ticked; you tick the others.
+- Unicode direction controls in a diff or commit message show as ⟨U+202E⟩ instead of reordering the line (“Trojan Source”).
+- A commit whose subject or author holds the old field separators can no longer add a made-up commit to the history or shift the fields of its row.
+- Opening a folder whose name contains “;” in Windows Terminal no longer runs the rest of the name as a command.
+- A worktree entry pointing at another computer’s share is left out unless the repository itself is on a share.
+
+### Fixed
+- Auto-pull and Pull never use git’s autostash: with `merge.autoStash` (or `pull.rebase` with `rebase.autoStash`) set, a fast-forward over overlapping local changes put them back with conflict markers and reported success. Now git refuses and your file stays as it was.
+- A failing auto-pull (local changes in the way) is reported once instead of on every interval, with a Windows notification each time.
+- Auto-sync and “Fetch all” no longer hold every repository busy while they wait for the network: offline, all rows showed a spinner and commit was locked for minutes. A network slot stays free for your clicks.
+- Switching to a remote branch creates a local branch that tracks exactly that one; it used to switch to the local `main` of another remote or to an unrelated local branch of the same name.
+- A repository folder whose `.git` was deleted counts as missing; before, RepoBoard showed, auto-synced and committed the repository around it.
+- The auto-pull’s fast-forward has the network time limit and never asks for credentials in the background (Git LFS, partial clones).
+- A clone of an empty repository no longer shows “upstream deleted” and gets the first commit pushed to it.
+- A second start while RepoBoard is still starting (autostart at sign-in) brings the window instead of saying “already running”; an elevated running instance no longer crashes it.
+- A fetch of a repository and a pull in its worktree at the same time no longer fail with “cannot lock ref”.
+- “All branches” or “Load 50 more” while the status is read is no longer lost.
+- Dates in the branch list and history, and how a branch stands to its upstream, are in the app’s language.
+- Adding a repository git refuses (`safe.directory`, a broken config) shows git’s reason.
+- A missing repository folder says so instead of “git was not found”.
+- “In VS Code” without VS Code on the PATH says so.
+- The checkbox of a file whose stage or unstage failed shows the file’s real state again, on both lists.
+- A repository without a commit no longer counts as “ahead”.
+- The amend tooltip says “unknown” instead of “already pushed” when git cannot tell.
+- A commit message whose first paragraph spans two lines shows the same subject everywhere.
+
 ### Changed
+- Removing a repository from the board has its own icon and an activity entry; the X only hides or closes.
+- Dialogs and the settings menu close with Esc.
+- The folder dialog starts where your repositories are.
+- The window fits the screen’s work area; the page’s language follows the app’s, as does Blazor’s error bar.
+- Light mode: warning, error and green texts have more contrast; the backdrop behind a dialog darkens in the dark mode.
+- The tick no longer reads a status another reader just read; fewer git processes at start.
 - A revert or cherry-pick that stops at a conflict is finished in the row now instead of the IDE or terminal; a cherry-pick that comes out empty (after a squash merge) ends with “Skip”.
 - While an operation is unfinished, the commit box is closed (“Continue” commits), “Stage all” leaves conflicted files alone and “Unstage all” waits until the operation is finished.
 
 ### Internal
+- Review 0.4.0 (R1): `Paths` for path comparisons, `PickCheck` for the commit tools’ rules, `DiffBody`, `CommitText`, `UpdateComponent`, FerretSharp leftovers removed; the CI builds the self-contained release publish before a tag; tests for the auto-sync cases of ADR 0003, config states, `GitRunner`, the scanner and more.
 - git’s messages show as a terminal shows them: a progress line git rewrote (“Rebasing (1/2)”) no longer runs into the error after it.
-- `OperationInfo` reads an unfinished operation from the git folder, with a key per step that abort and skip check inside the gate (ADR 0014). git never opens an editor for RepoBoard (`GIT_EDITOR=:`); merge, rebase and continue run with a three-minute limit, enough for signing.
+- `OperationInfo` reads an unfinished operation from the git folder, with a key per step that abort and skip check inside the gate (ADR 0015). git never opens an editor for RepoBoard (`GIT_EDITOR=:`); merge, rebase and continue run with a three-minute limit, enough for signing.
 
 ## [0.4.0] - 2026-11-22
 

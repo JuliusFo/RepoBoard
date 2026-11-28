@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using RepoBoard.Core.Git;
 using RepoBoard.Core.Repos;
+using RepoBoard.Core.IO;
 
 namespace RepoBoard.Core.Board;
 
@@ -23,7 +24,7 @@ public sealed class RepoState(RepoEntry entry, RepoState? mainRepo = null)
 
     public bool IsWorktree => MainRepo is not null;
 
-    /// <summary>For a worktree: what <c>git worktree list</c> says about it (locked, prunable).</summary>
+    /// <summary>For a worktree: what <c>git worktree list</c> says about it (locked, its branch).</summary>
     public WorktreeInfo? Worktree { get; internal set; }
 
     /// <summary>For a repository on the board: its linked worktrees, in git's order; never the main worktree itself.</summary>
@@ -46,7 +47,7 @@ public sealed class RepoState(RepoEntry entry, RepoState? mainRepo = null)
 
     /// <summary>A worktree a Claude Code session made (<c>&lt;repo&gt;\.claude\worktrees\…</c>): it may still be in use.</summary>
     public bool IsClaudeWorktree => MainRepo is { } main
-        && Path.StartsWith(System.IO.Path.Combine(main.Path, ".claude", "worktrees") + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        && Path.StartsWith(System.IO.Path.Combine(main.Path, ".claude", "worktrees") + System.IO.Path.DirectorySeparatorChar, Paths.Comparison);
 
     /// <summary>The opened row wants branches and history; they are read with each refresh only then.</summary>
     public bool WantsDetails { get; internal set; }
@@ -83,6 +84,13 @@ public sealed class RepoState(RepoEntry entry, RepoState? mainRepo = null)
 
     /// <summary>Why auto-pull did not pull what the last auto-fetch brought (diverged branch, merge running …).</summary>
     public string? AutoPullBlocked { get; internal set; }
+
+    /// <summary>
+    /// The last failure auto-sync logged, kept apart from <see cref="Error"/>: a successful auto-fetch clears that right
+    /// before the fast-forward fails again the same way, and the failure was logged and notified on every interval
+    /// (review 0.4.0, A2). Cleared once an auto-sync ends without a failure.
+    /// </summary>
+    internal string? LastAutoError { get; set; }
 
     public bool Missing { get; internal set; }
 
@@ -142,4 +150,12 @@ public sealed class RepoState(RepoEntry entry, RepoState? mainRepo = null)
 
     /// <summary>One git operation per repository (or worktree) at a time.</summary>
     internal SemaphoreSlim Gate { get; } = new(1, 1);
+
+    /// <summary>
+    /// One network operation per repository and its worktrees at a time: they write the same remote refs, and a fetch of the
+    /// repository beside a pull in a worktree failed with "cannot lock ref" (review 0.4.0, A15 – reproduced).
+    /// </summary>
+    internal SemaphoreSlim FamilyNetwork => MainRepo?.FamilyNetwork ?? _familyNetwork;
+
+    private readonly SemaphoreSlim _familyNetwork = new(1, 1);
 }

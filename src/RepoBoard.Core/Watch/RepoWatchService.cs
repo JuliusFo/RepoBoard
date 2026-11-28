@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RepoBoard.Core.Board;
+using RepoBoard.Core.IO;
 
 namespace RepoBoard.Core.Watch;
 
@@ -21,10 +22,8 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
     /// <summary>After an unexpected failure of the loop: a pause, so a failure that repeats does not spin.</summary>
     private static readonly TimeSpan PauseAfterFailure = TimeSpan.FromSeconds(5);
 
-    /// <summary>As many status reads at once as <see cref="BoardService.RefreshAllAsync"/> runs.</summary>
-    private const int MaxParallelReads = 8;
 
-    private static readonly StringComparer PathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+    private static readonly StringComparer PathComparer = Paths.Comparer;
 
     private readonly Lock _lock = new();
     private readonly ChangeDebouncer<RepoState> _pending = new(Ticks(Quiet, time), Ticks(Longest, time));
@@ -36,7 +35,7 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
     // Never disposed: without AvailableWaitHandle there is nothing to free, and a watcher's callback or a read still
     // running when the host is disposed would otherwise throw (review WP-03).
     private readonly SemaphoreSlim _wake = new(0, 1);
-    private readonly SemaphoreSlim _reads = new(MaxParallelReads);
+    private readonly SemaphoreSlim _reads = new(BoardService.MaxParallelReads);
     private volatile WatchMap _map = WatchMap.Empty;
     private int _boardChanged = 1;
     private int _rebuild = 1;
@@ -184,10 +183,10 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
     /// user decided for folders without a working watcher. A drive root – a worktree entry pointing there – would watch
     /// the whole drive (review WP-03).
     /// </summary>
-    private static bool LeftToTheTick(string root)
+    internal static bool LeftToTheTick(string root)
     {
         if (Path.GetPathRoot(root) is not { } driveRoot || WatchMap.Normalize(driveRoot) is not { } normalizedRoot
-            || string.Equals(normalizedRoot, root, StringComparison.OrdinalIgnoreCase))
+            || string.Equals(normalizedRoot, root, Paths.Comparison))
         {
             return true;
         }
@@ -366,7 +365,7 @@ public sealed class RepoWatchService(BoardService board, TimeProvider time, ILog
             {
                 lock (_lock)
                 {
-                    _pending.Add(state, time.GetTimestamp());
+                    _pending.Retry(state, last, time.GetTimestamp() + Ticks(Quiet, time));
                 }
 
                 Wake();
