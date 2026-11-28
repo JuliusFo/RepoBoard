@@ -115,15 +115,34 @@ public sealed class GitClient(GitRunner runner)
     private const string LiteralPaths = "--literal-pathspecs";
 
     public Task<GitResult> StageAsync(string repo, IEnumerable<string> paths, CancellationToken ct) =>
-        Local(repo, ct, [LiteralPaths, "add", "-A", "--", .. paths]);
+        InBatchesAsync(paths, batch => Local(repo, ct, [LiteralPaths, "add", "-A", "--", .. batch]));
+
+    /// <summary>
+    /// One call per part of <paramref name="paths"/> (<see cref="Batches"/>), up to the first failure: "Stage all" during a
+    /// conflict names every file, more than a Windows command line takes (review WP-07).
+    /// </summary>
+    private static async Task<GitResult> InBatchesAsync(IEnumerable<string> paths, Func<List<string>, Task<GitResult>> run)
+    {
+        var result = new GitResult(0, "", "");
+        foreach (var batch in Batches([.. paths], 16_000))
+        {
+            result = await run(batch);
+            if (!result.Success)
+            {
+                break;
+            }
+        }
+
+        return result;
+    }
 
     public Task<GitResult> StageAllAsync(string repo, CancellationToken ct) => Local(repo, ct, "add", "-A");
 
     /// <summary>Takes files out of the index; before the first commit there is no HEAD to restore from.</summary>
     public Task<GitResult> UnstageAsync(string repo, IEnumerable<string> paths, bool initial, CancellationToken ct) =>
-        initial
-            ? Local(repo, ct, [LiteralPaths, "rm", "--cached", "-r", "-q", "--", .. paths])
-            : Local(repo, ct, [LiteralPaths, "restore", "--staged", "--", .. paths]);
+        InBatchesAsync(paths, batch => initial
+            ? Local(repo, ct, [LiteralPaths, "rm", "--cached", "-r", "-q", "--", .. batch])
+            : Local(repo, ct, [LiteralPaths, "restore", "--staged", "--", .. batch]));
 
     /// <summary>
     /// Applies part of a hunk to the index (WP-25, ADR 0012): always <c>--cached</c>, so the worktree is never touched; git
@@ -537,7 +556,7 @@ public sealed class GitClient(GitRunner runner)
 
     /// <summary>
     /// A new commit that undoes <paramref name="id"/> (WP-09). On a conflict git stops and leaves the revert unfinished
-    /// (<c>REVERT_HEAD</c>) for the IDE or terminal.
+    /// (<c>REVERT_HEAD</c>) until it is continued or aborted (WP-07).
     /// </summary>
     public Task<GitResult> RevertAsync(string repo, string id, CancellationToken ct) =>
         IsCommitId(id)
@@ -565,6 +584,202 @@ public sealed class GitClient(GitRunner runner)
         IsCommitId(id)
             ? Local(repo, ct, "cherry-pick", id)
             : Task.FromResult(GitResult.Failed(TextFormat.Format(SyncText.InvalidCommit, id)));
+
+    // ---------- merge, rebase and unfinished operations (WP-07, ADR 0015) ----------
+
+    private Task<GitResult> Writing(string repo, CancellationToken ct, params string[] args) =>
+        runner.RunAsync(repo, args, GitCallMode.Interactive, GitRunner.CommitTimeout, null, ct);
+
+    /// <summary>The command of an operation: <c>merge</c>, <c>rebase</c>, <c>cherry-pick</c>, <c>revert</c>.</summary>
+    private static string Command(GitOperation operation) => operation switch
+    {
+        GitOperation.Merge => "merge",
+        GitOperation.Rebase => "rebase",
+        GitOperation.CherryPick => "cherry-pick",
+        _ => "revert",
+    };
+
+    /// <summary>
+    /// The full name of a branch from <see cref="BranchesAsync"/>: <c>refs/heads/x</c> or <c>refs/remotes/origin/x</c>. Never an
+    /// option, never ambiguous with a tag or a file – and git still names it "branch 'x'" in a merge message.
+    /// </summary>
+    public static string RefOf(BranchInfo branch) => (branch.IsRemote ? "refs/remotes/" : "refs/heads/") + branch.Name;
+
+    /// <summary>
+    /// Merges <paramref name="branch"/> into HEAD: a fast-forward if possible, otherwise a merge commit with git's message
+    /// (<c>merge.ff</c> of the user applies). On a conflict git stops and leaves the merge unfinished. The name goes into the
+    /// message ("Merge branch 'feature'"), so the caller passes the short name once it is checked
+    /// (<see cref="IsBranchNameAsync"/>) and names the branch's commit, or else <see cref="RefOf"/>. Never with the user's
+    /// <c>merge.autoStash</c>: it would put overlapping local changes back with conflict markers (review 0.4.0, A1).
+    /// </summary>
+    public Task<GitResult> MergeAsync(string repo, string branch, CancellationToken ct) =>
+        branch.Length > 0 && !branch.StartsWith('-')
+            ? Writing(repo, ct, "merge", "--no-edit", "--no-autostash", branch)
+            : Task.FromResult(GitResult.Failed(TextFormat.Format(SyncText.InvalidBranchName, branch)));
+
+    /// <summary>
+    /// Replays the commits of HEAD's branch onto <paramref name="branchRef"/> (<see cref="RefOf"/>); never interactive, never
+    /// with the user's <c>rebase.autoStash</c> (as <see cref="MergeAsync"/>).
+    /// </summary>
+    public Task<GitResult> RebaseAsync(string repo, string branchRef, CancellationToken ct) =>
+        branchRef.StartsWith("refs/", StringComparison.Ordinal)
+            ? Writing(repo, ct, "rebase", "--no-autostash", branchRef)
+            : Task.FromResult(GitResult.Failed(TextFormat.Format(SyncText.InvalidBranchName, branchRef)));
+
+    /// <summary>
+    /// The paths a merge of <paramref name="branchRef"/> brings (<paramref name="mergeBase"/>: since the merge base) or a rebase
+    /// onto it changes (the difference between HEAD and it) – to look for ignored files git would overwrite. Null if git fails.
+    /// </summary>
+    public async Task<IReadOnlyList<string>?> ChangedPathsAsync(string repo, string branchRef, bool mergeBase, CancellationToken ct)
+    {
+        if (!branchRef.StartsWith("refs/", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var result = mergeBase
+            ? await Local(repo, ct, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", "HEAD..." + branchRef, "--")
+            : await Local(repo, ct, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", "HEAD", branchRef, "--");
+        return result.Success ? result.Output.Split('\0', StringSplitOptions.RemoveEmptyEntries) : null;
+    }
+
+    /// <summary>
+    /// How many of the commits a rebase onto <paramref name="branchRef"/> would rewrite (<c>branch..HEAD</c>) a remote branch
+    /// already has – after the rebase, pushing them again would need a force push. Null if git cannot tell.
+    /// </summary>
+    public async Task<int?> CountPushedToRewriteAsync(string repo, string branchRef, CancellationToken ct)
+    {
+        if (!branchRef.StartsWith("refs/", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var all = await Local(repo, ct, "rev-list", "--count", branchRef + "..HEAD", "--");
+        var unpushed = await Local(repo, ct, "rev-list", "--count", branchRef + "..HEAD", "--not", "--remotes", "--");
+        return int.TryParse(all.Output.Trim(), out var a) && int.TryParse(unpushed.Output.Trim(), out var u) && all.Success && unpushed.Success
+            ? a - u
+            : null;
+    }
+
+    /// <summary>
+    /// Goes on with a stopped operation once its conflicts are resolved: a merge, cherry-pick or revert commits the index with
+    /// the message git prepared (no editor, see <see cref="GitRunner"/>), a rebase also replays the commits still to come.
+    /// </summary>
+    public Task<GitResult> ContinueAsync(string repo, GitOperation operation, CancellationToken ct) =>
+        Writing(repo, ct, Command(operation), "--continue");
+
+    /// <summary>
+    /// Leaves the commit a rebase, cherry-pick or revert stopped at out and goes on with the next (ADR 0015): what was
+    /// resolved for it is discarded – the caller asks first. A merge has nothing to skip.
+    /// </summary>
+    public Task<GitResult> SkipAsync(string repo, GitOperation operation, CancellationToken ct) =>
+        operation == GitOperation.Merge
+            ? Task.FromResult(GitResult.Failed(SyncText.Skip_Merge))
+            : Writing(repo, ct, Command(operation), "--skip");
+
+    /// <summary>
+    /// Ends a stopped operation and returns to the state before it (ADR 0015, the exception to CLAUDE.md §2): the index and the
+    /// files it touched go back, resolved conflicts with them. git refuses rather than overwrite an untracked file. The caller
+    /// asks first and checks that it is still the operation the question named (<see cref="OperationInfo.Key"/>).
+    /// </summary>
+    public Task<GitResult> AbortAsync(string repo, GitOperation operation, CancellationToken ct) =>
+        // The longer limit too: ended halfway, a reset leaves a half-restored worktree and index.lock (review WP-07).
+        Writing(repo, ct, Command(operation), "--abort");
+
+    /// <summary>The files staged as new against HEAD (<c>diff --cached --diff-filter=A</c>); null if git fails.</summary>
+    public async Task<IReadOnlyList<string>?> AddedInIndexAsync(string repo, CancellationToken ct)
+    {
+        var result = await Local(repo, ct, "diff", "--cached", "--name-only", "-z", "--no-renames", "--diff-filter=A", "--no-ext-diff", "HEAD", "--");
+        return result.Success ? result.Output.Split('\0', StringSplitOptions.RemoveEmptyEntries) : null;
+    }
+
+    /// <summary>
+    /// The files the unfinished <paramref name="operation"/> brings as new: a merge those added on the other side since the
+    /// merge base, a cherry-pick or rebase step those its commit adds, a revert those its commit deleted. Null if git fails
+    /// (a root commit has no parent).
+    /// </summary>
+    public async Task<IReadOnlyList<string>?> AddedByAsync(string repo, GitOperation operation, string commit, CancellationToken ct)
+    {
+        if (!IsCommitId(commit))
+        {
+            return null;
+        }
+
+        string[] range = operation switch
+        {
+            GitOperation.Merge => ["HEAD..." + commit],
+            GitOperation.Revert => [commit, commit + "^"],
+            _ => [commit + "^", commit],
+        };
+        var result = await Local(repo, ct, ["diff", "--name-only", "-z", "--no-renames", "--diff-filter=A", "--no-ext-diff", .. range, "--"]);
+        return result.Success ? result.Output.Split('\0', StringSplitOptions.RemoveEmptyEntries) : null;
+    }
+
+    /// <summary>
+    /// Takes new files out of the index, never out of the worktree (<c>rm --cached</c>): untracked, an abort or skip leaves them
+    /// alone (review WP-07). <c>-f</c> because git refuses a file edited again after staging ("staged content different from
+    /// both the file and the HEAD"); with <c>--cached</c> it still only touches the index (second review pass).
+    /// </summary>
+    public Task<GitResult> UntrackAsync(string repo, IReadOnlyList<string> paths, CancellationToken ct) =>
+        InBatchesAsync(paths, batch => Local(repo, ct, [LiteralPaths, "rm", "--cached", "-f", "-q", "--", .. batch]));
+
+    /// <summary>
+    /// Which of <paramref name="paths"/> differ in the index from the version the unfinished <paramref name="operation"/> brings
+    /// (<paramref name="commit"/>; a revert brings its parent's): a new file of the operation the user edited and staged again
+    /// (second review pass WP-07). Null if git fails.
+    /// </summary>
+    public async Task<IReadOnlyList<string>?> DifferFromIncomingAsync(string repo, GitOperation operation, string commit,
+        IReadOnlyList<string> paths, CancellationToken ct)
+    {
+        if (!IsCommitId(commit))
+        {
+            return null;
+        }
+
+        var rev = operation == GitOperation.Revert ? commit + "^" : commit;
+        var differ = new List<string>();
+        foreach (var batch in Batches(paths, 16_000))
+        {
+            var result = await Local(repo, ct, [LiteralPaths, "diff", "--cached", "--name-only", "-z", "--no-renames", "--no-ext-diff", rev, "--", .. batch]);
+            if (!result.Success)
+            {
+                return null;
+            }
+
+            differ.AddRange(result.Output.Split('\0', StringSplitOptions.RemoveEmptyEntries));
+        }
+
+        return differ;
+    }
+
+    /// <summary>True if the ref exists, whatever it points to (a tag may name a tree or blob); null if git cannot tell.</summary>
+    public async Task<bool?> RefExistsAsync(string repo, string fullRef, CancellationToken ct)
+    {
+        if (!fullRef.StartsWith("refs/", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var result = await Local(repo, ct, "show-ref", "--verify", "--quiet", fullRef);
+        return result.ExitCode switch { 0 => true, 1 => false, _ => null };
+    }
+
+    /// <summary>
+    /// True if git still finds conflict markers in the conflicted file <paramref name="path"/> (<c>diff --check</c>, which
+    /// knows the marker size of <c>conflict-marker-size</c>); whitespace rules are switched off so that only markers count.
+    /// Null if git cannot tell.
+    /// </summary>
+    public async Task<bool?> HasConflictMarkersAsync(string repo, string path, CancellationToken ct)
+    {
+        var result = await Local(repo, ct, "-c", "core.whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab,-indent-with-non-tab,-tab-in-indent,-cr-at-eol",
+            LiteralPaths, "diff", "--check", "--no-color", "--no-ext-diff", "--", path);
+        return result.ExitCode switch
+        {
+            0 => false,
+            2 when result.Output.Length > 0 => true,
+            _ => null,
+        };
+    }
 
     // ---------- worktrees (WP-04, ADR 0010) ----------
 

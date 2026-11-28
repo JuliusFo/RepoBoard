@@ -16,14 +16,6 @@ Branch `wp/06-discard-stash`.
 - Invariante: neuer ADR (Ausnahme zu `CLAUDE.md` §2), Rückfrage mit Dateiliste, Tests je Fall.
 - Offen: Papierkorb oder echtes Löschen für neue Dateien? Auto-Stash überhaupt (er ändert den Worktree im Hintergrund)?
 
-#### WP-07 Merge und Rebase zu Ende bringen
-Branch `wp/07-conflicts`.
-- Laufendes Merge/Rebase/Cherry-Pick/Revert mit Konfliktdateien zeigen; Abbrechen (`--abort`) und Fortsetzen (`--continue`); Datei als gelöst markieren.
-- Konfliktdatei im Mergetool (`git mergetool`) oder in VS Code öffnen.
-- Merge bzw. Rebase eines Branches selbst starten (bisher nur Fast-Forward).
-- Invariante: `--abort` verwirft den Stand der Operation – Rückfrage.
-- Braucht WP-05 nicht zwingend; mit Diff-Ansicht besser. Offen: Merge-Commit oder Rebase als Standard beim selbst gestarteten Zusammenführen?
-
 #### WP-08 Branches aufräumen
 Branch `wp/08-branch-cleanup`.
 - Lokalen Branch löschen (`branch -d`, nur gemergt), Remote-Branch löschen (`push --delete`), alle Branches mit Upstream „gone“ auf einmal (Liste, Häkchen).

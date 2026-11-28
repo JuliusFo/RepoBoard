@@ -10,10 +10,42 @@
             <h3>@BoardText.Changes</h3>
             @if (Status is { IsClean: false })
             {
-                <button class="btn small ghost" @onclick="() => GuardAsync(() => Board.StageAsync(Repo, [], default))">@BoardText.StageAll</button>
-                <button class="btn small ghost" @onclick="() => GuardAsync(() => Board.UnstageAsync(Repo, [], default))">@BoardText.UnstageAll</button>
+                var stageAll = StageAllPaths;
+                <button class="btn small ghost" disabled="@(stageAll is null)" @onclick="() => GuardAsync(() => Board.StageAsync(Repo, stageAll!, default))">@BoardText.StageAll</button>
+                var unstageAll = UnstageAllPaths;
+                <button class="btn small ghost" disabled="@(unstageAll is null)"
+                        title="@(Repo.Operation is { } blocking ? TextFormat.Format(SyncText.Pick_Operation, PullCheck.Name(blocking)) : null)"
+                        @onclick="() => GuardAsync(() => Board.UnstageAsync(Repo, unstageAll!, default))">@BoardText.UnstageAll</button>
             }
         </header>
+        @if (Repo.Unfinished is { } op)
+        {
+            var continueBlocker = OperationTools.ContinueBlocker(Repo);
+            var name = PullCheck.Name(op.Kind);
+            <div class="operation-bar">
+                <div class="op-title">@Icons.Warning <span title="@VisibleText.Of(OperationTools.Title(op))">@VisibleText.Of(OperationTools.Title(op))</span></div>
+                <div class="op-line">
+                    @if (Status is { Conflicts: > 0 } open)
+                    {
+                        <span class="op-state open">@TextFormat.Plural(open.Conflicts, BoardText.Operation_ConflictsOne, BoardText.Operation_ConflictsOther)</span>
+                    }
+                    else
+                    {
+                        <span class="op-state done">@Icons.Check @BoardText.Operation_AllResolved</span>
+                    }
+                    <span class="spacer"></span>
+                    <button class="btn small primary" disabled="@(continueBlocker is not null || Repo.Busy is not null)"
+                            title="@(continueBlocker ?? BoardText.Operation_Continue_Hint)"
+                            @onclick="() => GuardAsync(() => Board.ContinueAsync(Repo, op.Kind, default))">@BoardText.Operation_Continue</button>
+                    @if (OperationTools.CanSkip(op))
+                    {
+                        <button class="btn small" disabled="@(Status is null)" title="@BoardText.Operation_Skip_Hint" @onclick="() => Ask(QuestionKind.Skip, op)">@BoardText.Operation_Skip</button>
+                    }
+                    <button class="btn small danger-hover" disabled="@(Status is null)" title="@TextFormat.Format(BoardText.Operation_Abort_Hint, name)"
+                            @onclick="() => Ask(QuestionKind.Abort, op)">@BoardText.Operation_Abort</button>
+                </div>
+            </div>
+        }
         @if (Status is null)
         {
             <p class="muted">@BoardText.Loading</p>
@@ -25,8 +57,25 @@
         else
         {
             var staged = Status.Changes.Where(c => c.IsStaged).ToList();
-            var unstaged = Status.Changes.Where(c => c.IsUnstaged).ToList();
+            var unstaged = Status.Changes.Where(c => c.IsUnstaged && !c.Conflict).ToList();
+            var conflicts = Status.Changes.Where(c => c.Conflict).ToList();
             <div class="files">
+                @if (conflicts.Count > 0)
+                {
+                    <div class="files-head conflicts-head">@TextFormat.Format(BoardText.Conflicts_Head, conflicts.Count)</div>
+                    @foreach (var file in conflicts)
+                    {
+                        var kind = OperationTools.ConflictKind(file);
+                        <div class="file conflict @(IsSelected(selected, file, false) ? "selected" : "")" @key="ConflictKey(file)">
+                            <span class="letter l-U" title="@kind">U</span>
+                            <button class="path" title="@($"{VisibleText.Of(file.Path)} – {kind}")" @onclick="() => Select(file, false)"><span>@VisibleText.Of(file.Path)</span></button>
+                            <button class="btn small ghost" title="@BoardText.Conflict_Open_Hint" disabled="@(file is { Index: 'D', WorkTree: 'D' })"
+                                    @onclick="() => Guard(() => Desktop.OpenInEditor(Repo.Path, file.Path))">@Icons.Code @BoardText.Conflict_Open</button>
+                            <button class="btn small ghost" title="@BoardText.Conflict_Resolved_Hint" disabled="@(Repo.Busy is not null)"
+                                    @onclick="() => MarkResolved(file)">@BoardText.Conflict_Resolved</button>
+                        </div>
+                    }
+                }
                 @if (staged.Count > 0)
                 {
                     <div class="files-head">@TextFormat.Format(BoardText.Staged_Head, staged.Count)</div>
@@ -71,6 +120,10 @@
             {
                 <p class="amend-note">@note</p>
             }
+            @if (Repo.Operation is { } running)
+            {
+                <p class="amend-note">@TextFormat.Format(BoardText.Operation_CommitNote, PullCheck.Name(running))</p>
+            }
             <div class="commit-actions">
                 <button class="btn primary" disabled="@(!CanCommit)" @onclick="() => Commit(push: false)">
                     @(_draft.On ? BoardText.Amend_Commit
@@ -101,6 +154,8 @@
             </form>
             @if (Repo.Details is { } details)
             {
+                var mergeBlocker = OperationTools.MergeBlocker(Repo);
+                var current = Status?.Branch ?? "HEAD";
                 <div class="branch-list">
                     @foreach (var branch in details.Branches)
                     {
@@ -110,7 +165,16 @@
                             <span class="b-when" title="@RelativeTime.Exact(branch.LastCommit)">@(branch.LastCommit is null ? "" : RelativeTime.Text(branch.LastCommit, Now))</span>
                             @if (!branch.IsCurrent)
                             {
-                                <button class="btn small ghost" title="@BoardText.Switch_Hint" @onclick="() => GuardAsync(() => Board.SwitchAsync(Repo, branch, default))">@BoardText.Switch</button>
+                                @* Merge and rebase show on hover (WP-07): with every branch at once the list would be all buttons. *@
+                                <span class="b-actions">
+                                    <button class="btn small ghost b-more" disabled="@(mergeBlocker is not null)"
+                                            title="@(mergeBlocker ?? TextFormat.Format(BoardText.Branch_Merge_Hint, branch.Name, current))"
+                                            @onclick="() => GuardAsync(() => Board.MergeAsync(Repo, branch, default))">@BoardText.Branch_Merge</button>
+                                    <button class="btn small ghost b-more" disabled="@(mergeBlocker is not null)"
+                                            title="@(mergeBlocker ?? TextFormat.Format(BoardText.Branch_Rebase_Hint, branch.Name, current))"
+                                            @onclick="() => GuardAsync(() => Board.RebaseAsync(Repo, branch, default))">@BoardText.Branch_Rebase</button>
+                                    <button class="btn small ghost" title="@BoardText.Switch_Hint" @onclick="() => GuardAsync(() => Board.SwitchAsync(Repo, branch, default))">@BoardText.Switch</button>
+                                </span>
                             }
                         </div>
                     }
@@ -162,6 +226,13 @@
         </section>
     }
 </div>
+
+@if (_question is { } question)
+{
+    <ConfirmDialog Title="@question.Title" Text="@question.Text" Files="question.Files" ConfirmLabel="@question.Confirm"
+                   Danger="question.Kind != QuestionKind.Markers" CancelLabel="@(question.Kind == QuestionKind.Markers ? null : BoardText.Dialog_Back)"
+                   OnConfirm="Confirm" OnCancel="() => _question = null" />
+}
 
 @code {
     [Parameter, EditorRequired] public RepoState Repo { get; set; } = null!;
@@ -241,7 +312,8 @@
 
     private RepoStatus? Status => Repo.Status;
 
-    private bool CanCommit => !string.IsNullOrWhiteSpace(_message) && Repo.Busy is null
+    // While an operation is unfinished, "Continue" commits (WP-07): a commit in the middle of a rebase would be one too many.
+    private bool CanCommit => !string.IsNullOrWhiteSpace(_message) && Repo.Busy is null && Repo.Operation is null
         && (_draft.On
             ? CommitTools.AmendBlocker(Repo) is null && Status is { Conflicts: 0 }
             : Status is { IsClean: false, Conflicts: 0 });
@@ -251,6 +323,68 @@
     // review WP-05; a click on it would have staged that next file).
     private string StagedKey(FileChange file) => $"s{_fileRound}:{file.Path}";
     private string UnstagedKey(FileChange file) => $"u{_fileRound}:{file.Path}";
+    private static string ConflictKey(FileChange file) => "c:" + file.Path;
+
+    private IReadOnlyList<string>? StageAllPaths => OperationTools.StageAllPaths(Repo);
+    private IReadOnlyList<string>? UnstageAllPaths => OperationTools.UnstageAllPaths(Repo);
+
+    private enum QuestionKind { Abort, Skip, Markers }
+
+    /// <summary>An open question (WP-07) with what the board checks again when it is confirmed (ADR 0015).</summary>
+    private sealed record Question(QuestionKind Kind, string Title, string Text, string Confirm, IReadOnlyList<string>? Files, string Key, string? Path);
+
+    private Question? _question;
+
+    /// <summary>
+    /// Abort or skip: asks with the files that may go back, as git sees them now; the board acts only if they still are (and
+    /// the operation is still the one shown, <see cref="OperationInfo.Key"/>).
+    /// </summary>
+    private Task Ask(QuestionKind kind, OperationInfo op) => GuardAsync(async () =>
+    {
+        if (await Board.DiscardedFilesAsync(Repo, default) is not { } files)
+        {
+            return;
+        }
+
+        var name = PullCheck.Name(op.Kind);
+        _question = kind == QuestionKind.Abort
+            ? new Question(kind, TextFormat.Format(BoardText.Operation_AbortTitle, name), OperationTools.AbortText(op),
+                TextFormat.Format(BoardText.Operation_AbortConfirm, name), files, op.Key, null)
+            : new Question(kind, BoardText.Operation_SkipTitle, TextFormat.Format(BoardText.Operation_SkipText, OperationTools.SkippedCommit(op)),
+                BoardText.Operation_SkipConfirm, files, op.Key, null);
+    });
+
+    /// <summary>
+    /// "Resolved": stages the file, after a question if git still finds conflict markers in it – or cannot tell (review WP-07).
+    /// </summary>
+    private Task MarkResolved(FileChange file) => GuardAsync(async () =>
+    {
+        if (await Board.HasConflictMarkersAsync(Repo, file.Path, default) is var markers and not false)
+        {
+            var text = markers is true ? BoardText.Conflict_MarkersText : BoardText.Conflict_MarkersUnknownText;
+            _question = new Question(QuestionKind.Markers, BoardText.Conflict_MarkersTitle, TextFormat.Format(text, file.Path),
+                BoardText.Conflict_MarkersConfirm, null, "", file.Path);
+            return;
+        }
+
+        await Board.MarkResolvedAsync(Repo, file.Path, default);
+    });
+
+    private Task Confirm() => GuardAsync(async () =>
+    {
+        if (_question is not { } question)
+        {
+            return;
+        }
+
+        _question = null;
+        await (question.Kind switch
+        {
+            QuestionKind.Abort => Board.AbortAsync(Repo, question.Key, question.Files!, default),
+            QuestionKind.Skip => Board.SkipAsync(Repo, question.Key, question.Files!, default),
+            _ => Board.MarkResolvedAsync(Repo, question.Path!, default),
+        });
+    });
 
     private static bool IsSelected((FileChange Change, bool Staged)? selected, FileChange file, bool staged) =>
         selected is { } s && s.Staged == staged && s.Change.Path == file.Path;

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
+using System.Text.RegularExpressions;
 using RepoBoard.Core.Resources;
 
 namespace RepoBoard.Core.Git;
@@ -19,13 +20,22 @@ public sealed record GitResult(int ExitCode, string Output, string Error)
         get
         {
             var text = string.IsNullOrWhiteSpace(Error) ? Output : Error;
-            var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Where(l => !l.StartsWith("hint:", StringComparison.Ordinal));
+            // Of a line git rewrote with \r (progress: "Rebasing (1/2)\rerror: …") only the last part, as a terminal shows it.
+            var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(l => l.TrimEnd('\r'))
+                .Select(l => Csi.Replace(l[(l.LastIndexOf('\r') + 1)..], "").Trim())
+                .Where(l => l.Length > 0 && !l.StartsWith("hint:", StringComparison.Ordinal));
             return GitSecrets.Redact(string.Join(Environment.NewLine, lines));
         }
     }
 
     internal static GitResult Failed(string message) => new(-1, "", message);
+
+    /// <summary>
+    /// A terminal control sequence: with TERM set, git clears a progress line with <c>\r ESC[K</c> before the next message
+    /// (second review pass WP-07).
+    /// </summary>
+    private static readonly Regex Csi = new(@"\x1b\[[0-9;?]*[ -/]*[@-~]", RegexOptions.Compiled);
 }
 
 /// <summary>How a call may ask for credentials (ADR 0003).</summary>
@@ -48,6 +58,12 @@ public class GitRunner(string executable = "git")
 {
     public static readonly TimeSpan LocalTimeout = TimeSpan.FromSeconds(30);
     public static readonly TimeSpan NetworkTimeout = TimeSpan.FromMinutes(3);
+
+    /// <summary>
+    /// For local commands that write commits and may sign each of them – merge, rebase, continue (WP-07): a gpg passphrase
+    /// in pinentry must not run into <see cref="LocalTimeout"/>, which would end git halfway through.
+    /// </summary>
+    public static readonly TimeSpan CommitTimeout = TimeSpan.FromMinutes(3);
 
     public virtual async Task<GitResult> RunAsync(string workingDirectory, IReadOnlyList<string> args, GitCallMode mode,
         TimeSpan timeout, string? input, CancellationToken cancellationToken)
@@ -163,11 +179,15 @@ public class GitRunner(string executable = "git")
     /// git from falling back to <c>core.askPass</c>. What a parent process set for its own repository (a hook's
     /// <c>GIT_DIR</c>/<c>GIT_INDEX_FILE</c>, the askpass of the VS Code terminal RepoBoard was started from) never reaches
     /// git: every row would work on that one repository, or ask through a window that is not there (review 0.4.0, A20).
+    /// Never an editor either (WP-07): "--continue" would open one for the message and wait for nobody to close it. ":" is
+    /// git's own "no editor" – it starts no process and keeps the message git prepared, also where no "true" program exists
+    /// (MinGit; review WP-07).
     /// </summary>
     public static IReadOnlyList<(string Name, string? Value)> EnvironmentFor(GitCallMode mode) =>
     [
         ("GIT_TERMINAL_PROMPT", "0"),
         ("GIT_OPTIONAL_LOCKS", "0"),
+        ("GIT_EDITOR", ":"),
         .. Inherited.Select(name => (name, (string?)null)),
         .. mode == GitCallMode.Background
             ? [("GCM_INTERACTIVE", "never"), ("SSH_ASKPASS_REQUIRE", "never"), ("GIT_ASKPASS", "")]

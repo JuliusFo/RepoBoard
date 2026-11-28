@@ -358,7 +358,7 @@ Log: {1}</value>
     <value>Keine Textänderungen – z. B. nur der Dateimodus.</value>
   </data>
   <data name="Diff_Conflict" xml:space="preserve">
-    <value>Diese Datei hat Konflikte. Öffne sie im Editor, um sie zu lösen.</value>
+    <value>Diese Datei hat Konflikte. Öffne sie in VS Code, löse sie dort und markiere sie dann als gelöst.</value>
   </data>
   <data name="Diff_NoNewline" xml:space="preserve">
     <value>Kein Zeilenumbruch am Dateiende</value>
@@ -518,6 +518,132 @@ Log: {1}</value>
   </data>
   <data name="Amend_CommitPush" xml:space="preserve">
     <value>Ändern und pushen</value>
+  </data>
+  <data name="Operation_MergeTitle" xml:space="preserve">
+    <value>Merge läuft: {0}</value>
+  </data>
+  <data name="Operation_RebaseTitle" xml:space="preserve">
+    <value>Rebase von {0} läuft – Commit {1} von {2}: {3}</value>
+  </data>
+  <data name="Operation_PickTitle" xml:space="preserve">
+    <value>{0} von {1} läuft: {2}</value>
+  </data>
+  <data name="Operation_ConflictsOne" xml:space="preserve">
+    <value>noch {0} Konflikt</value>
+  </data>
+  <data name="Operation_ConflictsOther" xml:space="preserve">
+    <value>noch {0} Konflikte</value>
+  </data>
+  <data name="Operation_AllResolved" xml:space="preserve">
+    <value>Alle Konflikte gelöst</value>
+  </data>
+  <data name="Operation_Continue" xml:space="preserve">
+    <value>Fortsetzen</value>
+  </data>
+  <data name="Operation_Continue_Hint" xml:space="preserve">
+    <value>Gestagtes mit der Nachricht von git committen und weitermachen</value>
+  </data>
+  <data name="Operation_Skip" xml:space="preserve">
+    <value>Überspringen</value>
+  </data>
+  <data name="Operation_Skip_Hint" xml:space="preserve">
+    <value>Diesen Commit auslassen und mit dem nächsten weitermachen</value>
+  </data>
+  <data name="Operation_Abort" xml:space="preserve">
+    <value>Abbrechen</value>
+  </data>
+  <data name="Operation_Abort_Hint" xml:space="preserve">
+    <value>Den {0} beenden und zum Stand davor zurückkehren</value>
+  </data>
+  <data name="Operation_AbortTitle" xml:space="preserve">
+    <value>{0} abbrechen?</value>
+  </data>
+  <data name="Operation_AbortText" xml:space="preserve">
+    <value>Das Repository geht auf den Stand vor dem {0} zurück. Was du gelöst hast, geht verloren, und diese geänderten Dateien können mit zurückgehen (eine eigene Änderung behält git, wo es kann); neue Dateien bleiben:</value>
+  </data>
+  <data name="Operation_AbortConfirm" xml:space="preserve">
+    <value>{0} abbrechen</value>
+  </data>
+  <data name="Operation_SkipTitle" xml:space="preserve">
+    <value>Diesen Commit überspringen?</value>
+  </data>
+  <data name="Operation_SkipText" xml:space="preserve">
+    <value>Der Commit „{0}“ wird ausgelassen, und was du dafür gelöst hast, geht verloren. Diese geänderten Dateien können zurückgehen:</value>
+  </data>
+  <data name="Operation_SkipConfirm" xml:space="preserve">
+    <value>Commit überspringen</value>
+  </data>
+  <data name="Operation_NoFiles" xml:space="preserve">
+    <value>Keine geänderten Dateien.</value>
+  </data>
+  <data name="Operation_CommitNote" xml:space="preserve">
+    <value>Schließe den {0} oben mit „Fortsetzen“ ab.</value>
+  </data>
+  <data name="Conflicts_Head" xml:space="preserve">
+    <value>Konflikte ({0})</value>
+  </data>
+  <data name="Conflict_Open" xml:space="preserve">
+    <value>Öffnen</value>
+  </data>
+  <data name="Conflict_Open_Hint" xml:space="preserve">
+    <value>In VS Code öffnen – den Konflikt dort lösen, auch im Merge-Editor</value>
+  </data>
+  <data name="Conflict_Resolved" xml:space="preserve">
+    <value>Gelöst</value>
+  </data>
+  <data name="Conflict_Resolved_Hint" xml:space="preserve">
+    <value>Als gelöst markieren: die Datei so stagen, wie sie jetzt ist</value>
+  </data>
+  <data name="Conflict_MarkersTitle" xml:space="preserve">
+    <value>Noch Konfliktmarker</value>
+  </data>
+  <data name="Conflict_MarkersText" xml:space="preserve">
+    <value>git findet in {0} noch Konfliktmarker. Trotzdem als gelöst markieren?</value>
+  </data>
+  <data name="Conflict_MarkersConfirm" xml:space="preserve">
+    <value>Trotzdem markieren</value>
+  </data>
+  <data name="Conflict_BothModified" xml:space="preserve">
+    <value>beide geändert</value>
+  </data>
+  <data name="Conflict_BothAdded" xml:space="preserve">
+    <value>beide hinzugefügt</value>
+  </data>
+  <data name="Conflict_BothDeleted" xml:space="preserve">
+    <value>beide gelöscht</value>
+  </data>
+  <data name="Conflict_DeletedByUs" xml:space="preserve">
+    <value>von uns gelöscht</value>
+  </data>
+  <data name="Conflict_DeletedByThem" xml:space="preserve">
+    <value>von ihnen gelöscht</value>
+  </data>
+  <data name="Conflict_AddedByUs" xml:space="preserve">
+    <value>von uns hinzugefügt</value>
+  </data>
+  <data name="Conflict_AddedByThem" xml:space="preserve">
+    <value>von ihnen hinzugefügt</value>
+  </data>
+  <data name="Branch_Merge" xml:space="preserve">
+    <value>Mergen</value>
+  </data>
+  <data name="Branch_Merge_Hint" xml:space="preserve">
+    <value>{0} in {1} mergen</value>
+  </data>
+  <data name="Branch_Rebase" xml:space="preserve">
+    <value>Rebasen</value>
+  </data>
+  <data name="Branch_Rebase_Hint" xml:space="preserve">
+    <value>{1} auf {0} rebasen – nur solange seine Commits nicht gepusht sind</value>
+  </data>
+  <data name="Dialog_Back" xml:space="preserve">
+    <value>Zurück</value>
+  </data>
+  <data name="Operation_AbortTextRebase" xml:space="preserve">
+    <value>Das Repository geht auf den Stand vor dem Rebase zurück. Was du gelöst hast, geht verloren, und jede Änderung an diesen Dateien geht mit zurück; neue Dateien bleiben:</value>
+  </data>
+  <data name="Conflict_MarkersUnknownText" xml:space="preserve">
+    <value>git konnte {0} nicht auf Konfliktmarker prüfen. Trotzdem als gelöst markieren?</value>
   </data>
   <data name="Ahead_HintOne" xml:space="preserve">
     <value>{0} lokaler Commit noch nicht auf {1}</value>

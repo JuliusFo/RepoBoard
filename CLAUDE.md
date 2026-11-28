@@ -26,7 +26,7 @@ Der Nutzer ist erfahrener .NET-Entwickler (Visual Studio, Blazor). Erklärungen 
 ## 2. Invarianten
 
 **Lokale Arbeit geht nie verloren (ADR 0003):**
-- RepoBoard führt nichts aus, was ungesicherte Arbeit verwerfen kann: kein `reset --hard`, `clean`, `checkout -- <pfad>`, `restore` auf den Worktree, `stash drop`, `push --force`, `branch -D`. Kommt so etwas dazu (z. B. „Änderungen verwerfen“), bekommt es eine eigene enge Methode in `GitClient`, eine Rückfrage in der UI, einen ADR und Tests.
+- RepoBoard führt nichts aus, was ungesicherte Arbeit verwerfen kann: kein `reset --hard`, `clean`, `checkout -- <pfad>`, `restore` auf den Worktree, `stash drop`, `push --force`, `branch -D`. Kommt so etwas dazu (z. B. „Änderungen verwerfen“), bekommt es eine eigene enge Methode in `GitClient`, eine Rückfrage in der UI, einen ADR und Tests. Bisher so: `--abort` und `--skip` einer angehaltenen Operation (ADR 0015, Schlüssel und Dateiliste der Rückfrage im Tor geprüft).
 - **Auto-Pull ist nur ein Fast-Forward** (`merge --ff-only --no-autostash @{u}` nach dem Fetch; ohne `--no-autostash` legte das `merge.autoStash` des Nutzers lokale Änderungen mit Konfliktmarkern zurück, Review 0.4.0) und nur, wenn `PullCheck` nichts findet: kein detached HEAD, Upstream vorhanden, kein laufendes Merge/Rebase/Cherry-Pick/Revert, keine Konflikte, nichts lokal voraus. Lokale Änderungen bleiben; überschneiden sie sich mit dem Pull, bricht git ab.
 - Was im Hintergrund läuft, fragt nie nach Zugangsdaten (`GitCallMode.Background`: `GCM_INTERACTIVE=never`, `SSH_ASKPASS_REQUIRE=never`, leeres `GIT_ASKPASS`; `GIT_TERMINAL_PROMPT=0` immer – `GitRunner.EnvironmentFor`); es scheitert und meldet das einmal.
 

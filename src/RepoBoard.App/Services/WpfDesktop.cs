@@ -47,15 +47,18 @@ internal sealed class WpfDesktop : IDesktop
     }
 
     /// <summary>
-    /// VS Code through its command (<c>code.cmd</c>), without a console window. Through <c>cmd /c</c>, which parses the line
-    /// itself: a path cmd would read as an instruction is refused rather than passed on, and a missing command says so –
-    /// cmd's own "not recognized" went nowhere (review 0.4.0, A34).
+    /// VS Code through its command (<c>code.cmd</c>), without a console window: the folder, and a file of it (a conflicted file,
+    /// WP-07 – VS Code offers its merge editor there). Through <c>cmd /c</c>, which parses the line itself: a path cmd would
+    /// read as an instruction is refused rather than passed on, and so is a file outside the folder; a missing command says
+    /// so – cmd's own "not recognized" went nowhere (review 0.4.0, A34).
     /// </summary>
-    public void OpenInEditor(string path)
+    public void OpenInEditor(string path, string? file = null)
     {
-        if (!DesktopPaths.SafeForCmd(path))
+        var start = new ProcessStartInfo("cmd.exe") { ArgumentList = { "/c", "code", Checked(path) }, UseShellExecute = false, CreateNoWindow = true };
+        if (file is not null)
         {
-            throw new InvalidOperationException(TextFormat.Format(BoardText.Editor_UnsafePath, path));
+            var full = EditorPath.FileIn(path, file) ?? throw new InvalidOperationException($"The file is not inside the repository: {file}");
+            start.ArgumentList.Add(Checked(full));
         }
 
         if (DesktopPaths.FindOnPath("code", Environment.GetEnvironmentVariable("PATH"), Environment.GetEnvironmentVariable("PATHEXT")) is null)
@@ -63,6 +66,10 @@ internal sealed class WpfDesktop : IDesktop
             throw new InvalidOperationException(BoardText.Editor_NotFound);
         }
 
-        Process.Start(new ProcessStartInfo("cmd.exe") { ArgumentList = { "/c", "code", path }, UseShellExecute = false, CreateNoWindow = true })?.Dispose();
+        Process.Start(start)?.Dispose();
+
+        static string Checked(string value) => DesktopPaths.SafeForCmd(value)
+            ? value
+            : throw new InvalidOperationException(TextFormat.Format(BoardText.Editor_UnsafePath, value));
     }
 }

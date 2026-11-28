@@ -76,8 +76,11 @@ public sealed class RepoState(RepoEntry entry, RepoState? mainRepo = null)
     /// <summary>The last failure, until the next success.</summary>
     public string? Error { get; internal set; }
 
-    /// <summary>A merge, rebase, cherry-pick or revert left unfinished: auto-pull keeps out.</summary>
-    public GitOperation? Operation { get; internal set; }
+    /// <summary>A merge, rebase, cherry-pick or revert left unfinished, with what git says about it (WP-07).</summary>
+    public OperationInfo? Unfinished { get; internal set; }
+
+    /// <summary>Which operation is left unfinished: auto-pull keeps out.</summary>
+    public GitOperation? Operation => Unfinished?.Kind;
 
     /// <summary>Why auto-pull did not pull what the last auto-fetch brought (diverged branch, merge running …).</summary>
     public string? AutoPullBlocked { get; internal set; }

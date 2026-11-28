@@ -1,0 +1,73 @@
+@* A question before something that cannot be undone (WP-07: abort, skip, a file with conflict markers marked resolved): a
+   text, optionally the files it affects (all of them – what is not shown would be lost unseen), Cancel and the action. *@
+@inherits BoardComponent
+
+<div class="modal-backdrop" @onclick="OnCancel"></div>
+<div class="dialog confirm-dialog" role="alertdialog" aria-modal="true" aria-label="@Title" tabindex="-1" @ref="_dialog" @onkeydown="Key">
+    <header>
+        <span>@Title</span>
+        <button class="btn icon-only ghost" title="@BoardText.Dialog_Close" @onclick="OnCancel">@Icons.Close</button>
+    </header>
+    <div class="dialog-body">
+        <p>@VisibleText.Of(Text)</p>
+        @if (Files is { } files)
+        {
+            @if (files.Count == 0)
+            {
+                <p class="muted">@BoardText.Operation_NoFiles</p>
+            }
+            else
+            {
+                <div class="wt-ignored confirm-files">
+                    @foreach (var file in files)
+                    {
+                        <code>@VisibleText.Of(file)</code>
+                    }
+                </div>
+            }
+        }
+    </div>
+    <footer>
+        <span class="spacer"></span>
+        <button class="btn ghost" @onclick="OnCancel">@(CancelLabel ?? BoardText.Dialog_Cancel)</button>
+        <button class="btn @(Danger ? "danger" : "primary")" @onclick="OnConfirm">@ConfirmLabel</button>
+    </footer>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter, EditorRequired] public string Text { get; set; } = "";
+
+    /// <summary>The files the action puts back; null if it names none.</summary>
+    [Parameter] public IReadOnlyList<string>? Files { get; set; }
+
+    [Parameter, EditorRequired] public string ConfirmLabel { get; set; } = "";
+
+    /// <summary>
+    /// The button that closes the question; "Cancel" if null. Where the action itself is an abort, "Cancel" next to "Abort
+    /// merge" would read as the same thing (E2E WP-07).
+    /// </summary>
+    [Parameter] public string? CancelLabel { get; set; }
+
+    /// <summary>The action loses work (abort, skip): a red button.</summary>
+    [Parameter] public bool Danger { get; set; }
+
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private ElementReference _dialog;
+
+    /// <summary>
+    /// The focus moves into the question, so Esc cancels it – never Enter, which would confirm what was not read; quietly, as
+    /// every dialog (review 0.4.0, A27, A30).
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await FocusQuietlyAsync(_dialog);
+        }
+    }
+
+    private Task Key(KeyboardEventArgs e) => e.Key == "Escape" ? OnCancel.InvokeAsync() : Task.CompletedTask;
+}

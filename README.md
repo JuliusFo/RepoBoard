@@ -29,11 +29,18 @@ sign-in, SSH, hooks and LFS work exactly as in your terminal.
   Remove one, or clean up those that look done (branch merged, upstream deleted, folder gone): RepoBoard asks first,
   lists the ignored files git deletes with it, and never removes a worktree with changes. The branch always stays.
 - **Branches:** switch to a local branch, or to a remote one as a new local branch that tracks exactly it; create a new
-  one. The list shows how far each branch is ahead of or behind its upstream, and when it last changed.
+  one. The list shows how far each branch is ahead of or behind its upstream, and when it last changed. Hover a branch to
+  merge it into the current one or rebase the current one onto it – only with no staged or changed files, and a rebase
+  only of commits not pushed yet.
+- **Finish a merge or rebase:** an unfinished merge, rebase, cherry-pick or revert – started in RepoBoard, your IDE or
+  your terminal – shows above the files of the opened row with where it stands (“commit 2 of 5”). Conflicted files have
+  their own group: open one in VS Code (with its merge editor), then mark it resolved – RepoBoard asks if git still finds
+  conflict markers. “Continue” commits with git’s message and goes on; “Skip” leaves out the commit it stopped at;
+  “Abort” goes back to the state before. Skip and abort ask first and list every changed file that may go back.
 - **History:** the commits of the current branch – or of all branches – with a graph of their branches and merges, and
   their refs; “Load 50 more” goes further back. Click a commit for its whole message, author, parents, the files it changed
   and their diff. Revert a commit of the branch (a new commit that undoes it) or cherry-pick one of another branch onto
-  it – only with no staged or changed files; if git stops at a conflict, finish it in your IDE or terminal.
+  it – only with no staged or changed files; if git stops at a conflict, finish it right there (see above).
 - **Auto-fetch and auto-pull**, switched on per repository; one interval of 1 to 60 minutes for all. Auto-pull only fast-forwards a branch
   that has only fallen behind – never a merge, never over your local commits, never during a merge or rebase, and never with
   git’s autostash, which would put your changes back with conflict markers – and says why when it keeps out. Background

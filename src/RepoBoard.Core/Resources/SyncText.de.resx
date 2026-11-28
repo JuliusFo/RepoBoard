@@ -285,12 +285,6 @@
   <data name="CherryPick_InHead" xml:space="preserve">
     <value>der Commit ist schon im aktuellen Branch</value>
   </data>
-  <data name="Revert_Stopped" xml:space="preserve">
-    <value>angehalten – im IDE oder Terminal abschließen (git revert --continue, oder --abort): {0}</value>
-  </data>
-  <data name="CherryPick_Stopped" xml:space="preserve">
-    <value>angehalten – im IDE oder Terminal abschließen (git cherry-pick --continue, oder --abort): {0}</value>
-  </data>
   <data name="CherryPick_Applied" xml:space="preserve">
     <value>der aktuelle Branch hat diese Änderung schon (früher übernommen)</value>
   </data>
@@ -298,10 +292,76 @@
     <value>{0} ist hier ignoriert und würde ohne Rückfrage überschrieben – erst wegschieben</value>
   </data>
   <data name="CherryPick_Empty" xml:space="preserve">
-    <value>nichts zu übernehmen: der Branch hat diese Änderung schon (etwa über einen Squash-Merge) – den Cherry-Pick im IDE oder Terminal mit git cherry-pick --skip beenden</value>
+    <value>nichts zu übernehmen: der Branch hat diese Änderung schon (etwa über einen Squash-Merge) – den Cherry-Pick mit „Überspringen“ beenden</value>
   </data>
   <data name="Amend_HeadMoved" xml:space="preserve">
     <value>der letzte Commit hat sich geändert, seit seine Nachricht eingefüllt wurde – „Letzten Commit ändern“ neu ankreuzen</value>
+  </data>
+  <data name="Op_Merge" xml:space="preserve">
+    <value>Merge</value>
+  </data>
+  <data name="Op_Rebase" xml:space="preserve">
+    <value>Rebase</value>
+  </data>
+  <data name="Op_Continue" xml:space="preserve">
+    <value>Fortsetzen</value>
+  </data>
+  <data name="Op_Abort" xml:space="preserve">
+    <value>Abbrechen</value>
+  </data>
+  <data name="Op_Skip" xml:space="preserve">
+    <value>Überspringen</value>
+  </data>
+  <data name="Op_MarkResolved" xml:space="preserve">
+    <value>Als gelöst markieren</value>
+  </data>
+  <data name="Merged" xml:space="preserve">
+    <value>{0} in {1} gemergt</value>
+  </data>
+  <data name="Rebased" xml:space="preserve">
+    <value>{0} auf {1} rebased</value>
+  </data>
+  <data name="Continued" xml:space="preserve">
+    <value>{0} abgeschlossen</value>
+  </data>
+  <data name="Aborted" xml:space="preserve">
+    <value>{0} abgebrochen – zurück auf dem Stand davor</value>
+  </data>
+  <data name="Skipped" xml:space="preserve">
+    <value>Commit „{0}“ übersprungen</value>
+  </data>
+  <data name="Resolved" xml:space="preserve">
+    <value>{0} als gelöst markiert</value>
+  </data>
+  <data name="Merge_BranchGone" xml:space="preserve">
+    <value>den Branch {0} gibt es nicht mehr</value>
+  </data>
+  <data name="Rebase_Pushed" xml:space="preserve">
+    <value>der Rebase würde Commits umschreiben, die schon auf einem Remote liegen ({0}) – sie erneut zu pushen bräuchte einen Force-Push</value>
+  </data>
+  <data name="Operation_Stopped" xml:space="preserve">
+    <value>angehalten – die Konflikte in der geöffneten Zeile lösen, dann „Fortsetzen“ (oder „Abbrechen“): {0}</value>
+  </data>
+  <data name="Operation_Gone" xml:space="preserve">
+    <value>es läuft kein Merge, Rebase, Cherry-Pick oder Revert mehr</value>
+  </data>
+  <data name="Operation_Changed" xml:space="preserve">
+    <value>der {0} ist seit der Rückfrage weitergegangen – bitte neu prüfen</value>
+  </data>
+  <data name="Operation_FilesChanged" xml:space="preserve">
+    <value>seit der Rückfrage haben sich Dateien geändert – bitte die Liste neu prüfen</value>
+  </data>
+  <data name="Continue_Conflicts" xml:space="preserve">
+    <value>erst alle Konflikte lösen (noch {0})</value>
+  </data>
+  <data name="Continue_Unstaged" xml:space="preserve">
+    <value>erst die geänderten Dateien stagen – ein Rebase geht nur weiter, wenn alle im Index sind</value>
+  </data>
+  <data name="Skip_Merge" xml:space="preserve">
+    <value>ein Merge hat keinen Commit zum Überspringen</value>
+  </data>
+  <data name="Continue_Empty" xml:space="preserve">
+    <value>nichts mehr zu committen: die Lösung hat keine Änderung des Commits behalten – mit „Überspringen“ beenden</value>
   </data>
   <data name="Add_Refused" xml:space="preserve">
     <value>{0} konnte nicht hinzugefügt werden: {1}</value>
