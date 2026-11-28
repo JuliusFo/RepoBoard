@@ -19,6 +19,10 @@ sign-in, SSH, hooks and LFS work exactly as in your terminal.
 - **Git actions per repository:** fetch, pull (fast-forward only), push (the first push sets the upstream), fetch all.
 - **Commit:** open a row to stage or unstage files, commit the staged files or everything, commit and push. “Amend last
   commit” replaces the last commit with the staged changes and a new message – only while it is not pushed.
+- **Discard and stash:** discard the unstaged changes of a file (hover it) or of all files – RepoBoard asks first, keeps
+  the changes of tracked files as an entry in the stash list (“Apply” brings them back) and moves new files to the recycle
+  bin. Stash all changes with a message, optionally with new files; the stash list shows each entry’s files, with Apply,
+  Pop and Drop (asks first). The stash is shared by a repository and its worktrees.
 - **Diff:** click a changed file to see its staged or unstaged changes right next to the list – git’s own diff, with line
   numbers and the changed words highlighted; line endings and binary files show as git sees them.
 - **Stage hunks and lines:** “Stage hunk” at each hunk of the diff (“Unstage hunk” on the staged side); click lines at
