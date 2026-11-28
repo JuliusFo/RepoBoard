@@ -14,7 +14,7 @@ public sealed class CommitToolsTests
     {
         Status = new RepoStatus("main", initial ? null : "abc", "origin/main", 0, 0, changes ?? []),
         Details = new RepoDetails([], [], [], false, onRemote),
-        Operation = operation,
+        Unfinished = operation is { } kind ? new OperationInfo(kind, "", null, null, null, null, null) : null,
     };
 
     private static CommitDetails Commit(bool inHead, int parents = 1, bool applied = false) =>

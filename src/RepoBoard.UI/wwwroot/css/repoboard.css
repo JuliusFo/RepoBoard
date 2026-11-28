@@ -295,6 +295,21 @@ code { font-family: var(--mono); font-size: 12px; }
 .letter.l-R { color: var(--accent); }
 .letter.l-U { color: var(--danger); }
 
+/* An unfinished merge, rebase, cherry-pick or revert (WP-07): above the files, with its buttons. */
+.operation-bar {
+  display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; padding: 8px;
+  border: 1px solid var(--warn); border-radius: 6px; background: var(--warn-weak);
+}
+.op-title { display: flex; align-items: center; gap: 6px; min-width: 0; font-weight: 600; color: var(--warn); }
+.op-title > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.op-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.op-state { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+.op-state.open { color: var(--danger); font-weight: 600; }
+.op-state.done { color: var(--green); }
+.files-head.conflicts-head { color: var(--danger); }
+.file.conflict .btn.small { height: 22px; flex: none; }
+.confirm-files { max-height: 200px; margin-bottom: 4px; }
+
 /* the diff of a selected file, in place of branches and history (WP-05) */
 .details.diff-open { grid-template-columns: minmax(260px, 1fr) 2.4fr; }
 .diff-pane { max-height: 560px; outline: 0; }
@@ -359,6 +374,10 @@ code { font-family: var(--mono); font-size: 12px; }
 .b-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .b-track { font-size: 11px; color: var(--warn); }
 .b-when { font-size: 11px; color: var(--muted); font-weight: 400; }
+.b-actions { display: flex; gap: 2px; }
+/* Merge and rebase only on the branch under the mouse or in focus (WP-07); "Switch" always. */
+.branch-item .b-more { display: none; }
+.branch-item:hover .b-more, .branch-item:focus-within .b-more { display: inline-flex; }
 
 .log { overflow: auto; flex: 1; }
 /* A row of the history (WP-09): no border or padding above and below, so the graph's lines meet the next row's. */

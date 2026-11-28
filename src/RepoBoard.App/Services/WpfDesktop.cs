@@ -36,17 +36,31 @@ internal sealed class WpfDesktop : IDesktop
     }
 
     /// <summary>
-    /// VS Code through its command (<c>code.cmd</c>), without a console window. Through <c>cmd /c</c>, which parses the line
-    /// itself: a path with <c>&amp;</c> or <c>"</c> is refused rather than passed on (a folder name could carry a command).
+    /// VS Code through its command (<c>code.cmd</c>), without a console window: the folder, and a file of it (a conflicted file,
+    /// WP-07 – VS Code offers its merge editor there). Through <c>cmd /c</c>, which parses the line itself: a path with
+    /// <c>&amp;</c> or <c>"</c> is refused rather than passed on (a folder or file name could carry a command), and so is a
+    /// file outside the folder.
     /// </summary>
-    public void OpenInEditor(string path)
+    public void OpenInEditor(string path, string? file = null)
     {
-        if (path.IndexOfAny(['"', '&', '|', '<', '>', '^', '%']) >= 0)
+        var start = new ProcessStartInfo("cmd.exe") { ArgumentList = { "/c", "code", Checked(path) }, UseShellExecute = false, CreateNoWindow = true };
+        if (file is not null)
         {
-            throw new InvalidOperationException($"The path cannot be passed to VS Code safely: {path}");
+            var full = Path.GetFullPath(Path.Combine(path, file));
+            if (!full.StartsWith(Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"The file is not inside the repository: {file}");
+            }
+
+            start.ArgumentList.Add(Checked(full));
         }
 
-        Process.Start(new ProcessStartInfo("cmd.exe") { ArgumentList = { "/c", "code", path }, UseShellExecute = false, CreateNoWindow = true })?.Dispose();
+        Process.Start(start)?.Dispose();
+
+        static string Checked(string value) =>
+            value.IndexOfAny(['"', '&', '|', '<', '>', '^', '%']) < 0
+                ? value
+                : throw new InvalidOperationException($"The path cannot be passed to VS Code safely: {value}");
     }
 
     private static string DefaultFolder() =>

@@ -10,5 +10,6 @@ public interface IDesktop
 
     void OpenTerminal(string path);
 
-    void OpenInEditor(string path);
+    /// <summary>VS Code with the folder <paramref name="path"/>; with <paramref name="file"/> (relative, from the status) that file opened in it.</summary>
+    void OpenInEditor(string path, string? file = null);
 }

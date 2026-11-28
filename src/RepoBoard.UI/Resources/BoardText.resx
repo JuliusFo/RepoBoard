@@ -396,7 +396,7 @@ Log: {1}</value>
     <value>No text changes – for example, only the file mode changed.</value>
   </data>
   <data name="Diff_Conflict" xml:space="preserve">
-    <value>This file has conflicts. Open it in your editor to resolve them.</value>
+    <value>This file has conflicts. Open it in VS Code to resolve them, then mark it as resolved.</value>
   </data>
   <data name="Diff_NoNewline" xml:space="preserve">
     <value>No newline at end of file</value>
@@ -574,5 +574,151 @@ Log: {1}</value>
   </data>
   <data name="Amend_CommitPush" xml:space="preserve">
     <value>Amend and push</value>
+  </data>
+  <data name="Operation_MergeTitle" xml:space="preserve">
+    <value>Merge in progress: {0}</value>
+    <comment>{0} = the merge message git prepared, e.g. Merge branch 'feature'</comment>
+  </data>
+  <data name="Operation_RebaseTitle" xml:space="preserve">
+    <value>Rebase of {0} in progress – commit {1} of {2}: {3}</value>
+    <comment>{0} = branch being rebased, {1} = current step, {2} = number of steps, {3} = subject of the commit it stopped at</comment>
+  </data>
+  <data name="Operation_PickTitle" xml:space="preserve">
+    <value>{0} of {1} in progress: {2}</value>
+    <comment>{0} = Cherry-pick or Revert (Operation_…), {1} = short commit id, {2} = commit subject</comment>
+  </data>
+  <data name="Operation_ConflictsOne" xml:space="preserve">
+    <value>{0} conflict left</value>
+    <comment>{0} = number of conflicted files (1)</comment>
+  </data>
+  <data name="Operation_ConflictsOther" xml:space="preserve">
+    <value>{0} conflicts left</value>
+    <comment>{0} = number of conflicted files</comment>
+  </data>
+  <data name="Operation_AllResolved" xml:space="preserve">
+    <value>All conflicts resolved</value>
+  </data>
+  <data name="Operation_Continue" xml:space="preserve">
+    <value>Continue</value>
+    <comment>Button: go on with the stopped merge, rebase, cherry-pick or revert</comment>
+  </data>
+  <data name="Operation_Continue_Hint" xml:space="preserve">
+    <value>Commit what is staged with git’s message and go on</value>
+  </data>
+  <data name="Operation_Skip" xml:space="preserve">
+    <value>Skip</value>
+    <comment>Button: leave out the commit the operation stopped at</comment>
+  </data>
+  <data name="Operation_Skip_Hint" xml:space="preserve">
+    <value>Leave out this commit and go on with the next one</value>
+  </data>
+  <data name="Operation_Abort" xml:space="preserve">
+    <value>Abort</value>
+    <comment>Button: end the stopped operation and go back to the state before it</comment>
+  </data>
+  <data name="Operation_Abort_Hint" xml:space="preserve">
+    <value>End the {0} and go back to the state before it</value>
+    <comment>{0} = the operation (Operation_…)</comment>
+  </data>
+  <data name="Operation_AbortTitle" xml:space="preserve">
+    <value>Abort the {0}?</value>
+    <comment>{0} = the operation (Operation_…)</comment>
+  </data>
+  <data name="Operation_AbortText" xml:space="preserve">
+    <value>The repository goes back to the state before the {0}. What you resolved is lost, and these files go back with it; new files stay:</value>
+    <comment>{0} = the operation (Operation_…)</comment>
+  </data>
+  <data name="Operation_AbortConfirm" xml:space="preserve">
+    <value>Abort {0}</value>
+    <comment>{0} = the operation (Operation_…)</comment>
+  </data>
+  <data name="Operation_SkipTitle" xml:space="preserve">
+    <value>Skip this commit?</value>
+  </data>
+  <data name="Operation_SkipText" xml:space="preserve">
+    <value>The commit “{0}” is left out and what you resolved for it is lost. These files go back:</value>
+    <comment>{0} = subject or short id of the commit</comment>
+  </data>
+  <data name="Operation_SkipConfirm" xml:space="preserve">
+    <value>Skip commit</value>
+  </data>
+  <data name="Operation_NoFiles" xml:space="preserve">
+    <value>No changed files.</value>
+  </data>
+  <data name="Operation_CommitNote" xml:space="preserve">
+    <value>Finish the {0} with “Continue” above.</value>
+    <comment>{0} = the operation (Operation_…)</comment>
+  </data>
+  <data name="Conflicts_Head" xml:space="preserve">
+    <value>Conflicts ({0})</value>
+    <comment>{0} = number of conflicted files</comment>
+  </data>
+  <data name="Conflict_Open" xml:space="preserve">
+    <value>Open</value>
+    <comment>Button: open a conflicted file in VS Code</comment>
+  </data>
+  <data name="Conflict_Open_Hint" xml:space="preserve">
+    <value>Open in VS Code – resolve the conflict there, also in its merge editor</value>
+  </data>
+  <data name="Conflict_Resolved" xml:space="preserve">
+    <value>Resolved</value>
+    <comment>Button: mark a conflicted file as resolved</comment>
+  </data>
+  <data name="Conflict_Resolved_Hint" xml:space="preserve">
+    <value>Mark as resolved: stage the file as it is now</value>
+  </data>
+  <data name="Conflict_MarkersTitle" xml:space="preserve">
+    <value>Conflict markers left</value>
+  </data>
+  <data name="Conflict_MarkersText" xml:space="preserve">
+    <value>git still finds conflict markers in {0}. Mark it as resolved anyway?</value>
+    <comment>{0} = path of the file</comment>
+  </data>
+  <data name="Conflict_MarkersConfirm" xml:space="preserve">
+    <value>Mark resolved anyway</value>
+  </data>
+  <data name="Conflict_BothModified" xml:space="preserve">
+    <value>both modified</value>
+    <comment>Conflict kind (git status: both modified)</comment>
+  </data>
+  <data name="Conflict_BothAdded" xml:space="preserve">
+    <value>both added</value>
+    <comment>Conflict kind (git status: both added)</comment>
+  </data>
+  <data name="Conflict_BothDeleted" xml:space="preserve">
+    <value>both deleted</value>
+    <comment>Conflict kind (git status: both deleted)</comment>
+  </data>
+  <data name="Conflict_DeletedByUs" xml:space="preserve">
+    <value>deleted by us</value>
+    <comment>Conflict kind (git status: deleted by us)</comment>
+  </data>
+  <data name="Conflict_DeletedByThem" xml:space="preserve">
+    <value>deleted by them</value>
+    <comment>Conflict kind (git status: deleted by them)</comment>
+  </data>
+  <data name="Conflict_AddedByUs" xml:space="preserve">
+    <value>added by us</value>
+    <comment>Conflict kind (git status: added by us)</comment>
+  </data>
+  <data name="Conflict_AddedByThem" xml:space="preserve">
+    <value>added by them</value>
+    <comment>Conflict kind (git status: added by them)</comment>
+  </data>
+  <data name="Branch_Merge" xml:space="preserve">
+    <value>Merge</value>
+    <comment>Button: merge this branch into the current one</comment>
+  </data>
+  <data name="Branch_Merge_Hint" xml:space="preserve">
+    <value>Merge {0} into {1}</value>
+    <comment>{0} = this branch, {1} = the current branch</comment>
+  </data>
+  <data name="Branch_Rebase" xml:space="preserve">
+    <value>Rebase</value>
+    <comment>Button: rebase the current branch onto this one</comment>
+  </data>
+  <data name="Branch_Rebase_Hint" xml:space="preserve">
+    <value>Rebase {1} onto {0} – only while its commits are not pushed</value>
+    <comment>{0} = this branch, {1} = the current branch</comment>
   </data>
 </root>
