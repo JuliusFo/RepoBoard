@@ -565,7 +565,7 @@ Log: {1}</value>
     <value>{0} abbrechen?</value>
   </data>
   <data name="Operation_AbortText" xml:space="preserve">
-    <value>Das Repository geht auf den Stand vor dem {0} zurück. Was du gelöst hast, geht verloren, und diese Dateien gehen mit zurück; neue Dateien bleiben:</value>
+    <value>Das Repository geht auf den Stand vor dem {0} zurück. Was du gelöst hast, geht verloren, und diese geänderten Dateien können mit zurückgehen (eine eigene Änderung behält git, wo es kann); neue Dateien bleiben:</value>
   </data>
   <data name="Operation_AbortConfirm" xml:space="preserve">
     <value>{0} abbrechen</value>
@@ -574,7 +574,7 @@ Log: {1}</value>
     <value>Diesen Commit überspringen?</value>
   </data>
   <data name="Operation_SkipText" xml:space="preserve">
-    <value>Der Commit „{0}“ wird ausgelassen, und was du dafür gelöst hast, geht verloren. Diese Dateien gehen zurück:</value>
+    <value>Der Commit „{0}“ wird ausgelassen, und was du dafür gelöst hast, geht verloren. Diese geänderten Dateien können zurückgehen:</value>
   </data>
   <data name="Operation_SkipConfirm" xml:space="preserve">
     <value>Commit überspringen</value>
@@ -641,5 +641,8 @@ Log: {1}</value>
   </data>
   <data name="Branch_Rebase_Hint" xml:space="preserve">
     <value>{1} auf {0} rebasen – nur solange seine Commits nicht gepusht sind</value>
+  </data>
+  <data name="Dialog_Back" xml:space="preserve">
+    <value>Zurück</value>
   </data>
 </root>

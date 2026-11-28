@@ -625,7 +625,7 @@ Log: {1}</value>
     <comment>{0} = the operation (Operation_…)</comment>
   </data>
   <data name="Operation_AbortText" xml:space="preserve">
-    <value>The repository goes back to the state before the {0}. What you resolved is lost, and these files go back with it; new files stay:</value>
+    <value>The repository goes back to the state before the {0}. What you resolved is lost, and these changed files may go back with it (git keeps a change of yours where it can); new files stay:</value>
     <comment>{0} = the operation (Operation_…)</comment>
   </data>
   <data name="Operation_AbortConfirm" xml:space="preserve">
@@ -636,7 +636,7 @@ Log: {1}</value>
     <value>Skip this commit?</value>
   </data>
   <data name="Operation_SkipText" xml:space="preserve">
-    <value>The commit “{0}” is left out and what you resolved for it is lost. These files go back:</value>
+    <value>The commit “{0}” is left out and what you resolved for it is lost. These changed files may go back:</value>
     <comment>{0} = subject or short id of the commit</comment>
   </data>
   <data name="Operation_SkipConfirm" xml:space="preserve">
@@ -720,5 +720,9 @@ Log: {1}</value>
   <data name="Branch_Rebase_Hint" xml:space="preserve">
     <value>Rebase {1} onto {0} – only while its commits are not pushed</value>
     <comment>{0} = this branch, {1} = the current branch</comment>
+  </data>
+  <data name="Dialog_Back" xml:space="preserve">
+    <value>Back</value>
+    <comment>Button: close a question without doing what it asks about, where Cancel would read as the action itself (Abort)</comment>
   </data>
 </root>

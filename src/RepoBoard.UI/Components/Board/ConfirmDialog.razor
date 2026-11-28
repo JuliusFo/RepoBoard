@@ -29,7 +29,7 @@
     </div>
     <footer>
         <span class="spacer"></span>
-        <button class="btn ghost" @onclick="OnCancel">@BoardText.Dialog_Cancel</button>
+        <button class="btn ghost" @onclick="OnCancel">@(CancelLabel ?? BoardText.Dialog_Cancel)</button>
         <button class="btn @(Danger ? "danger" : "primary")" @onclick="OnConfirm">@ConfirmLabel</button>
     </footer>
 </div>
@@ -42,6 +42,12 @@
     [Parameter] public IReadOnlyList<string>? Files { get; set; }
 
     [Parameter, EditorRequired] public string ConfirmLabel { get; set; } = "";
+
+    /// <summary>
+    /// The button that closes the question; "Cancel" if null. Where the action itself is an abort, "Cancel" next to "Abort
+    /// merge" would read as the same thing (E2E WP-07).
+    /// </summary>
+    [Parameter] public string? CancelLabel { get; set; }
 
     /// <summary>The action loses work (abort, skip): a red button.</summary>
     [Parameter] public bool Danger { get; set; }

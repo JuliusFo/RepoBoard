@@ -19,8 +19,11 @@ public sealed record GitResult(int ExitCode, string Output, string Error)
         get
         {
             var text = string.IsNullOrWhiteSpace(Error) ? Output : Error;
-            var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Where(l => !l.StartsWith("hint:", StringComparison.Ordinal));
+            // Of a line git rewrote with \r (progress: "Rebasing (1/2)\rerror: …") only the last part, as a terminal shows it.
+            var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(l => l.TrimEnd('\r'))
+                .Select(l => l[(l.LastIndexOf('\r') + 1)..].Trim())
+                .Where(l => l.Length > 0 && !l.StartsWith("hint:", StringComparison.Ordinal));
             return GitSecrets.Redact(string.Join(Environment.NewLine, lines));
         }
     }

@@ -228,7 +228,8 @@
 @if (_question is { } question)
 {
     <ConfirmDialog Title="@question.Title" Text="@question.Text" Files="question.Files" ConfirmLabel="@question.Confirm"
-                   Danger="question.Kind != QuestionKind.Markers" OnConfirm="Confirm" OnCancel="() => _question = null" />
+                   Danger="question.Kind != QuestionKind.Markers" CancelLabel="@(question.Kind == QuestionKind.Markers ? null : BoardText.Dialog_Back)"
+                   OnConfirm="Confirm" OnCancel="() => _question = null" />
 }
 
 @code {

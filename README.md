@@ -34,7 +34,7 @@ sign-in, SSH, hooks and LFS work exactly as in your terminal.
   your terminal – shows above the files of the opened row with where it stands (“commit 2 of 5”). Conflicted files have
   their own group: open one in VS Code (with its merge editor), then mark it resolved – RepoBoard asks if git still finds
   conflict markers. “Continue” commits with git’s message and goes on; “Skip” leaves out the commit it stopped at;
-  “Abort” goes back to the state before. Skip and abort ask first and list every file that goes back.
+  “Abort” goes back to the state before. Skip and abort ask first and list every changed file that may go back.
 - **History:** the commits of the current branch – or of all branches – with a graph of their branches and merges, and
   their refs; “Load 50 more” goes further back. Click a commit for its whole message, author, parents, the files it changed
   and their diff. Revert a commit of the branch (a new commit that undoes it) or cherry-pick one of another branch onto

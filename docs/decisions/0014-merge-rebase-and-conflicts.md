@@ -68,7 +68,7 @@ Hält git nach einem Start, Fortsetzen oder Überspringen wieder an (der nächst
 - **Leiste** über den Änderungen der geöffneten Zeile, solange eine Operation läuft:
   - Was läuft und wo sie steht („Rebase von feature läuft – Commit 2 von 5: …“), dazu „noch n Konflikte“ bzw. „Alle Konflikte gelöst“.
   - Knöpfe „Fortsetzen“ (gesperrt mit Grund, `OperationTools.ContinueBlocker`), „Überspringen“ (nicht bei Merge) und „Abbrechen“.
-  - Abbrechen und Überspringen fragen nach (`ConfirmDialog`) und listen jede Datei, die zurückgeht. Neue Dateien bleiben.
+  - Abbrechen und Überspringen fragen nach (`ConfirmDialog`) und listen jede geänderte Datei, die zurückgehen kann. Das ist der ungünstigste Fall: Eine eigene Änderung an einer Datei, die die Operation nicht berührt, behält git (`merge --abort` ist `reset --merge`; E2E WP-07). Neue Dateien bleiben. Der Knopf zum Schließen heißt hier „Zurück“, denn „Abbrechen“ neben „Merge abbrechen“ läse sich wie dasselbe (E2E WP-07).
 - **Gruppe „Konflikte (n)“** über Gestagt und Nicht gestaged:
   - Je Datei die Art des Konflikts als Tooltip (wie `git status`: beide geändert, von uns gelöscht …), „Öffnen“ (VS Code mit Repo und Datei, dort auch der Merge-Editor) und „Gelöst“.
   - Konfliktdateien haben kein Häkchen mehr. „Alle stagen“ und „Alle unstagen“ lassen sie aus, solange Konflikte offen sind. Unstagen setzte die Version aus HEAD in den Index, und „Fortsetzen“ ließe die andere Seite fallen.
