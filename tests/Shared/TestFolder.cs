@@ -19,7 +19,7 @@ internal sealed class TestFolder : IDisposable
 
     /// <summary>
     /// A junction at <paramref name="link"/> to the folder <paramref name="target"/>: unlike a symbolic link it needs no
-    /// rights on Windows (review WP-77, K7). Skips the test elsewhere.
+    /// rights on Windows (FerretSharp review WP-77, K7). Skips the test elsewhere.
     /// </summary>
     public static void Junction(string link, string target)
     {

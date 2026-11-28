@@ -36,11 +36,11 @@
         }
         else if (Status.IsDetached)
         {
-            <span class="badge warn" title="@BoardText.Detached_Hint">@TextFormat.Format(BoardText.Detached, Status.Head?[..Math.Min(7, Status.Head.Length)])</span>
+            <span class="badge warn" title="@BoardText.Detached_Hint">@TextFormat.Format(BoardText.Detached, CommitText.Short(Status.Head))</span>
         }
         else
         {
-            <span class="badge branch-name @(IsMainBranch(Status.Branch) ? "main" : "feature")" title="@Status.Branch">@Icons.Branch <span>@Status.Branch</span></span>
+            <span class="badge branch-name @(CommitText.IsMainBranch(Status.Branch) ? "main" : "feature")" title="@VisibleText.Of(Status.Branch ?? "")">@Icons.Branch <span>@VisibleText.Of(Status.Branch ?? "")</span></span>
         }
         @if (Repo.Operation is { } op)
         {
@@ -63,11 +63,11 @@
             {
                 if (s.Ahead > 0)
                 {
-                    <span class="ahead" title="@TextFormat.Format(BoardText.Ahead_Hint, s.Ahead, s.Upstream)">@Icons.Push@s.Ahead</span>
+                    <span class="ahead" title="@TextFormat.Plural(s.Ahead, BoardText.Ahead_HintOne, BoardText.Ahead_HintOther, s.Upstream)">@Icons.Push@s.Ahead</span>
                 }
                 if (s.Behind > 0)
                 {
-                    <span class="behind" title="@TextFormat.Format(BoardText.Behind_Hint, s.Behind, s.Upstream)">@Icons.Pull@s.Behind</span>
+                    <span class="behind" title="@TextFormat.Plural(s.Behind, BoardText.Behind_HintOne, BoardText.Behind_HintOther, s.Upstream)">@Icons.Pull@s.Behind</span>
                 }
                 if (s is { Ahead: 0, Behind: 0 })
                 {
@@ -117,8 +117,8 @@
     }
     else
     {
-        <span class="switch"><Toggle Value="Repo.Entry.AutoFetch" Title="@BoardText.Col_AutoFetch_Hint" OnChange="v => GuardAsync(() => Board.SetAutoFetchAsync(Repo, v, default))" /></span>
-        <span class="switch"><Toggle Value="Repo.Entry.AutoPull" Title="@BoardText.Col_AutoPull_Hint" OnChange="v => GuardAsync(() => Board.SetAutoPullAsync(Repo, v, default))" /></span>
+        <span><Toggle Value="Repo.Entry.AutoFetch" Title="@BoardText.Col_AutoFetch_Hint" OnChange="v => GuardAsync(() => Board.SetAutoFetchAsync(Repo, v, default))" /></span>
+        <span><Toggle Value="Repo.Entry.AutoPull" Title="@BoardText.Col_AutoPull_Hint" OnChange="v => GuardAsync(() => Board.SetAutoPullAsync(Repo, v, default))" /></span>
     }
 
     <span class="actions" @onclick:stopPropagation>
@@ -126,9 +126,9 @@
         {
             <span class="spinner"></span><span class="busy-text">@busy …</span>
         }
-        else if (Repo is { IsWorktree: true, Missing: true })
+        else if (Repo.Missing)
         {
-            @* Nothing to run in a folder that is gone; removing cleans up git's data about it. *@
+            @* Nothing to run in a folder that is gone (review 0.4.0, A17); a worktree's removal cleans up git's data about it. *@
         }
         else
         {
@@ -137,7 +137,7 @@
                 <button class="btn small" title="@BoardText.Fetch_Hint" @onclick="() => GuardAsync(() => Board.FetchAsync(Repo, default))">@Icons.Fetch</button>
             }
             <button class="btn small @(Status is { Behind: > 0 } ? "hot" : "")" title="@BoardText.Pull_Hint" @onclick="() => GuardAsync(() => Board.PullAsync(Repo, default))">@Icons.Pull @BoardText.Pull</button>
-            <button class="btn small @(Status is { Ahead: > 0 } or { HasUpstream: false, IsDetached: false } ? "hot" : "")" title="@BoardText.Push_Hint" @onclick="() => GuardAsync(() => Board.PushAsync(Repo, default))">@Icons.Push @BoardText.Push</button>
+            <button class="btn small @(BoardFilter.HasToPush(Status) ? "hot" : "")" title="@BoardText.Push_Hint" @onclick="() => GuardAsync(() => Board.PushAsync(Repo, default))">@Icons.Push @BoardText.Push</button>
         }
         <button class="btn small ghost" title="@BoardText.OpenFolder_Hint" disabled="@Repo.Missing" @onclick="() => Guard(() => Desktop.OpenFolder(Repo.Path))">@Icons.Folder</button>
         <button class="btn small ghost" title="@BoardText.OpenTerminal_Hint" disabled="@Repo.Missing" @onclick="() => Guard(() => Desktop.OpenTerminal(Repo.Path))">@Icons.Terminal</button>
@@ -148,7 +148,7 @@
         }
         else
         {
-            <button class="btn small ghost danger-hover" title="@BoardText.Remove_Hint" @onclick="() => GuardAsync(() => Board.RemoveAsync(Repo, default))">@Icons.Close</button>
+            <button class="btn small ghost danger-hover" title="@BoardText.Remove_Hint" @onclick="() => GuardAsync(() => Board.RemoveAsync(Repo, default))">@Icons.RemoveFromBoard</button>
         }
     </span>
 </div>
@@ -163,7 +163,7 @@
 
 @if (Expanded)
 {
-    <RepoDetailsPanel Repo="Repo" />
+    <RepoDetailsPanel Repo="Repo" Now="Now" />
 }
 
 @code {
@@ -199,5 +199,4 @@
     }
 
     /// <summary>The usual long-lived branches stay grey; any other branch is coloured, so a forgotten feature branch stands out.</summary>
-    private static bool IsMainBranch(string? name) => name is "main" or "master" or "develop" or "dev";
 }

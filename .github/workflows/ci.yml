@@ -101,3 +101,8 @@ jobs:
           dotnet test tests/RepoBoard.Core.Tests --no-build
           dotnet test tests/RepoBoard.UI.Tests --no-build
           dotnet test tests/RepoBoard.App.Tests --no-build
+
+      # What release.yml builds after the tag, built before it: a warning only Release or the runtime pack shows would
+      # otherwise fail the release with the tag already pushed (review 0.4.0, B11). Nothing is uploaded.
+      - name: Release publish (self-contained)
+        run: dotnet publish src/RepoBoard.App -c Release -r win-x64 --self-contained -o ${{ runner.temp }}/publish

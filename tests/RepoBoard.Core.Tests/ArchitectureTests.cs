@@ -35,6 +35,27 @@ public sealed partial class ArchitectureTests
         Assert.Empty(found);
     }
 
-    [GeneratedRegex(@"\bProcess\.Start\s*\(|\bnew\s+ProcessStartInfo\b|\bnew\s+Process\s*\(")]
+    // Also the object initializer (new Process { … }) and "Process p = new(); p.Start()" (review 0.4.0, C9).
+    [GeneratedRegex(@"\bProcess\.Start\s*\(|\bProcessStartInfo\b|\bnew\s+Process\b|\bProcess\??\s+\w+\s*=\s*new\b")]
     private static partial Regex ProcessStart();
+
+    /// <summary>
+    /// Text from a repository (a branch, a commit message, a path) reaches the page only as text: a <c>MarkupString</c> is
+    /// HTML. The icons are the only ones, from constant paths (review 0.4.0, C9).
+    /// </summary>
+    [Fact]
+    public void Markup_comes_only_from_the_icons()
+    {
+        var root = Repository.Root;
+        var found = Directory.EnumerateFiles(Path.Combine(root, "src"), "*.*", SearchOption.AllDirectories)
+            .Where(f => f.EndsWith(".cs", StringComparison.Ordinal) || f.EndsWith(".razor", StringComparison.Ordinal))
+            .Select(f => (File: f, Relative: Path.GetRelativePath(root, f).Replace('\\', '/')))
+            .Where(f => !f.Relative.Contains("/obj/", StringComparison.Ordinal) && !f.Relative.Contains("/bin/", StringComparison.Ordinal)
+                        && f.Relative != "src/RepoBoard.UI/Components/Common/Icons.cs")
+            .Where(f => File.ReadAllText(f.File).Contains("MarkupString", StringComparison.Ordinal))
+            .Select(f => f.Relative)
+            .ToList();
+
+        Assert.Empty(found);
+    }
 }

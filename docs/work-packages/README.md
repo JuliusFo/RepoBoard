@@ -6,7 +6,11 @@ Was in den abgeschlossenen Paketen gebaut und entschieden wurde, mit Nachträgen
 
 | Version | Inhalt | Pakete |
 |---|---|---|
-| **0.x – Fundament** | Übersicht aller Repos, Git-Grundaktionen, Auto-Fetch/Auto-Pull je Repo | WP-01 … |
+| **0.1** | Fundament: Übersicht, Git-Grundaktionen, Auto-Fetch/Auto-Pull; Infobereich; Installer und Updates | WP-01, WP-02, WP-10 |
+| **0.2** | Worktrees, Diff-Ansicht, Bild der WebView | WP-04, WP-05, Fix |
+| **0.3** | Dateiwächter | WP-03 |
+| **0.4** | Hunks und Zeilen stagen, Historie und Commit-Werkzeuge | WP-25, WP-09 |
+| **0.5** | Gesamt-Review 0.4.0 umgesetzt | R1 |
 
 ## Übersicht
 
@@ -22,4 +26,5 @@ Reihenfolge wie die Releases.
 | Fix | [fix-webview-copy-fence.md](fix-webview-copy-fence.md) | Klicks und Hover verspätet: auf die GPU-Kopie jedes WebView-Bildes warten, Bilder bei gesperrtem `D3DImage` zurückhalten (aus FerretSharp), Messskript für das Fensterbild | `App/Services` (`CopyFence`, `WebViewCapture`), `tests/RepoBoard.App.Tests`, `tools/e2e/Measure-PictureDelay.ps1` | 0.2.0 | 0009 |
 | WP-03 | [wp-03-file-watch.md](wp-03-file-watch.md) | Dateiwächter: Status etwa eine Sekunde nach jeder Änderung in IDE oder Terminal (Commit, Branchwechsel, Fetch, Datei, neuer Worktree), ein Wächter je Wurzelordner, Routing nach Pfad, Entprellen; der Takt liest beobachtete Repos nur alle 2 min | `Core/Watch` (`WatchMap`, `ChangeDebouncer`, `RepoWatchService`), `Core/Board` (`BoardService.RefreshStaleAsync`, `RepoState.StatusReadAt`/`Watched`), `Core/Sync/AutoSyncService`, `App` | 0.3.0 | 0011 |
 | WP-25 | [wp-25-hunk-staging.md](wp-25-hunk-staging.md) | Hunks und Zeilen stagen/unstagen aus der Diff-Ansicht: Knopf am Hunk-Kopf, Zeilen per Klick am Rand (Shift: Bereich), auch Teile neuer und gelöschter Dateien; nur der Index über `git apply --cached` | `Core/Git` (`HunkPatch`, `GitClient.ApplyToIndexAsync`, `GitRunner` stdin, `FileDiff` Dateimodus), `Core/Board/BoardService.StageHunkAsync`, `UI/Components/Board` (`DiffPanel`, `DiffLineView`), `UI/State/LineSelection` | 0.4.0 | 0012 |
-| WP-09 | [wp-09-history.md](wp-09-history.md) | Historie als Graph (HEAD oder alle Branches, nachladen bis 1 000), Commit-Details mit Dateien und Diff in der Zeile, Amend (nur ungepusht), Revert und Cherry-Pick mit Prüfung im Tor | `Core/Git` (`CommitGraph`, `CommitDetails`, `GitClient` Log/Show/Amend/Revert/Cherry-Pick), `Core/Board` (`BoardService.SetLogAsync`/`CommitDetailsAsync`/`PickAsync`, `RepoState.LogLength`/`LogAll`), `UI/Components/Board` (`HistoryRow`, `CommitPanel`, `RepoDetailsPanel`), `UI/State` (`GraphDrawing`, `CommitTools`) | 0.4.0 | 0013 |
+| WP-09 | [wp-09-history.md](wp-09-history.md) | Historie als Graph (HEAD oder alle Branches, nachladen bis 1 000), Commit-Details mit Dateien und Diff in der Zeile, Amend (nur ungepusht), Revert und Cherry-Pick mit Prüfung im Tor | `Core/Git` (`CommitGraph`, `CommitDetails`, `GitClient` Log/Show/Amend/Revert/Cherry-Pick), `Core/Board` (`BoardService.SetLogAsync`/`CommitDetailsAsync`/`PickAsync`, `RepoState.LogLength`/`LogAll`), `UI/Components/Board` (`HistoryRow`, `CommitPanel`, `RepoDetailsPanel`), `UI/State` (`GraphDrawing`, `CommitTools`, `AmendDraft`) | 0.4.0 | 0013 |
+| R1 | [r1-review-0.4.md](r1-review-0.4.md) | Gesamt-Review 0.4.0 umgesetzt: Autostash beim Auto-Pull, Scan fragt vor git, NUL-getrennte Historie, Auto-Sync ohne Stau, Host- und UI-Fehler, Tests, Doku | `Core/Git` (`GitRunner.EnvironmentFor`, `CommitMessage`, `BranchInfo`), `Core/Board` (`BoardService`, `PickCheck`, `RepoState.LastAutoError`/`FamilyNetwork`), `Core/Repos/RepoScanner`, `Core/IO/Paths`, `UI/State` (`ScanSelection`, `DesktopPaths`, `VisibleText`, `CommitText`, `UpdateIntervals`), `UI/Components` (`ScanDialog`, `DiffBody`, `UpdateComponent`), `App/Program`, `App/Services/WpfDesktop` | noch ohne Release | 0014 |

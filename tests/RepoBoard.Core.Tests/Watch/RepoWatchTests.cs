@@ -17,8 +17,7 @@ public sealed class RepoWatchTests : IDisposable
 
     private CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private BoardService NewBoard(TimeProvider time) =>
-        new(new GitClient(new GitRunner()), new ConfigStore(Path.Combine(_git.Root, "config.json"), time), time);
+    private BoardService NewBoard(TimeProvider time) => Boards.New(_git.Root, time);
 
     private async Task<(BoardService Board, RepoState Repo, RepoWatchService Watch)> WatchMineAsync()
     {
@@ -180,8 +179,9 @@ public sealed class RepoWatchTests : IDisposable
             try
             {
                 File.WriteAllText(Path.Combine(_git.Mine, "new.txt"), "new");
-                await Task.Delay(RepoWatchService.Longest, Ct); // the watcher's read came and was skipped
-                Assert.Equal(0, repo.Status!.Untracked);
+                // The watcher's read comes and is skipped while the test holds the gate. (An assert on the status here could not
+                // fail: nothing can read it meanwhile – review 0.4.0, C13.)
+                await Task.Delay(RepoWatchService.Longest, Ct);
             }
             finally
             {
@@ -245,6 +245,24 @@ public sealed class RepoWatchTests : IDisposable
     }
 
     [Fact]
+    public async Task The_tick_leaves_a_status_just_read_by_someone_else()
+    {
+        var time = new FakeTimeProvider();
+        var board = NewBoard(time);
+        await board.AddAsync([_git.Mine], Ct); // reads the status
+        var repo = board.Repos.Single();
+        var read = repo.StatusReadAt;
+
+        time.Advance(BoardService.UnwatchedRefresh - TimeSpan.FromSeconds(1));
+        await board.RefreshStaleAsync(Ct);
+        Assert.Equal(read, repo.StatusReadAt); // at the start: the activation's read, then the tick (review 0.4.0, A14)
+
+        time.Advance(TimeSpan.FromSeconds(1));
+        await board.RefreshStaleAsync(Ct);
+        Assert.Equal(time.GetTimestamp(), repo.StatusReadAt);
+    }
+
+    [Fact]
     public async Task The_tick_reads_a_watched_repository_only_as_a_fallback()
     {
         var time = new FakeTimeProvider(DateTimeOffset.Parse("2026-11-21T08:00:00Z", System.Globalization.CultureInfo.InvariantCulture));
@@ -262,9 +280,11 @@ public sealed class RepoWatchTests : IDisposable
         await board.RefreshStaleAsync(Ct);
         Assert.Equal(time.GetTimestamp(), repo.StatusReadAt);
 
-        // A status that fails keeps the time of the last good one, and the tick reads it every time (review WP-03).
-        var gitDir = Path.Combine(_git.Mine, ".git");
-        Directory.Move(gitDir, gitDir + "-away");
+        // A status that fails keeps the time of the last good one, and the tick reads it every time (review WP-03). A broken
+        // HEAD, not a missing .git – that counts as a missing repository (review 0.4.0, A6).
+        var head = Path.Combine(_git.Mine, ".git", "HEAD");
+        var headText = File.ReadAllText(head);
+        File.WriteAllText(head, "garbage");
         try
         {
             var good = repo.StatusReadAt;
@@ -275,7 +295,7 @@ public sealed class RepoWatchTests : IDisposable
         }
         finally
         {
-            Directory.Move(gitDir + "-away", gitDir);
+            File.WriteAllText(head, headText);
         }
 
         time.Advance(TimeSpan.FromSeconds(20));

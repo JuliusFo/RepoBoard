@@ -34,10 +34,10 @@
                     {
                         <div class="file @(IsSelected(selected, file, true) ? "selected" : "")" @key="StagedKey(file)">
                             <label title="@Title(file)">
-                                <input type="checkbox" checked @onchange="() => GuardAsync(() => Board.UnstageAsync(Repo, [file.Path], default))" />
+                                <input type="checkbox" checked @onchange="() => StageAsync(file, stage: false)" />
                                 <span class="letter l-@LetterClass(file.Letter(true))">@file.Letter(true)</span>
                             </label>
-                            <button class="path" title="@BoardText.Diff_Show_Hint" @onclick="() => Select(file, true)"><span>@file.Path</span></button>
+                            <button class="path" title="@BoardText.Diff_Show_Hint" @onclick="() => Select(file, true)"><span>@VisibleText.Of(file.Path)</span></button>
                         </div>
                     }
                 }
@@ -48,10 +48,10 @@
                     {
                         <div class="file @(IsSelected(selected, file, false) ? "selected" : "")" @key="UnstagedKey(file)">
                             <label title="@Title(file)">
-                                <input type="checkbox" @onchange="() => GuardAsync(() => Board.StageAsync(Repo, [file.Path], default))" />
+                                <input type="checkbox" @onchange="() => StageAsync(file, stage: true)" />
                                 <span class="letter l-@LetterClass(file.Letter(false))">@file.Letter(false)</span>
                             </label>
-                            <button class="path" title="@BoardText.Diff_Show_Hint" @onclick="() => Select(file, false)"><span>@file.Path</span></button>
+                            <button class="path" title="@BoardText.Diff_Show_Hint" @onclick="() => Select(file, false)"><span>@VisibleText.Of(file.Path)</span></button>
                         </div>
                     }
                 }
@@ -105,9 +105,9 @@
                     @foreach (var branch in details.Branches)
                     {
                         <div class="branch-item @(branch.IsCurrent ? "current" : "") @(branch.IsRemote ? "remote" : "")">
-                            <span class="b-name" title="@branch.Name">@(branch.IsCurrent ? Icons.Check : Icons.Branch) @branch.Name</span>
-                            <span class="b-track">@branch.Track</span>
-                            <span class="b-when">@branch.LastCommit</span>
+                            <span class="b-name" title="@VisibleText.Of(branch.Name)">@(branch.IsCurrent ? Icons.Check : Icons.Branch) @VisibleText.Of(branch.Name)</span>
+                            <span class="b-track">@RelativeTime.Track(branch)</span>
+                            <span class="b-when" title="@RelativeTime.Exact(branch.LastCommit)">@(branch.LastCommit is null ? "" : RelativeTime.Text(branch.LastCommit, Now))</span>
                             @if (!branch.IsCurrent)
                             {
                                 <button class="btn small ghost" title="@BoardText.Switch_Hint" @onclick="() => GuardAsync(() => Board.SwitchAsync(Repo, branch, default))">@BoardText.Switch</button>
@@ -147,7 +147,7 @@
                     @for (var i = 0; i < history.Log.Count; i++)
                     {
                         var commit = history.Log[i];
-                        <HistoryRow @key="commit.Id" Commit="commit" Graph="history.Graph[i]" Lanes="lanes"
+                        <HistoryRow @key="commit.Id" Commit="commit" Graph="history.Graph[i]" Lanes="lanes" Now="Now"
                                     OnSelect="() => OpenCommit(commit.Id)" />
                     }
                     @if (history.HasMore && Repo.LogLength < BoardService.MaxLogLength)
@@ -165,6 +165,9 @@
 
 @code {
     [Parameter, EditorRequired] public RepoState Repo { get; set; } = null!;
+
+    /// <summary>The shell's clock (it renders every 30 s): commit dates count from it.</summary>
+    [Parameter] public DateTimeOffset Now { get; set; }
 
     private string _message = "";
     private string _newBranch = "";
@@ -207,7 +210,7 @@
             _focusDiff = false;
             if (_diffPanel is { } panel)
             {
-                await panel.FocusAsync();
+                await FocusQuietlyAsync(panel.FocusAsync);
             }
         }
 
@@ -216,10 +219,25 @@
             _focusCommit = false;
             if (_commitPanel is { } panel)
             {
-                await panel.FocusAsync();
+                await FocusQuietlyAsync(panel.FocusAsync);
             }
         }
     }
+
+    /// <summary>
+    /// Bumped after a stage or unstage git refused: the file's row gets a new key, so its checkbox shows the file's real
+    /// state again – Blazor leaves an unchanged <c>checked</c> as the click set it (review 0.4.0, A31).
+    /// </summary>
+    private int _fileRound;
+
+    private Task StageAsync(FileChange file, bool stage) => GuardAsync(async () =>
+    {
+        var done = stage ? await Board.StageAsync(Repo, [file.Path], default) : await Board.UnstageAsync(Repo, [file.Path], default);
+        if (!done)
+        {
+            _fileRound++;
+        }
+    });
 
     private RepoStatus? Status => Repo.Status;
 
@@ -231,8 +249,8 @@
     // A row per file and side (a partly staged file is in both lists, which share one parent): without a key Blazor reuses
     // the row of a file that moved to the other list for the next file – with the checkbox the click left ticked (E2E
     // review WP-05; a click on it would have staged that next file).
-    private static string StagedKey(FileChange file) => "s:" + file.Path;
-    private static string UnstagedKey(FileChange file) => "u:" + file.Path;
+    private string StagedKey(FileChange file) => $"s{_fileRound}:{file.Path}";
+    private string UnstagedKey(FileChange file) => $"u{_fileRound}:{file.Path}";
 
     private static bool IsSelected((FileChange Change, bool Staged)? selected, FileChange file, bool staged) =>
         selected is { } s && s.Staged == staged && s.Change.Path == file.Path;
@@ -245,7 +263,11 @@
         _focusDiff = _diffTarget is not null;
     }
 
-    private void CloseDiff() => _diffTarget = null;
+    private void CloseDiff()
+    {
+        _diffTarget = null;
+        _diffPanel = null;
+    }
 
     /// <summary>A click on a commit of the history, or on a parent in the open commit, shows its details.</summary>
     private void OpenCommit(string id)
@@ -255,7 +277,11 @@
         _focusCommit = true;
     }
 
-    private void CloseCommit() => _commitId = null;
+    private void CloseCommit()
+    {
+        _commitId = null;
+        _commitPanel = null;
+    }
 
     /// <summary>Amend starts from the last commit's message; unticked, an unedited one goes again.</summary>
     private Task ToggleAmend(ChangeEventArgs e) => GuardAsync(async () =>
@@ -274,7 +300,7 @@
     });
 
     private static string Title(FileChange file) =>
-        file.OriginalPath is { } from ? $"{from} → {file.Path}" : file.Path;
+        CommitText.PathTitle(file.Path, file.OriginalPath);
 
     /// <summary>A CSS class for the status letter: '?' is no valid class character.</summary>
     private static string LetterClass(char letter) => letter == '?' ? "new" : letter.ToString();

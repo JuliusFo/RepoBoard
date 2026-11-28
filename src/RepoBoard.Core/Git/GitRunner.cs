@@ -75,14 +75,22 @@ public class GitRunner(string executable = "git")
             start.ArgumentList.Add(arg);
         }
 
-        // Never a console prompt (there is no console); status takes no optional index lock, so it never collides with the
-        // IDE or a terminal working in the same repository.
-        start.Environment["GIT_TERMINAL_PROMPT"] = "0";
-        start.Environment["GIT_OPTIONAL_LOCKS"] = "0";
-        if (mode == GitCallMode.Background)
+        foreach (var (name, value) in EnvironmentFor(mode))
         {
-            start.Environment["GCM_INTERACTIVE"] = "never";
-            start.Environment["SSH_ASKPASS_REQUIRE"] = "never";
+            if (value is null)
+            {
+                start.Environment.Remove(name);
+            }
+            else
+            {
+                start.Environment[name] = value;
+            }
+        }
+
+        // Process.Start fails the same way for a missing folder as for a missing git (review 0.4.0, A17).
+        if (!Directory.Exists(workingDirectory))
+        {
+            return GitResult.Failed(TextFormat.Format(SyncText.FolderMissing, workingDirectory));
         }
 
         using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -125,9 +133,53 @@ public class GitRunner(string executable = "git")
                 throw;
             }
 
-            return GitResult.Failed(TextFormat.Format(SyncText.GitTimedOut, string.Join(' ', args), (int)timeout.TotalSeconds));
+            // Only the command: the arguments may hold a whole commit message (review 0.4.0, A21).
+            return GitResult.Failed(TextFormat.Format(SyncText.GitTimedOut, Command(args), (int)timeout.TotalSeconds));
         }
     }
+
+    /// <summary>The git command of <paramref name="args"/> (<c>commit</c>): the first word that is neither an option nor a value of <c>-c</c>.</summary>
+    internal static string Command(IReadOnlyList<string> args)
+    {
+        for (var i = 0; i < args.Count; i++)
+        {
+            if (args[i] == "-c")
+            {
+                i++;
+            }
+            else if (!args[i].StartsWith('-'))
+            {
+                return args[i];
+            }
+        }
+
+        return "";
+    }
+
+    /// <summary>
+    /// What every call sets in git's environment (null removes a variable). Never a console prompt (there is no console);
+    /// <c>status</c> takes no optional index lock, so it never collides with the IDE or a terminal working in the same
+    /// repository. In the background never a sign-in window or askpass program – an empty <c>GIT_ASKPASS</c> also keeps
+    /// git from falling back to <c>core.askPass</c>. What a parent process set for its own repository (a hook's
+    /// <c>GIT_DIR</c>/<c>GIT_INDEX_FILE</c>, the askpass of the VS Code terminal RepoBoard was started from) never reaches
+    /// git: every row would work on that one repository, or ask through a window that is not there (review 0.4.0, A20).
+    /// </summary>
+    public static IReadOnlyList<(string Name, string? Value)> EnvironmentFor(GitCallMode mode) =>
+    [
+        ("GIT_TERMINAL_PROMPT", "0"),
+        ("GIT_OPTIONAL_LOCKS", "0"),
+        .. Inherited.Select(name => (name, (string?)null)),
+        .. mode == GitCallMode.Background
+            ? [("GCM_INTERACTIVE", "never"), ("SSH_ASKPASS_REQUIRE", "never"), ("GIT_ASKPASS", "")]
+            : new (string, string?)[] { ("GIT_ASKPASS", null) },
+    ];
+
+    /// <summary>git variables that point a call at another repository or add configuration – a parent's, not RepoBoard's.</summary>
+    internal static readonly string[] Inherited =
+    [
+        "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_NAMESPACE", "GIT_PREFIX", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT",
+    ];
 
     private static async Task WriteInputAsync(Process process, string? input, CancellationToken token)
     {

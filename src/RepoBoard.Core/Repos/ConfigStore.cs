@@ -52,7 +52,9 @@ public sealed class ConfigStore(string file, TimeProvider time)
     {
         Repos = [.. (config.Repos ?? []).OfType<RepoEntry>()
             .Where(r => !string.IsNullOrWhiteSpace(r.Path) && Path.IsPathFullyQualified(r.Path))
-            .DistinctBy(r => Path.GetFullPath(r.Path), StringComparer.OrdinalIgnoreCase)],
+            // Kept as the full path: one written by hand with "/" or ".." is the same repository a scan finds (review 0.4.0, A23).
+            .Select(r => r with { Path = Paths.Full(r.Path) })
+            .DistinctBy(r => r.Path, Paths.Comparer)],
         AutoSyncMinutes = BoardConfig.Intervals.Contains(config.AutoSyncMinutes) ? config.AutoSyncMinutes : BoardConfig.DefaultAutoSyncMinutes,
         Settings = config.Settings is { } settings
             ? settings with

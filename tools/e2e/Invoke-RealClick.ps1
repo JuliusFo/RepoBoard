@@ -7,13 +7,14 @@
     Take the position from getBoundingClientRect via CDP (cdp.mjs); screen = ClientToScreen(window) + CSS * DPR.
     Before any input the script brings the window to the front and stops if Windows refuses (the input would land in
     the window on top) or if another window lies under the point (a new instance on another screen). Run
-    Test-InjectedInput.ps1 first: with an anti-cheat filter active only moves arrive.
+    Test-InjectedInput.ps1 first: with an anti-cheat filter active only moves arrive. -Shift holds Shift during the click,
+    -Key presses a key after it (Esc closing a panel), both as real keyboard input.
 
-    Holding the window in front gives the focus back to the last focused field; blur it via CDP first if a column
-    picker could open and cover the target.
+    Holding the window in front gives the focus back to the last focused field; blur it via CDP first if a menu
+    could open and cover the target.
 
     Only clicks into a process whose executable lies below <Root>\app, like Stop-TestInstance.ps1: the id of the user's own
-    instance would click for real into it - connections, commit, Prod (review 3.70.0, A25).
+    instance would click for real into it - fetch, commit, push in real repositories (FerretSharp review 3.70.0, A25).
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File tools/e2e/Invoke-RealClick.ps1 -Root <scratch>\e2e -ProcessId 12345 -X 188 -Y 22.5
@@ -40,7 +41,11 @@ param(
     # With -ToX/-ToY: keeps the button down this long at the end before releasing (auto-scroll near an edge).
     [int]$HoldMs = 0,
     # Only moves the mouse there (hover).
-    [switch]$MoveOnly
+    [switch]$MoveOnly,
+    # Holds Shift during the click (Shift+click: a range).
+    [switch]$Shift,
+    # A key pressed after the click (or after the move with -MoveOnly): Escape, Enter, Tab, Down.
+    [ValidateSet('', 'Escape', 'Enter', 'Tab', 'Down')][string]$Key = ''
 )
 $ErrorActionPreference = 'Stop'
 $src = @'
@@ -58,7 +63,12 @@ public static class RealInput {
   [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
   [StructLayout(LayoutKind.Sequential)] struct MOUSEINPUT { public int dx, dy; public uint data, flags, time; public IntPtr extra; }
   // x64: type + MOUSEINPUT = 40 bytes; another size makes SendInput fail with error 87 and no click arrives.
-  [StructLayout(LayoutKind.Explicit, Size=40)] struct INPUT { [FieldOffset(0)] public uint type; [FieldOffset(8)] public MOUSEINPUT mi; }
+  [StructLayout(LayoutKind.Sequential)] struct KEYBDINPUT { public ushort vk, scan; public uint flags, time; public IntPtr extra; }
+  [StructLayout(LayoutKind.Explicit, Size=40)] struct INPUT { [FieldOffset(0)] public uint type; [FieldOffset(8)] public MOUSEINPUT mi; [FieldOffset(8)] public KEYBDINPUT ki; }
+  public static void Key(ushort vk, bool up) {
+    var i = new INPUT[1]; i[0].type = 1; i[0].ki.vk = vk; i[0].ki.flags = up ? 0x0002u : 0u;
+    if (SendInput(1, i, 40) != 1) throw new InvalidOperationException("SendInput failed, error " + Marshal.GetLastWin32Error());
+  }
   public static void Mouse(uint flags, int dx, int dy) {
     var i = new INPUT[1]; i[0].type = 0; i[0].mi.flags = flags; i[0].mi.dx = dx; i[0].mi.dy = dy;
     if (SendInput(1, i, 40) != 1) throw new InvalidOperationException("SendInput failed, error " + Marshal.GetLastWin32Error());
@@ -103,6 +113,8 @@ $flags = @{ Left = 0x0002, 0x0004; Right = 0x0008, 0x0010; Middle = 0x0020, 0x00
 
 [RealInput]::MoveTo($start)
 Start-Sleep -Milliseconds 80
+if ($Shift) { [RealInput]::Key(0x10, $false); Start-Sleep -Milliseconds 40 }
+try {
 if (-not $MoveOnly) {
     if ($drag) {
         for ($i = 1; $i -lt $Clicks; $i++) {
@@ -125,6 +137,16 @@ if (-not $MoveOnly) {
         }
     }
 }
+} finally {
+    # Never leave Shift down on the user's desktop, whatever failed (second review pass R1).
+    if ($Shift) { Start-Sleep -Milliseconds 40; [RealInput]::Key(0x10, $true) }
+}
+if ($Key) {
+    $vk = @{ Escape = 0x1B; Enter = 0x0D; Tab = 0x09; Down = 0x28 }[$Key]
+    Start-Sleep -Milliseconds 80
+    [RealInput]::Key($vk, $false); Start-Sleep -Milliseconds 40; [RealInput]::Key($vk, $true)
+}
 Start-Sleep -Milliseconds 150
 $what = if ($MoveOnly) { 'Moved' } elseif ($drag) { "Dragged ($Button, $($Clicks - 1) click(s) before) to ($($end.X), $($end.Y)) from" } else { "$Button x$Clicks at" }
-"$what ($($start.X), $($start.Y)); test instance still in front: $([RealInput]::GetForegroundWindow() -eq $window)"
+$extra = @(if ($Shift) { "with Shift" }) + @(if ($Key) { "then $Key" })
+"$what ($($start.X), $($start.Y)) $($extra -join ' '); test instance still in front: $([RealInput]::GetForegroundWindow() -eq $window)"

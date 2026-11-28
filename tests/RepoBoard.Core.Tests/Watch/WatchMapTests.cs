@@ -146,4 +146,21 @@ public sealed class WatchMapTests
         map = WatchMap.Of(repos);
         Assert.False(map.Matches([states["repo"]]));
     }
+
+    /// <summary>
+    /// Review WP-03 #8: a drive root (a worktree entry pointing there) or a network share stays with the tick – a watcher
+    /// would watch the whole drive, or report nothing (review 0.4.0, C7).
+    /// </summary>
+    [Fact]
+    public void A_drive_root_or_a_share_is_left_to_the_tick()
+    {
+        var root = Path.GetPathRoot(Path.GetTempPath())!;
+
+        Assert.True(RepoWatchService.LeftToTheTick(WatchMap.Normalize(root)!));
+        Assert.False(RepoWatchService.LeftToTheTick(WatchMap.Normalize(Path.Combine(Path.GetTempPath(), "repo"))!));
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.True(RepoWatchService.LeftToTheTick(@"\\host\share\repo"));
+        }
+    }
 }

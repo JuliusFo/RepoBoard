@@ -1,4 +1,5 @@
 using RepoBoard.Core.Board;
+using RepoBoard.Core.Git;
 
 namespace RepoBoard.UI.State;
 
@@ -27,7 +28,7 @@ public static class BoardFilter
         BoardFilterKind.Changes => repo.Status is { IsClean: false },
         BoardFilterKind.Behind => repo.Status is { Behind: > 0 },
         // Never pushed counts as ahead: everything on it is only local.
-        BoardFilterKind.Ahead => repo.Status is { Ahead: > 0 } or { HasUpstream: false, IsDetached: false },
+        BoardFilterKind.Ahead => HasToPush(repo.Status),
         BoardFilterKind.AutoSync => repo.AutoSyncOn,
         BoardFilterKind.Problems => repo.Error is not null || repo.Missing || repo.Operation is not null || repo.AutoPullBlocked is not null,
         _ => true,
@@ -64,4 +65,10 @@ public static class BoardFilter
         kind == BoardFilterKind.All
             ? repos.Count()
             : repos.Sum(r => (Matches(kind, r) ? 1 : 0) + r.Worktrees.Count(w => Matches(kind, w)));
+
+    /// <summary>
+    /// Commits to push: ahead of the upstream, or a branch never pushed – but not one without a commit, whose push git
+    /// refuses ("src refspec does not match"; review 0.4.0, A26). The "ahead" chip and the push button's highlight.
+    /// </summary>
+    public static bool HasToPush(RepoStatus? status) => status is { Ahead: > 0 } or { HasUpstream: false, IsDetached: false, IsInitial: false };
 }

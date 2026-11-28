@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Time.Testing;
 using RepoBoard.Core.Board;
 using RepoBoard.Core.Git;
 using RepoBoard.Core.Repos;
@@ -230,7 +231,7 @@ public sealed class HunkStagingTests : IDisposable
         GitSandbox.Commit(_git.Mine, "latin.txt", original);
         // Two hunks: "A" in the first line, a Latin-1 "ä" in the last.
         File.WriteAllBytes(Full("latin.txt"), [.. "A\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\n"u8, 0xE4, (byte)'\n']);
-        var board = new BoardService(_client, new ConfigStore(Path.Combine(_git.Root, "config.json"), TimeProvider.System), TimeProvider.System);
+        var board = Boards.New(_git.Root, new FakeTimeProvider());
         await board.AddAsync([_git.Mine], Ct);
         var repo = board.Repos.Single();
         var change = repo.Status!.Changes.Single();
@@ -244,7 +245,7 @@ public sealed class HunkStagingTests : IDisposable
 
     private async Task<(BoardService Board, RepoState Repo)> BoardAsync()
     {
-        var board = new BoardService(_client, new ConfigStore(Path.Combine(_git.Root, "config.json"), TimeProvider.System), TimeProvider.System);
+        var board = Boards.New(_git.Root, new FakeTimeProvider());
         await board.AddAsync([_git.Mine], Ct);
         return (board, board.Repos.Single());
     }

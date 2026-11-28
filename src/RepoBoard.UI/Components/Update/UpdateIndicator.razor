@@ -1,8 +1,6 @@
 @* The update in the top bar (WP-10, FerretSharp's status bar): available (opens the dialog), downloading, ready for the
    restart, download failed. Nothing while checking, up to date or after a failed check – that is in the settings. *@
-@inherits BoardComponent
-@implements IDisposable
-@inject UpdateState Updates
+@inherits UpdateComponent
 
 @if (Updates.Update is { } update)
 {
@@ -29,14 +27,4 @@
 }
 
 @code {
-    protected override void OnInitialized() => Updates.Changed += OnChanged;
-
-    /// <summary>From any thread (the download's progress comes from the thread pool).</summary>
-    private void OnChanged() => Fire(() =>
-    {
-        StateHasChanged();
-        return Task.CompletedTask;
-    });
-
-    public void Dispose() => Updates.Changed -= OnChanged;
 }

@@ -1,6 +1,6 @@
 # UI end-to-end prüfen
 
-Vor jedem E2E-Lauf lesen. Abläufe und Fallen aus FerretSharp (`docs/e2e-testing.md` dort, mit vielen Details zu Ports, mehreren Instanzen und FACEIT).
+Vor jedem E2E-Lauf lesen. Abläufe und Fallen aus FerretSharp (`docs/e2e-testing.md` dort, mit vielen Details zu Ports, mehreren Instanzen und gefilterter Eingabe).
 
 ## Nie echte Daten
 - App nur mit `--data-dir=<scratch>` starten – sonst arbeitet sie auf `%APPDATA%\RepoBoard\config.json` des Nutzers.
@@ -8,7 +8,7 @@ Vor jedem E2E-Lauf lesen. Abläufe und Fallen aus FerretSharp (`docs/e2e-testing
 - Auto-Fetch/Auto-Pull nur für Test-Repos einschalten.
 
 ## Testinstanz
-- `tools/e2e/Start-TestInstance.ps1 -Root <scratch>\e2e` baut nach `<Root>\app` und startet mit eigenem Daten- und WebView2-Ordner, Debug-Port 9333 (prüft, dass er frei ist und danach der eigenen Instanz gehört) und fester Fensterposition 100,100 / 1440×900. Danach eine `config.json` mit den Test-Repos in den Datenordner legen und neu starten, oder über „Repo hinzufügen“ (nativer Dialog – nicht per CDP bedienbar) – einfacher: die Datei vor dem Start schreiben (Format: `docs/architecture.md` 1.4, Pfade per JSON-Bibliothek, nicht von Hand mit `\`).
+- `tools/e2e/Start-TestInstance.ps1 -Root <scratch>\e2e` baut nach `<Root>\app` und startet mit eigenem Daten- und WebView2-Ordner, Debug-Port 9333 (prüft, dass er frei ist und danach der eigenen Instanz gehört) und fester Fensterposition 100,100 / 1440×900. Danach eine `config.json` mit den Test-Repos in den Datenordner legen und neu starten, oder über „Repo hinzufügen“ (nativer Dialog – nicht per CDP bedienbar) – einfacher: die Datei vor dem Start schreiben (Format: `docs/architecture.md` › Konfiguration, Pfade per JSON-Bibliothek, nicht von Hand mit `\`).
 - `node tools/e2e/cdp.mjs 9333 eval <datei.js>` liest die Seite, `screenshot` nimmt ein Bild.
 - `tools/e2e/Stop-TestInstance.ps1 -Root … -ProcessId …` beendet nur diese Instanz (über `RepoBoard.exe --exit`: Schließen versteckt seit WP-02 nur) und zählt `[ERR]`/`[WRN]` im Log.
 - PowerShell unterscheidet bei Variablen nicht zwischen Groß und Klein: eine Variable `$root` im Skript überschreibt den Parameter `$Root` (Review WP-02, `Invoke-TrayIcon.ps1`).
@@ -28,8 +28,8 @@ Vor jedem E2E-Lauf lesen. Abläufe und Fallen aus FerretSharp (`docs/e2e-testing
 
 ## Echte Eingabe
 - Drei Stufen: DOM-Events, CDP-Eingabe (am WPF-Host vorbei), Windows-Eingabe per `SendInput` (wie beim Nutzer). Mausinteraktionen mit Stufe 3 prüfen: `tools/e2e/Invoke-RealClick.ps1` (prüft, dass das Fenster vorn und unter dem Punkt liegt).
-- Vorher `tools/e2e/Test-InjectedInput.ps1`: filtert der Rechner eingeschleuste Eingaben (Anti-Cheat-Treiber FACEIT nach einer Spielsitzung des Nutzers), den Nutzer klicken lassen und die Wirkung per CDP lesen – nicht weiterklicken.
+- Vorher `tools/e2e/Test-InjectedInput.ps1`: filtert der Rechner eingeschleuste Eingaben (ein Anti-Cheat-Treiber filtert eingeschleuste Klicks und Tasten), den Nutzer klicken lassen und die Wirkung per CDP lesen – nicht weiterklicken.
 - Screenshots per `PrintWindow`/`CopyFromScreen` enthalten die Titelleiste: Klickziele immer per `getBoundingClientRect` bestimmen.
-- Holt Windows das Fenster nicht nach vorn, landet ein Klick im Fenster darüber: vorher prüfen, abbrechen statt weiterklicken. **Nur `Invoke-RealClick.ps1` klicken lassen, keine eigenen Klickskripte** – es prüft Vordergrund und Fenster unter dem Punkt. Am 2026-11-20 (WP-01) landete ein selbst geschriebener Klick ohne diese Prüfung im Spiel des Nutzers, das im Vordergrund lag.
+- Holt Windows das Fenster nicht nach vorn, landet ein Klick im Fenster darüber: vorher prüfen, abbrechen statt weiterklicken. **Nur `Invoke-RealClick.ps1` klicken lassen, keine eigenen Klickskripte** – es prüft Vordergrund und Fenster unter dem Punkt. Am 2026-11-20 (WP-01) landete ein selbst geschriebener Klick ohne diese Prüfung in einem anderen Fenster, das im Vordergrund lag.
 - Bilder ohne Eingabe: `PrintWindow` mit `PW_RENDERFULLCONTENT` (2) nimmt das Fenster auch verdeckt auf; `CopyFromScreen` nimmt, was oben liegt.
 - **Was im Fenster ankommt, nicht nur in der Seite:** CDP-Screenshots kommen von Chromiums Oberfläche und zeigen nie, ob WPF das Bild präsentiert hat. Verzögerte oder verlorene Bilder (ADR 0009) misst `tools/e2e/Measure-PictureDelay.ps1` am Fensterbild (Hover; mit `-Click` Klicks, die ungefilterte Eingabe brauchen). Während der Messung die Maus nicht anfassen.

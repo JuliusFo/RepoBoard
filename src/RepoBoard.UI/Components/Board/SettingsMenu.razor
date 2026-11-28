@@ -9,7 +9,7 @@
     @if (_open)
     {
         <div class="backdrop" @onclick="() => _open = false"></div>
-        <div class="menu-panel" role="dialog" aria-label="@BoardText.Settings_Hint">
+        <div class="menu-panel" role="dialog" aria-label="@BoardText.Settings_Hint" tabindex="-1" @ref="_panel" @onkeydown="OnKeyDown">
             <div class="setting">
                 <span>@BoardText.Settings_CloseToTray</span>
                 <Toggle Value="Settings.CloseToTray" Title="@BoardText.Settings_CloseToTray"
@@ -48,6 +48,27 @@
 
     private static readonly NotificationLevel[] Levels = [NotificationLevel.PullsAndProblems, NotificationLevel.Problems, NotificationLevel.Off];
     private bool _open;
+    private bool _focused;
+    private ElementReference _panel;
+
+    /// <summary>Esc closes the menu, so it takes the keyboard when it opens (review 0.4.0, A30).</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_open && !_focused)
+        {
+            await FocusQuietlyAsync(_panel);
+        }
+
+        _focused = _open;
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            _open = false;
+        }
+    }
     private bool _autostart;
 
     private static string Label(NotificationLevel level) => level switch

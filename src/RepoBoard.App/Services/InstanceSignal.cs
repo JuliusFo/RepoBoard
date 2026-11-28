@@ -1,3 +1,4 @@
+using System.IO;
 using System.Runtime.InteropServices;
 using RepoBoard.Core;
 
@@ -14,7 +15,7 @@ internal enum InstanceRequest
 
 /// <summary>
 /// Another start on the same data folder asks the running instance to show its window or to end (ADR 0006). Needed because
-/// the window may be hidden in the notification area: then the process has no main window <see cref="RunningInstance"/>
+/// the window may be hidden in the notification area: then the process has no main window another process
 /// could bring forward or close. A named event per data folder and request in the session's namespace; whoever sets it
 /// can do no more than the tray's menu.
 /// </summary>
@@ -39,8 +40,18 @@ internal sealed class InstanceSignal : IDisposable
     /// </summary>
     public static bool Send(AppPaths paths, InstanceRequest request, int? processId)
     {
-        if (!EventWaitHandle.TryOpenExisting(Name(paths, request), out var signal))
+        EventWaitHandle? signal;
+        try
         {
+            if (!EventWaitHandle.TryOpenExisting(Name(paths, request), out signal))
+            {
+                return false;
+            }
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or WaitHandleCannotBeOpenedException or IOException)
+        {
+            // The running instance is elevated (an admin terminal): its event is not ours to open. Unhandled, this ended the
+            // start without a word or a log (review 0.4.0, A33); the caller says "already running".
             return false;
         }
 

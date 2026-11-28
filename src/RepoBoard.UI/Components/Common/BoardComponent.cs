@@ -41,9 +41,32 @@ public abstract class BoardComponent : ComponentBase
         {
             work();
         }
+        catch (OperationCanceledException)
+        {
+            // as in GuardAsync: a cancellation is no error (review 0.4.0, A32)
+        }
         catch (Exception ex)
         {
             Board.ReportError(Core.AppPaths.AppFolderName, ex.Message);
         }
     }
+
+    /// <summary>
+    /// Moves the focus, quietly: an element a new status took away in the same render is gone from the page, and focusing
+    /// it threw – Blazor's error bar for a nicety (review 0.4.0, A27). Dialogs take the focus when they open, so Esc
+    /// closes them (A30).
+    /// </summary>
+    protected static async Task FocusQuietlyAsync(Func<ValueTask> focus)
+    {
+        try
+        {
+            await focus();
+        }
+        catch (Microsoft.JSInterop.JSException)
+        {
+        }
+    }
+
+    /// <inheritdoc cref="FocusQuietlyAsync(Func{ValueTask})"/>
+    protected static Task FocusQuietlyAsync(ElementReference element) => FocusQuietlyAsync(() => element.FocusAsync());
 }

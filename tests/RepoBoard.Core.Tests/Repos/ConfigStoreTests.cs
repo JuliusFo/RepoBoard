@@ -108,5 +108,50 @@ public sealed class ConfigStoreTests : IDisposable
         Assert.Equal(new AppSettings(), load.Config.Settings);
     }
 
+    /// <summary>What each state of the file means for saving (CLAUDE.md §2: a file this version cannot read is never overwritten; review 0.4.0, C3).</summary>
+    [Theory]
+    [InlineData("null", true)]                                   // empty: nothing to lose
+    [InlineData("{ \"version\": 99, \"repos\": [] }", false)]     // newer: may hold what this version does not know
+    [InlineData("{ broken", true)]                               // broken: kept as a copy first
+    [InlineData("﻿{ \"version\": 1, \"repos\": [] }", true)] // a BOM is read past
+    public async Task Each_state_of_the_file_says_whether_it_may_be_saved(string content, bool canSave)
+    {
+        await File.WriteAllTextAsync(_store.File, content, Ct);
+
+        Assert.Equal(canSave, (await _store.LoadAsync(Ct)).CanSave);
+    }
+
+    [Fact]
+    public async Task A_file_that_is_no_utf8_is_broken_and_kept()
+    {
+        await File.WriteAllBytesAsync(_store.File, [(byte)'{', 0xFF, 0xFE, (byte)'}'], Ct);
+
+        var load = await _store.LoadAsync(Ct);
+
+        Assert.True(load.CanSave);
+        Assert.NotNull(load.Problem);
+        Assert.Single(Directory.GetFiles(_folder.Path, "config.json.bad-*"));
+
+        await _store.LoadAsync(Ct); // the same file again: the copy kept before is reused
+        Assert.Single(Directory.GetFiles(_folder.Path, "config.json.bad-*"));
+    }
+
+    /// <summary>A file another program holds (a backup, a virus scanner) is not read and not saved over (Windows only: elsewhere locks are advisory).</summary>
+    [Fact]
+    public async Task A_file_held_by_another_program_is_not_saved_over()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "File locks are advisory outside Windows.");
+        await File.WriteAllTextAsync(_store.File, "{ \"version\": 1, \"repos\": [] }", Ct);
+
+        ConfigLoad load;
+        using (new FileStream(_store.File, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            load = await _store.LoadAsync(Ct);
+        }
+
+        Assert.False(load.CanSave);
+        Assert.NotNull(load.Problem);
+    }
+
     public void Dispose() => _folder.Dispose();
 }

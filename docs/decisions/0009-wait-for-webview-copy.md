@@ -3,7 +3,7 @@
 - Status: akzeptiert (Entscheidung des Nutzers, 2026-11-21)
 - Datum: 2026-11-21
 - Fix: `fix/webview-copy-fence` (Protokoll `docs/work-packages/fix-webview-copy-fence.md`)
-- Bezug: FerretSharp ADR 0039 (`C:\Dev-Repos\FerretSharp\docs\decisions\0039-wait-for-webview-copy.md`, dort vom Nutzer akzeptiert), Teil „Bilder nicht mehr verwerfen“ aus FerretSharp ADR 0038
+- Bezug: FerretSharp ADR 0039 (`docs/decisions/0039-wait-for-webview-copy.md` dort, vom Nutzer akzeptiert), Teil „Bilder nicht mehr verwerfen“ aus FerretSharp ADR 0038
 
 ## Kontext
 

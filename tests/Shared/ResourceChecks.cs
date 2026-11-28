@@ -8,7 +8,7 @@ using System.Xml.Linq;
 namespace RepoBoard.Testing;
 
 /// <summary>
-/// Checks the localized texts of an assembly (WP-29, ADR 0017): every <c>Resources/&lt;Area&gt;Text.resx</c> has the same keys
+/// Checks the localized texts of an assembly (ADR 0005, from FerretSharp WP-29): every <c>Resources/&lt;Area&gt;Text.resx</c> has the same keys
 /// in English and German, no empty text, and both languages use the same placeholders.
 /// </summary>
 internal static partial class ResourceChecks

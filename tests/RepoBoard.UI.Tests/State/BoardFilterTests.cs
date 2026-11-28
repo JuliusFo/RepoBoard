@@ -14,7 +14,7 @@ public sealed class BoardFilterTests
 
     /// <summary>Each chip asks one question; a never pushed branch counts as ahead (everything on it is only local).</summary>
     [Theory]
-    [InlineData(BoardFilterKind.All, "clean,changed,behind,ahead,unpushed,detached")]
+    [InlineData(BoardFilterKind.All, "clean,changed,behind,ahead,unpushed,detached,new")]
     [InlineData(BoardFilterKind.Changes, "changed")]
     [InlineData(BoardFilterKind.Behind, "behind")]
     [InlineData(BoardFilterKind.Ahead, "ahead,unpushed")]
@@ -28,6 +28,7 @@ public sealed class BoardFilterTests
             ["ahead"] = Status(ahead: 1),
             ["unpushed"] = Status(upstream: null),
             ["detached"] = Status(branch: null, upstream: null),
+            ["new"] = Status(upstream: null) with { Head = null }, // no commit yet: nothing to push (review 0.4.0, A26)
         }.Select(p => WithStatus(Repo(p.Key), p.Value));
 
         Assert.Equal(expected, string.Join(',', BoardFilter.Visible(repos, kind, "").Select(r => r.Name)));
@@ -68,6 +69,23 @@ public sealed class BoardFilterTests
 
         Assert.Equal(expected, string.Join(';', rows));
         Assert.Equal(kind == BoardFilterKind.All ? 1 : count, BoardFilter.Count([repo], kind));
+    }
+
+    /// <summary>
+    /// Review WP-04 #12: only the worktrees of repositories the filter shows count as shown – the shell closes the others, or
+    /// they kept reading branches and history unseen (review 0.4.0, C7).
+    /// </summary>
+    [Fact]
+    public void Only_worktrees_of_shown_repositories_are_shown()
+    {
+        var shown = WithStatus(Repo("shown"), Status());
+        var hidden = WithStatus(Repo("hidden"), Status());
+        shown.Worktrees = [WithStatus(new RepoState(new RepoEntry(Path.Combine(shown.Path, "..", "shown-wt")), shown), Status(branch: "a"))];
+        hidden.Worktrees = [WithStatus(new RepoState(new RepoEntry(Path.Combine(hidden.Path, "..", "hidden-wt")), hidden), Status(branch: "b"))];
+
+        var worktrees = BoardFilter.ShownWorktrees([shown, hidden], _ => true, BoardFilterKind.All, "shown");
+
+        Assert.Equal(["shown-wt"], worktrees.Select(w => w.Name));
     }
 
     private static RepoState WithStatus(RepoState repo, RepoStatus status)

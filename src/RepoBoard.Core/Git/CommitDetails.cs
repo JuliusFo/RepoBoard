@@ -32,16 +32,22 @@ public sealed record CommitDetails(
     public bool IsMerge => Parents.Count > 1;
     public bool IsRoot => Parents.Count == 0;
 
-    /// <summary>The first line of the message.</summary>
-    public string Subject => Message.Split('\n', 2)[0].Trim();
+    /// <inheritdoc cref="CommitMessage.Subject"/>
+    public string Subject => CommitMessage.Subject(Message);
 
-    /// <summary>The git format of <see cref="Parse"/>: fields split by <c>%x1f</c>, the message last (it may hold anything else).</summary>
-    internal const string Format = "--format=%H%x1f%h%x1f%P%x1f%an%x1f%ae%x1f%aI%x1f%cn%x1f%cI%x1f%D%x1f%B";
+    /// <inheritdoc cref="CommitMessage.Body"/>
+    public string Body => CommitMessage.Body(Message);
+
+    /// <summary>
+    /// The git format of <see cref="Parse"/>: fields split by NUL – a name may hold any other character, and with <c>%x1f</c>
+    /// an author's name shifted every field (review 0.4.0, A7) –, the message last.
+    /// </summary>
+    internal const string Format = "--format=%H%x00%h%x00%P%x00%an%x00%ae%x00%aI%x00%cn%x00%cI%x00%D%x00%B";
 
     /// <summary>The commit from <see cref="Format"/> and the files from <c>--name-status -z</c>; null if the output is not one.</summary>
     internal static CommitDetails? Parse(string header, string files)
     {
-        var parts = header.Split('\x1f', 10);
+        var parts = header.Split('\0', 10);
         if (parts.Length < 10
             || !DateTimeOffset.TryParse(parts[5], CultureInfo.InvariantCulture, DateTimeStyles.None, out var authored)
             || !DateTimeOffset.TryParse(parts[7], CultureInfo.InvariantCulture, DateTimeStyles.None, out var committed))

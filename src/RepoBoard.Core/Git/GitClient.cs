@@ -25,16 +25,33 @@ public sealed class GitClient(GitRunner runner)
     private Task<GitResult> Network(string repo, GitCallMode mode, CancellationToken ct, params string[] args) =>
         runner.RunAsync(repo, args, mode, GitRunner.NetworkTimeout, null, ct);
 
-    /// <summary>The worktree root of <paramref name="path"/>, or null if it is not inside a repository.</summary>
-    public async Task<string?> FindRootAsync(string path, CancellationToken ct)
+    /// <summary>
+    /// The worktree root of <paramref name="path"/>; null if it is not inside a repository. <c>Problem</c> is git's own
+    /// message when it refused a repository it found (<c>safe.directory</c> for another owner, a broken config) – "not a
+    /// repository" would hide what to do (review 0.4.0, A22).
+    /// </summary>
+    public async Task<(string? Root, string? Problem)> FindRootAsync(string path, CancellationToken ct)
     {
         if (!Directory.Exists(path))
         {
-            return null;
+            return (null, null);
         }
 
         var result = await Local(path, ct, "rev-parse", "--show-toplevel");
-        return result.Success ? Path.GetFullPath(result.Output.Trim()) : null;
+        if (result.Success)
+        {
+            return (Path.GetFullPath(result.Output.Trim()), null);
+        }
+
+        for (var dir = new DirectoryInfo(path); dir is not null; dir = dir.Parent)
+        {
+            if (Path.Exists(Path.Combine(dir.FullName, ".git")))
+            {
+                return (null, result.Message);
+            }
+        }
+
+        return (null, null);
     }
 
     public async Task<string?> GitDirAsync(string repo, CancellationToken ct)
@@ -67,13 +84,22 @@ public sealed class GitClient(GitRunner runner)
     public Task<GitResult> FetchAsync(string repo, GitCallMode mode, CancellationToken ct) =>
         Network(repo, mode, ct, "fetch", "--all", "--prune");
 
-    /// <summary>Only fast-forward: never a merge commit, never a rebase, nothing to resolve (ADR 0003).</summary>
-    public Task<GitResult> PullAsync(string repo, GitCallMode mode, CancellationToken ct) =>
-        Network(repo, mode, ct, "pull", "--ff-only");
+    /// <summary>
+    /// Only fast-forward: never a merge commit, never a rebase, nothing to resolve (ADR 0003). The user's <c>pull.rebase</c>
+    /// and autostash settings are overridden: with autostash git would stash overlapping local changes, fast-forward and put
+    /// them back with conflict markers – and end with success (review 0.4.0, A1). Without it git refuses and the file stays.
+    /// </summary>
+    public Task<GitResult> PullAsync(string repo, CancellationToken ct) =>
+        Network(repo, GitCallMode.Interactive, ct, "pull", "--ff-only", "--no-rebase", "--no-autostash");
 
-    /// <summary>After a fetch: fast-forward to the upstream without a second network round trip.</summary>
-    public Task<GitResult> FastForwardAsync(string repo, CancellationToken ct) =>
-        Local(repo, ct, "merge", "--ff-only", "@{u}");
+    /// <summary>
+    /// After a fetch: fast-forward to the upstream without a second network round trip, never with the user's
+    /// <c>merge.autoStash</c> (see <see cref="PullAsync"/>). Checking out the new commits can be network work too – Git LFS,
+    /// a partial clone, a <c>post-merge</c> hook –, so it runs with the network's time limit and, for auto-pull, without
+    /// a prompt (review 0.4.0, A4).
+    /// </summary>
+    public Task<GitResult> FastForwardAsync(string repo, GitCallMode mode, CancellationToken ct) =>
+        Network(repo, mode, ct, "merge", "--ff-only", "--no-autostash", "@{u}");
 
     /// <summary>Push; the first push of a branch sets its upstream on <c>origin</c>.</summary>
     public Task<GitResult> PushAsync(string repo, bool setUpstream, CancellationToken ct) =>
@@ -179,12 +205,34 @@ public sealed class GitClient(GitRunner runner)
     public async Task<bool> IsBranchNameAsync(string repo, string name, CancellationToken ct) =>
         name.Length > 0 && !name.StartsWith('-') && (await Local(repo, ct, "check-ref-format", "--branch", name)).Success;
 
-    /// <summary>
-    /// A local branch, or a remote one: <c>git switch</c> creates the local tracking branch for a unique remote branch.
-    /// The caller checks the name (<see cref="IsBranchNameAsync"/>).
-    /// </summary>
+    /// <summary>A local branch. The caller checks the name (<see cref="IsBranchNameAsync"/>).</summary>
     public Task<GitResult> SwitchAsync(string repo, string branch, CancellationToken ct) =>
-        Local(repo, ct, "switch", branch);
+        Local(repo, ct, "switch", "--no-guess", branch);
+
+    /// <summary>
+    /// A remote branch (<c>upstream/main</c>): a new local branch <paramref name="local"/> that tracks exactly it; git refuses
+    /// if that name is taken. The name is given, not left to git: with a remote named "up/stream" git cut "up/" only. The
+    /// caller checks both names (<see cref="IsBranchNameAsync"/>).
+    /// </summary>
+    public Task<GitResult> SwitchTrackingAsync(string repo, string local, string remoteBranch, CancellationToken ct) =>
+        Local(repo, ct, "switch", "-c", local, "--track", remoteBranch);
+
+    /// <summary>The names of the repository's remotes; empty if git fails.</summary>
+    public async Task<IReadOnlyList<string>> RemotesAsync(string repo, CancellationToken ct)
+    {
+        var result = await Local(repo, ct, "remote");
+        return result.Success ? result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) : [];
+    }
+
+    /// <summary>
+    /// The local name for a remote branch: what follows the longest remote name it starts with ("up/stream/feat/x" with a
+    /// remote "up/stream" → "feat/x"); null if no remote matches.
+    /// </summary>
+    public static string? LocalNameOf(string remoteBranch, IEnumerable<string> remotes) =>
+        remotes.Where(r => remoteBranch.StartsWith(r + "/", StringComparison.Ordinal) && remoteBranch.Length > r.Length + 1)
+            .MaxBy(r => r.Length) is { } remote
+            ? remoteBranch[(remote.Length + 1)..]
+            : null;
 
     /// <inheritdoc cref="SwitchAsync"/>
     public Task<GitResult> CreateBranchAsync(string repo, string branch, CancellationToken ct) =>
@@ -192,8 +240,10 @@ public sealed class GitClient(GitRunner runner)
 
     public async Task<IReadOnlyList<BranchInfo>> BranchesAsync(string repo, string? current, CancellationToken ct)
     {
+        // for-each-ref writes "ahead 1, behind 2" and "gone" untranslated; the date as a number, shown in the UI's language
+        // (review 0.4.0, A19).
         var result = await Local(repo, ct, "for-each-ref",
-            "--format=%(refname)%09%(upstream:short)%09%(upstream:track,nobracket)%09%(committerdate:relative)",
+            "--format=%(refname)%09%(upstream:short)%09%(upstream:track,nobracket)%09%(committerdate:unix)",
             "refs/heads", "refs/remotes");
         return result.Success ? ParseBranches(result.Output, current) : [];
     }
@@ -210,12 +260,13 @@ public sealed class GitClient(GitRunner runner)
             if (name.StartsWith("refs/heads/", StringComparison.Ordinal))
             {
                 var shortName = name["refs/heads/".Length..];
-                local.Add(new BranchInfo(shortName, shortName == current, false, Part(1), Part(2), Part(3)));
+                var (ahead, behind, gone) = Track(Part(2));
+                local.Add(new BranchInfo(shortName, shortName == current, false, Part(1), ahead, behind, gone, Date(Part(3))));
             }
             else if (name.StartsWith("refs/remotes/", StringComparison.Ordinal) && !name.EndsWith("/HEAD", StringComparison.Ordinal))
             {
                 var shortName = name["refs/remotes/".Length..];
-                remote.Add(new BranchInfo(shortName, false, true, null, null, Part(3)));
+                remote.Add(new BranchInfo(shortName, false, true, null, 0, 0, false, Date(Part(3))));
             }
         }
 
@@ -223,11 +274,51 @@ public sealed class GitClient(GitRunner runner)
         var tracked = local.Select(b => b.Upstream).OfType<string>().ToHashSet(StringComparer.Ordinal);
         return [.. local.OrderByDescending(b => b.IsCurrent).ThenBy(b => b.Name, StringComparer.OrdinalIgnoreCase),
             .. remote.Where(b => !tracked.Contains(b.Name)).OrderBy(b => b.Name, StringComparer.OrdinalIgnoreCase)];
+
+        // "ahead 1", "behind 2", "ahead 1, behind 2", "gone" – nothing when in step.
+        static (int Ahead, int Behind, bool Gone) Track(string? track)
+        {
+            if (track == "gone")
+            {
+                return (0, 0, true);
+            }
+
+            int ahead = 0, behind = 0;
+            foreach (var part in (track ?? "").Split(", ", StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (part.Split(' ') is [var word, var number] && int.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out var n))
+                {
+                    if (word == "ahead")
+                    {
+                        ahead = n;
+                    }
+                    else if (word == "behind")
+                    {
+                        behind = n;
+                    }
+                }
+            }
+
+            return (ahead, behind, false);
+        }
     }
 
+    /// <summary>A date git wrote as seconds since 1970 (<c>%ct</c>, <c>:unix</c>); null if it is none.</summary>
+    internal static DateTimeOffset? Date(string? seconds) =>
+        long.TryParse(seconds, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var s) ? DateTimeOffset.FromUnixTimeSeconds(s) : null;
+
+    /// <summary>
+    /// The commits of <paramref name="range"/>; null if git cannot tell. A range from git's output (an upstream's name, which
+    /// a hand-edited config sets) never goes to git as an option (second review pass R1).
+    /// </summary>
     public async Task<int?> CountAsync(string repo, string range, CancellationToken ct)
     {
-        var result = await Local(repo, ct, "rev-list", "--count", range);
+        if (range.StartsWith('-'))
+        {
+            return null;
+        }
+
+        var result = await Local(repo, ct, "rev-list", "--count", range, "--");
         return result.Success && int.TryParse(result.Output.Trim(), out var n) ? n : null;
     }
 
@@ -238,7 +329,9 @@ public sealed class GitClient(GitRunner runner)
     /// </summary>
     public async Task<(IReadOnlyList<CommitInfo> Log, bool HasMore)> LogAsync(string repo, int count, bool all, CancellationToken ct)
     {
-        List<string> args = ["log", $"-n{count + 1}", "--topo-order", "--no-show-signature", "--format=%H%x1f%h%x1f%P%x1f%an%x1f%cr%x1f%D%x1f%s%x1e"];
+        // Fields and commits end with NUL (-z): a subject or author may hold any other character, and with %x1f/%x1e a
+        // stranger's commit added entries of its own to the history (review 0.4.0, A7). git cuts a message at NUL.
+        List<string> args = ["log", $"-n{count + 1}", "-z", "--topo-order", "--no-show-signature", $"--format={LogFormat}"];
         if (all)
         {
             args.AddRange(["HEAD", "--branches", "--remotes"]);
@@ -256,13 +349,28 @@ public sealed class GitClient(GitRunner runner)
         return log.Count > count ? (log.Take(count).ToList(), true) : (log, false);
     }
 
-    internal static IReadOnlyList<CommitInfo> ParseLog(string output) =>
-    [
-        .. output.Split('\x1e', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(r => r.Split('\x1f'))
-            .Where(p => p.Length >= 7)
-            .Select(p => new CommitInfo(p[0], p[1], p[2].Split(' ', StringSplitOptions.RemoveEmptyEntries), p[3], p[4], p[5], p[6])),
-    ];
+    private const string LogFormat = "%H%x00%h%x00%P%x00%an%x00%ct%x00%D%x00%s";
+    private const int LogFields = 7;
+
+    /// <summary>The output of <see cref="LogFormat"/> with <c>-z</c>: seven NUL-ended fields per commit, nothing else.</summary>
+    internal static IReadOnlyList<CommitInfo> ParseLog(string output)
+    {
+        var fields = output.Split('\0');
+        var log = new List<CommitInfo>();
+        for (var i = 0; i + LogFields <= fields.Length; i += LogFields)
+        {
+            var id = fields[i].Trim('\n', '\r');
+            if (!IsCommitId(id) || Date(fields[i + 4]) is not { } when)
+            {
+                break; // out of step: nothing after this can be trusted
+            }
+
+            log.Add(new CommitInfo(id, fields[i + 1], fields[i + 2].Split(' ', StringSplitOptions.RemoveEmptyEntries), fields[i + 3], when,
+                fields[i + 5], fields[i + 6]));
+        }
+
+        return log;
+    }
 
     /// <summary>
     /// A full commit id as the history gives it (<c>%H</c>: 40 hex digits, 64 with SHA-256). Checked before a command takes

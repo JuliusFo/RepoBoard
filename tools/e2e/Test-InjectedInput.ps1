@@ -8,7 +8,7 @@
     and one F24 key, and reports what arrived: raw input (after all low-level hooks) and the window message.
     The cursor goes back to where it was; the foreground window does not change.
 
-    Anti-cheat drivers (seen with FACEIT after a game) drop injected clicks and keys while letting moves through: the
+    Anti-cheat drivers drop injected clicks and keys while letting moves through: the
     page then sees pointermove but no mousedown. If this probe fails, the machine filters - use CDP input instead.
     If it passes and the app still gets no mousedown, look at the app.
 

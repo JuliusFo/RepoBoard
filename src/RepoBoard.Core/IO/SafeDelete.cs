@@ -7,8 +7,7 @@ namespace RepoBoard.Core.IO;
 /// </summary>
 public static class SafeDelete
 {
-    private static readonly StringComparison PathComparison =
-        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+    private static StringComparison PathComparison => Paths.Comparison;
 
     /// <summary>Deletes <paramref name="path"/> with its contents; a missing folder is nothing to do.</summary>
     /// <param name="root">The fixed folder the caller works in, e.g. the temp path for a test's folder.</param>
@@ -19,21 +18,6 @@ public static class SafeDelete
         if (Directory.Exists(checkedPath))
         {
             Directory.Delete(checkedPath, recursive: true);
-        }
-    }
-
-    /// <summary>Like <see cref="DirectoryBelow"/>, but a folder still in use stays where it is (false).</summary>
-    /// <exception cref="InvalidOperationException"><paramref name="path"/> is not strictly below <paramref name="root"/>.</exception>
-    public static bool TryDirectoryBelow(string root, string path)
-    {
-        try
-        {
-            DirectoryBelow(root, path);
-            return true;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return false;
         }
     }
 

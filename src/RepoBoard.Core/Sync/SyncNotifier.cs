@@ -67,7 +67,7 @@ public sealed class SyncNotifier : IDisposable
             lines.Add(TextFormat.Format(SyncText.Notify_More, ordered.Count - MaxLines));
         }
 
-        return new SyncNotification(Cut(title, TitleLimit), Cut(string.Join('\n', lines), TextLimit), ordered[0].Kind,
+        return new SyncNotification(TextCut.Cut(title, TitleLimit), TextCut.Cut(string.Join('\n', lines), TextLimit), ordered[0].Kind,
             single ? entries[0].RepoPath : null);
     }
 
@@ -114,7 +114,6 @@ public sealed class SyncNotifier : IDisposable
 
     private static string Key(ActivityEntry entry) => entry.RepoPath ?? entry.Repo;
 
-    private static string Cut(string text, int limit) => text.Length <= limit ? text : string.Concat(text.AsSpan(0, limit - 1), "…");
 
     public void Dispose()
     {
