@@ -61,7 +61,7 @@ Der letzte Punkt kam aus dem E2E: Ein leerer Cherry-Pick bleibt sonst als unfert
 
 `git cherry` erkennt nur 1:1-Kopien; nach einem Squash mehrerer Commits bleibt ein leerer Cherry-Pick trotzdem stehen – dann nennt die Meldung `--skip` (Entscheidung des Nutzers: nur die Meldung, kein automatisches `--skip`; Review WP-09). Ob die Änderung schon da ist, liest die Ansicht erst nach den Details (es kann dauern).
 
-Weil der Worktree vorher sauber war, verliert ein späteres `--abort` nichts vom Nutzer. Bleibt git an einem Konflikt stehen, lässt RepoBoard den Zustand stehen (Entscheidung des Nutzers). Die Zeile zeigt die laufende Operation. Seit WP-07 (ADR 0014) bringt man sie dort mit „Fortsetzen“, „Überspringen“ oder „Abbrechen“ zu Ende; davor nannte die Meldung `--continue` bzw. `--abort`.
+Weil der Worktree vorher sauber war, verliert ein späteres `--abort` nichts vom Nutzer. Bleibt git an einem Konflikt stehen, lässt RepoBoard den Zustand stehen (Entscheidung des Nutzers). Die Zeile zeigt die laufende Operation. Seit WP-07 (ADR 0015) bringt man sie dort mit „Fortsetzen“, „Überspringen“ oder „Abbrechen“ zu Ende; davor nannte die Meldung `--continue` bzw. `--abort`.
 
 Dieselben Prüfungen zeigt die UI vorab als gesperrten Knopf mit Grund (`UI/State/CommitTools`). Nach Erfolg schließt sich die Commit-Ansicht, und der neue Commit steht oben in der Historie.
 
@@ -69,4 +69,4 @@ Dieselben Prüfungen zeigt die UI vorab als gesperrten Knopf mit Grund (`UI/Stat
 
 - Kein neues Werkzeug, kein Paket; alle Befehle in `GitClient`, alle Prüfungen im Tor.
 - Mit „Alle Branches“ und vielen Branches (Claude-Worktrees) wird der Graph breit, ab acht Spuren abgeschnitten. `--topo-order` geht ohne Commit-Graph-Datei die ganze Historie durch. Die Zeit bei sehr großen Repos ist noch nicht gemessen (Backlog).
-- Revert und Cherry-Pick von Merge-Commits und Amend gepushter Commits (Force-Push) fehlen bewusst; Abbrechen und Fortsetzen kamen mit WP-07 (ADR 0014).
+- Revert und Cherry-Pick von Merge-Commits und Amend gepushter Commits (Force-Push) fehlen bewusst; Abbrechen und Fortsetzen kamen mit WP-07 (ADR 0015).

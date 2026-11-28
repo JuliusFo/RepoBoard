@@ -6,7 +6,7 @@ using RepoBoard.Core.Resources;
 
 namespace RepoBoard.Core.Tests.Git;
 
-/// <summary>Merge and rebase, and finishing a stopped operation (WP-07, ADR 0014) against real git.</summary>
+/// <summary>Merge and rebase, and finishing a stopped operation (WP-07, ADR 0015) against real git.</summary>
 public sealed class OperationTests : IDisposable
 {
     private readonly GitSandbox _git = new();

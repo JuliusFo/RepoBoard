@@ -330,7 +330,7 @@
 
     private enum QuestionKind { Abort, Skip, Markers }
 
-    /// <summary>An open question (WP-07) with what the board checks again when it is confirmed (ADR 0014).</summary>
+    /// <summary>An open question (WP-07) with what the board checks again when it is confirmed (ADR 0015).</summary>
     private sealed record Question(QuestionKind Kind, string Title, string Text, string Confirm, IReadOnlyList<string>? Files, string Key, string? Path);
 
     private Question? _question;

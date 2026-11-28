@@ -20,7 +20,7 @@ Der Nutzer hat den Plan mit diesen Empfehlungen freigegeben („Ja, umsetzen“)
 - **„Als gelöst markieren“** fragt nach, wenn git noch Konfliktmarker findet.
 
 ## Vorschläge (nicht bestätigt)
-- Einzelheiten nach ADR 0014:
+- Einzelheiten nach ADR 0015:
   - Schlüssel je Operation und Schritt, Dateiliste der Rückfrage im Tor geprüft.
   - `GIT_EDITOR=:` für jeden Aufruf; 3 min für Merge, Rebase, Fortsetzen, Überspringen und Abbrechen.
   - Mergen und Rebasen ohne Rückfrage, nur mit sauberem Worktree.
@@ -41,7 +41,7 @@ Der Nutzer hat den Plan mit diesen Empfehlungen freigegeben („Ja, umsetzen“)
   - `UI/State/OperationTools` (Titel, Sperren, Art des Konflikts).
   - `IDesktop.OpenInEditor(path, file)`: VS Code mit Repo und Datei; die Datei muss im Repo liegen.
   - Texte in `BoardText`, CSS für Leiste, Konflikte und Branch-Knöpfe.
-- **Doku:** ADR 0014 (ADR 0008 und 0013 ergänzt), `CLAUDE.md` §2, README, CHANGELOG, Architektur, Regel `git.md`, Backlog, Roadmap.
+- **Doku:** ADR 0015 (ADR 0008 und 0013 ergänzt), `CLAUDE.md` §2, README, CHANGELOG, Architektur, Regel `git.md`, Backlog, Roadmap.
 
 ## Geprüft
 - `dotnet build -warnaserror` und `dotnet test` (444 Tests, nach dem Code-Review 452). Neu sind `OperationTests` (Core) und `OperationToolsTests` (UI).
@@ -82,7 +82,7 @@ Separater Reviewer über `3318da0..6606b9f`, zweiter Durchgang über die Korrekt
 Zweiter Durchgang (alle alten Punkte abgedeckt; neu):
 - N1 M – Eine nach dem Stagen bearbeitete neue Datei sperrte Abbrechen ganz (`rm --cached` ohne `-f`) → behoben: `-f`. Test `Abort_names_an_adapted_file_of_the_merge_and_keeps_a_new_file_edited_after_staging` (scheitert ohne).
 - N2 M – Durch die Korrektur zu 1 fehlte eine angepasste neue Datei der Operation in der Rückfrage und wurde trotzdem gelöscht → behoben: `DiscardedFilesAsync` vergleicht sie mit dem hereinkommenden Commit, Rückfrage und Tor nutzen dieselbe Methode. Gleicher Test (scheitert ohne).
-- N3 K – In seltenen Fällen bleibt nach dem Abbrechen eine Datei der Operation als untracked liegen → nicht behoben, in ADR 0014 festgehalten (Nutzer).
+- N3 K – In seltenen Fällen bleibt nach dem Abbrechen eine Datei der Operation als untracked liegen → nicht behoben, in ADR 0015 festgehalten (Nutzer).
 - N4 K – „Überspringen“-Hinweis auch, wenn nur die Lösung wieder ungestaged war → behoben, Fall im Test `Continuing_an_empty_resolution_points_to_skip`.
 - N5 K – Ein Tag auf einen Tree/Blob blieb unerkannt → behoben: `RefExistsAsync` (`show-ref --verify`).
 - N6 K – Gesperrtes „Alle unstagen“ ohne Tooltip → behoben (Satz `Pick_Operation`).

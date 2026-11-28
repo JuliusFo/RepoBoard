@@ -9,7 +9,7 @@ namespace RepoBoard.UI.State;
 /// <summary>
 /// What the bar of an unfinished merge, rebase, cherry-pick or revert shows (WP-07), and whether its buttons and the merge
 /// and rebase buttons of the branch list are open – if not, why, for the tooltip. The board checks the same again inside
-/// the repository's gate right before git runs (ADR 0014); this is what the page knows from the last status.
+/// the repository's gate right before git runs (ADR 0015); this is what the page knows from the last status.
 /// </summary>
 public static class OperationTools
 {

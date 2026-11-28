@@ -1,4 +1,4 @@
-# ADR 0014: Merge, Rebase und angehaltene Operationen zu Ende bringen
+# ADR 0015: Merge, Rebase und angehaltene Operationen zu Ende bringen
 
 - Status: teilweise entschieden. **Entscheidungen des Nutzers (2026-11-28, WP-07)** – er hat den Plan mit diesen Empfehlungen freigegeben:
   - Kein Standard beim Zusammenführen: „Mergen“ und „Rebasen“ sind zwei Aktionen am Branch.

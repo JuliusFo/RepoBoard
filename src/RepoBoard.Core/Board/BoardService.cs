@@ -798,7 +798,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         }
     }
 
-    // ---------- merge, rebase and unfinished operations (WP-07, ADR 0014) ----------
+    // ---------- merge, rebase and unfinished operations (WP-07, ADR 0015) ----------
 
     /// <summary>Merges <paramref name="branch"/> into the current branch; see <see cref="StartAsync"/>.</summary>
     public Task<bool> MergeAsync(RepoState repo, BranchInfo branch, CancellationToken ct)
@@ -819,7 +819,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     }
 
     /// <summary>
-    /// Merge or rebase (WP-07, ADR 0014), checked inside the gate right before git runs – as a revert or cherry-pick (ADR 0013):
+    /// Merge or rebase (WP-07, ADR 0015), checked inside the gate right before git runs – as a revert or cherry-pick (ADR 0013):
     /// a branch checked out, at least one commit, no unfinished operation, no staged, changed or conflicted file (so that an
     /// abort of a stopped one loses nothing of the user's; new files may stay – git refuses to overwrite one), no ignored file
     /// git would overwrite where the merge or rebase changes something. A rebase also only rewrites commits no remote has
@@ -959,7 +959,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
         }, () => Info(TextFormat.Format(SyncText.Continued, PullCheck.Name(expected))), ct);
 
     /// <summary>
-    /// Ends the unfinished operation and goes back to the state before it (ADR 0014): what was resolved is lost, so the UI
+    /// Ends the unfinished operation and goes back to the state before it (ADR 0015): what was resolved is lost, so the UI
     /// asks first, listing the changed files (<see cref="DiscardedFilesAsync"/>). Checked inside the gate: it is still the
     /// operation the question named (<paramref name="expectedKey"/>, <see cref="OperationInfo.Key"/>) and the changed files
     /// are still <paramref name="expectedFiles"/> – another session may have gone on meanwhile (review WP-04).
@@ -973,7 +973,7 @@ public sealed class BoardService(GitClient git, ConfigStore store, TimeProvider 
     }
 
     /// <summary>
-    /// Leaves out the commit a rebase, cherry-pick or revert stopped at and goes on (ADR 0014): what was resolved for it is
+    /// Leaves out the commit a rebase, cherry-pick or revert stopped at and goes on (ADR 0015): what was resolved for it is
     /// lost. Checked as <see cref="AbortAsync"/>.
     /// </summary>
     public Task<bool> SkipAsync(RepoState repo, string expectedKey, IReadOnlyCollection<string> expectedFiles, CancellationToken ct)

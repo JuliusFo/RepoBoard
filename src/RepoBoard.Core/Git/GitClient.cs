@@ -585,7 +585,7 @@ public sealed class GitClient(GitRunner runner)
             ? Local(repo, ct, "cherry-pick", id)
             : Task.FromResult(GitResult.Failed(TextFormat.Format(SyncText.InvalidCommit, id)));
 
-    // ---------- merge, rebase and unfinished operations (WP-07, ADR 0014) ----------
+    // ---------- merge, rebase and unfinished operations (WP-07, ADR 0015) ----------
 
     private Task<GitResult> Writing(string repo, CancellationToken ct, params string[] args) =>
         runner.RunAsync(repo, args, GitCallMode.Interactive, GitRunner.CommitTimeout, null, ct);
@@ -669,7 +669,7 @@ public sealed class GitClient(GitRunner runner)
         Writing(repo, ct, Command(operation), "--continue");
 
     /// <summary>
-    /// Leaves the commit a rebase, cherry-pick or revert stopped at out and goes on with the next (ADR 0014): what was
+    /// Leaves the commit a rebase, cherry-pick or revert stopped at out and goes on with the next (ADR 0015): what was
     /// resolved for it is discarded – the caller asks first. A merge has nothing to skip.
     /// </summary>
     public Task<GitResult> SkipAsync(string repo, GitOperation operation, CancellationToken ct) =>
@@ -678,7 +678,7 @@ public sealed class GitClient(GitRunner runner)
             : Writing(repo, ct, Command(operation), "--skip");
 
     /// <summary>
-    /// Ends a stopped operation and returns to the state before it (ADR 0014, the exception to CLAUDE.md §2): the index and the
+    /// Ends a stopped operation and returns to the state before it (ADR 0015, the exception to CLAUDE.md §2): the index and the
     /// files it touched go back, resolved conflicts with them. git refuses rather than overwrite an untracked file. The caller
     /// asks first and checks that it is still the operation the question named (<see cref="OperationInfo.Key"/>).
     /// </summary>
