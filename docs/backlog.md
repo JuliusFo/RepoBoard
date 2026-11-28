@@ -62,6 +62,8 @@ Ideen und Themen, die nicht zum aktuellen Paket gehören – nach Bereich. Gepla
 - Interaktiver Rebase (Commits umsortieren, squashen, umbenennen).
 - Merge/Rebase in mehreren Repos auf einmal (mit WP-15).
 - „Mergen“ und „Rebasen“ erscheinen nur beim Überfahren eines Branches; immer sichtbar oder in ein Menü? (Vorschlag, nicht bestätigt.)
+- Ein laufendes `git am` (`rebase-apply/applying`) erscheint als „Rebase“; „Fortsetzen“, „Überspringen“ und „Abbrechen“ führen `rebase --…` aus, das git verweigert – kein Schaden, aber Knöpfe ohne Wirkung. Erkennen und die Knöpfe sperren (Review WP-07, Nutzer: Backlog, 2026-11-28).
+- `CommitAsync` prüft im Tor nicht auf eine laufende Operation, nur die UI sperrt die Commit-Box: ein Commit über einen veralteten Status mitten im Rebase legt einen Commit zu viel an (Review WP-07, vorher schon da).
 - Ein Rebase eines Branches, dessen Commits schon auf einem *anderen* Remote-Branch liegen (jemand hat darauf aufgebaut), ist ebenfalls gesperrt – genauer wäre nur der eigene Upstream.
 
 ## Dateiwächter (Fortsetzung von WP-03)

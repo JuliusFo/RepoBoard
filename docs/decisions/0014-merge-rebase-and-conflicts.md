@@ -26,7 +26,7 @@ Bis WP-07 erkannte RepoBoard eine angehaltene Operation (Merge, Rebase, Cherry-P
 - Merge, Cherry-Pick, Revert: den Commit aus `MERGE_HEAD`, `CHERRY_PICK_HEAD` bzw. `REVERT_HEAD` und die erste Zeile von `MERGE_MSG`.
 - Rebase: aus `rebase-merge` (Standard, auch `-i`) bzw. `rebase-apply` den Branch (`head-name`), den Schritt (`msgnum`/`end` bzw. `next`/`last`), den Commit, an dem er steht (`REBASE_HEAD`), und dessen Betreff (`message`).
 
-Dazu kommt ein **Schlüssel** je Operation und Schritt: der hereinkommende Commit, beim Rebase der Stand des Branches davor plus Schritt plus Commit. Abbrechen und Überspringen nehmen den Schlüssel aus der Rückfrage mit; das Tor vergleicht ihn (wie `expectedHead` bei Amend, Review WP-09). Kann eine Datei gerade nicht gelesen werden, gilt die Operation trotzdem als laufend, mit einem Schlüssel, den kein Klick trifft. `RepoState.Unfinished` hält das Ergebnis, `RepoState.Operation` ist nur noch die Art.
+Dazu kommt ein **Schlüssel** je Operation und Schritt: der hereinkommende Commit, beim Rebase der Stand des Branches davor plus Schritt plus Commit, und bei allen der Inhalt von `HEAD` – ein Commit, den eine andere Session während der offenen Rückfrage anlegt, würde ein Abbrechen sonst verwerfen (Review WP-07). Abbrechen und Überspringen nehmen den Schlüssel aus der Rückfrage mit; das Tor vergleicht ihn (wie `expectedHead` bei Amend, Review WP-09). Kann eine Datei gerade nicht gelesen werden, gilt die Operation trotzdem als laufend, mit einem Schlüssel, den kein Klick trifft (eine Guid darin). `RepoState.Unfinished` hält das Ergebnis, `RepoState.Operation` ist nur noch die Art.
 
 ### Befehle (`GitClient`)
 
@@ -36,13 +36,13 @@ Dazu kommt ein **Schlüssel** je Operation und Schritt: der hereinkommende Commi
 | Rebasen | `rebase refs/heads/<x>` bzw. `refs/remotes/<x>` | 3 min |
 | Fortsetzen | `<op> --continue` | 3 min |
 | Überspringen | `<op> --skip` (nicht bei Merge) | 3 min |
-| Abbrechen | `<op> --abort` | 30 s |
+| Abbrechen | `<op> --abort` | 3 min |
 | Marker prüfen | `-c core.whitespace=-… diff --check -- <pfad>` | 30 s |
 | Als gelöst markieren | `add -A -- <pfad>` (wie Stagen) | 30 s |
 
-- **Kein Editor:** `GitRunner` setzt `GIT_EDITOR=true` für jeden Aufruf. Sonst öffnet `--continue` einen Editor für die Nachricht und wartet, bis ihn jemand schließt. `true` übernimmt die vorbereitete Nachricht.
-- **3 min** (`GitRunner.CommitTimeout`) für Befehle, die Commits schreiben und jeden signieren können. Wartet pinentry auf die Passphrase, bräche das 30-s-Limit git mitten im Rebase ab.
-- **Merge-Name:** Der kurze Name kommt in gits Nachricht („Merge branch 'feature'“). Er wird über `IsBranchNameAsync` geprüft und nur genommen, wenn er auf denselben Commit zeigt wie der volle Ref. Sonst würde ein gleichnamiger Tag gewinnen, und RepoBoard nimmt den vollen Ref (dann lautet die Nachricht „Merge branch 'refs/heads/…'“).
+- **Kein Editor:** `GitRunner` setzt `GIT_EDITOR=:` für jeden Aufruf. Sonst öffnet `--continue` einen Editor für die Nachricht und wartet, bis ihn jemand schließt. `:` ist gits eigenes „kein Editor“: Es startet keinen Prozess und übernimmt die vorbereitete Nachricht, auch wo es kein Programm `true` gibt (MinGit; Review WP-07).
+- **3 min** (`GitRunner.CommitTimeout`) für Befehle, die Commits schreiben und jeden signieren können. Wartet pinentry auf die Passphrase, bräche das 30-s-Limit git mitten im Rebase ab. Abbrechen ebenso: Ein Zurücksetzen, das mittendrin endet, hinterlässt einen halben Worktree (Review WP-07).
+- **Merge-Name:** Der kurze Name kommt in gits Nachricht („Merge branch 'feature'“). Er wird über `IsBranchNameAsync` geprüft und nur genommen, wenn er auf denselben Commit zeigt wie der volle Ref. Gibt es einen gleichnamigen Tag (`show-ref --verify`, auch einen auf einen Tree oder Blob), nimmt RepoBoard den vollen Ref (dann lautet die Nachricht „Merge branch 'refs/heads/…'“): git löst den kurzen Namen zuerst als Tag auf, auch auf demselben Commit („Merge tag …“, und ein annotierter Tag erzwingt einen Merge-Commit; Review WP-07).
 - **Marker:** `diff --check` kennt `conflict-marker-size`. Die Whitespace-Regeln sind abgeschaltet, sonst zählte ein Leerzeichen am Zeilenende als Fund.
 
 ### Prüfungen im Tor (`BoardService`)
@@ -59,7 +59,9 @@ Alles mit frischem Status und frisch gelesenem Git-Ordner, unmittelbar vor dem g
   - Beim Rebase ist nichts außerhalb des Index geändert; git würde sonst ablehnen („You must edit all merge conflicts“).
 - **Abbrechen und Überspringen:**
   - Der Schlüssel passt noch.
-  - Die geänderten Dateien sind noch genau die, die die Rückfrage gezeigt hat (`BoardService.DiscardedFiles`: alle Änderungen außer neuen Dateien). Eine andere Session könnte weitergemacht haben (Review WP-04).
+  - Die geänderten Dateien sind noch genau die, die die Rückfrage gezeigt hat (`BoardService.DiscardedFilesAsync`, für Rückfrage und Tor dieselbe: alle Änderungen außer neuen Dateien – untracked oder gestaged und seitdem unverändert; eine neue Datei der Operation, die der Nutzer angepasst und wieder gestaged hat, steht darin, sobald sie im Index von der Version im hereinkommenden Commit abweicht). Eine andere Session könnte weitergemacht haben (Review WP-04).
+  - Neue Dateien, die der Nutzer während der Operation gestaged hat, werden vorher wieder untracked (`rm --cached`, `KeepNewFilesAsync`): git setzt beim Abbrechen jede gestagte Datei zurück und löschte sie sonst. Nicht die der Operation selbst (`AddedByAsync`: beim Merge, was die andere Seite seit der Merge-Basis neu anlegt; beim Cherry-Pick und Rebase-Schritt, was sein Commit anlegt; beim Revert, was sein Commit gelöscht hat). Kann git das nicht sagen (Root-Commit), werden alle gestagten neuen Dateien untracked – lieber eine übrig gebliebene als eine verlorene Datei (Review WP-07). `rm --cached -f`: ohne `-f` verweigert git eine Datei, die nach dem Stagen weiter bearbeitet wurde; mit `--cached` fasst es trotzdem nur den Index an (zweiter Review-Durchgang).
+  - Grenze (zweiter Review-Durchgang, bewusst so): Erkennt `AddedByAsync` eine neue Datei der Operation nicht als ihre – ein Lösch-Konflikt mit „ihrer Version“ gelöst, eine Datei, die merge-ort in einen umbenannten Ordner verschoben hat, ein Octopus-Merge (nur der erste Commit aus `MERGE_HEAD` zählt), ein Root-Commit –, bleibt sie nach dem Abbrechen als untracked Datei liegen. Verloren geht nichts, nur „Stand von vorher“ stimmt dann nicht ganz.
 
 Hält git nach einem Start, Fortsetzen oder Überspringen wieder an (der nächste Commit eines Rebase hat auch einen Konflikt), meldet die Zeile das mit `Operation_Stopped` und gits Meldung. Die Leiste zeigt den neuen Schritt.
 
@@ -68,10 +70,11 @@ Hält git nach einem Start, Fortsetzen oder Überspringen wieder an (der nächst
 - **Leiste** über den Änderungen der geöffneten Zeile, solange eine Operation läuft:
   - Was läuft und wo sie steht („Rebase von feature läuft – Commit 2 von 5: …“), dazu „noch n Konflikte“ bzw. „Alle Konflikte gelöst“.
   - Knöpfe „Fortsetzen“ (gesperrt mit Grund, `OperationTools.ContinueBlocker`), „Überspringen“ (nicht bei Merge) und „Abbrechen“.
-  - Abbrechen und Überspringen fragen nach (`ConfirmDialog`) und listen jede geänderte Datei, die zurückgehen kann. Das ist der ungünstigste Fall: Eine eigene Änderung an einer Datei, die die Operation nicht berührt, behält git (`merge --abort` ist `reset --merge`; E2E WP-07). Neue Dateien bleiben. Der Knopf zum Schließen heißt hier „Zurück“, denn „Abbrechen“ neben „Merge abbrechen“ läse sich wie dasselbe (E2E WP-07).
+  - Abbrechen und Überspringen fragen nach (`ConfirmDialog`) und listen jede geänderte Datei, die zurückgehen kann. Bei Merge, Cherry-Pick und Revert ist das der ungünstigste Fall: Eine eigene Änderung an einer Datei, die die Operation nicht berührt, behält git (`reset --merge`; E2E WP-07). Beim Rebase geht jede Änderung zurück (`reset --hard`), das sagt sein eigener Text (Review WP-07). Neue Dateien bleiben. Der Knopf zum Schließen heißt hier „Zurück“, denn „Abbrechen“ neben „Merge abbrechen“ läse sich wie dasselbe (E2E WP-07).
 - **Gruppe „Konflikte (n)“** über Gestagt und Nicht gestaged:
   - Je Datei die Art des Konflikts als Tooltip (wie `git status`: beide geändert, von uns gelöscht …), „Öffnen“ (VS Code mit Repo und Datei, dort auch der Merge-Editor) und „Gelöst“.
-  - Konfliktdateien haben kein Häkchen mehr. „Alle stagen“ und „Alle unstagen“ lassen sie aus, solange Konflikte offen sind. Unstagen setzte die Version aus HEAD in den Index, und „Fortsetzen“ ließe die andere Seite fallen.
+  - Konfliktdateien haben kein Häkchen mehr. „Alle stagen“ lässt sie aus, solange Konflikte offen sind. „Alle unstagen“ ist gesperrt, solange eine Operation läuft: Es setzte die Version aus HEAD in den Index, und „Fortsetzen“ committete einen Merge ohne die andere Seite – der Branch gälte als gemergt, seine Änderungen fehlten (Review WP-07). Einzelne Dateien lassen sich weiter unstagen.
+  - Kann git nicht prüfen, ob noch Marker drin sind, fragt „Gelöst“ ebenfalls nach (Review WP-07). Das gesperrte „Alle unstagen“ nennt den Grund im Tooltip.
 - **Commit-Box** gesperrt, solange eine Operation läuft, mit dem Hinweis „mit ‚Fortsetzen‘ abschließen“. Ein Commit mitten im Rebase wäre einer zu viel.
 - **Branch-Liste:** „Mergen“ und „Rebasen“ erscheinen beim Überfahren und bei Fokus (sonst wäre die Liste voller Knöpfe), gesperrt mit Grund (`OperationTools.MergeBlocker`). „Wechseln“ bleibt immer sichtbar.
 - Mergen und Rebasen fragen nicht nach: Sie laufen nur mit sauberem Worktree, und Abbrechen bringt den Stand von vorher zurück.
@@ -80,7 +83,7 @@ Hält git nach einem Start, Fortsetzen oder Überspringen wieder an (der nächst
 
 - Keine neue Bibliothek. Alle Befehle stehen in `GitClient`, alle Prüfungen im Tor.
 - ADR 0013 ist ergänzt: Revert und Cherry-Pick, die an einem Konflikt stehen bleiben, schließt man jetzt in der Zeile ab. Der leere Cherry-Pick nach einem Squash endet mit „Überspringen“.
-- `GIT_EDITOR=true` gilt für jeden Aufruf von RepoBoard, auch für Hooks, die git startet. Ein Hook, der selbst einen Editor öffnen will, bekommt keinen.
+- `GIT_EDITOR=:` gilt für jeden Aufruf von RepoBoard, auch für Hooks, die git startet. Ein Hook, der selbst einen Editor öffnen will, bekommt keinen.
 - Offen (Backlog):
   - `git mergetool`, „unsere/ihre Version“ und die Nachricht beim Fortsetzen bearbeiten.
   - Ein Diff der Konfliktdatei (combined diff).

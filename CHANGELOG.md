@@ -11,11 +11,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 
 ### Changed
 - A revert or cherry-pick that stops at a conflict is finished in the row now instead of the IDE or terminal; a cherry-pick that comes out empty (after a squash merge) ends with “Skip”.
-- While an operation is unfinished, the commit box is closed (“Continue” commits), and “Stage all” and “Unstage all” leave conflicted files alone.
+- While an operation is unfinished, the commit box is closed (“Continue” commits), “Stage all” leaves conflicted files alone and “Unstage all” waits until the operation is finished.
 
 ### Internal
 - git’s messages show as a terminal shows them: a progress line git rewrote (“Rebasing (1/2)”) no longer runs into the error after it.
-- `OperationInfo` reads an unfinished operation from the git folder, with a key per step that abort and skip check inside the gate (ADR 0014). git never opens an editor for RepoBoard (`GIT_EDITOR=true`); merge, rebase and continue run with a three-minute limit, enough for signing.
+- `OperationInfo` reads an unfinished operation from the git folder, with a key per step that abort and skip check inside the gate (ADR 0014). git never opens an editor for RepoBoard (`GIT_EDITOR=:`); merge, rebase and continue run with a three-minute limit, enough for signing.
 
 ## [0.4.0] - 2026-11-22
 
