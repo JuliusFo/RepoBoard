@@ -529,4 +529,7 @@
   <data name="Recycle_Cancelled" xml:space="preserve">
     <value>cancelled – nothing was deleted for good</value>
   </data>
+  <data name="StashApply_Conflicts" xml:space="preserve">
+    <value>resolve the conflicts first – git applies a stash entry only without conflicted files</value>
+  </data>
 </root>

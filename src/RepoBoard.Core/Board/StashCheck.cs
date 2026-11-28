@@ -43,6 +43,6 @@ public static class StashCheck
     /// <summary>What speaks against applying (or popping) a stash entry; git itself refuses to overwrite a local change.</summary>
     public static string? Apply(RepoStatus status, GitOperation? running) =>
         running is { } op ? TextFormat.Format(SyncText.Pick_Operation, PullCheck.Name(op))
-        : status.Conflicts > 0 ? SyncText.Stash_Conflicts
+        : status.Conflicts > 0 ? SyncText.StashApply_Conflicts // its own text: Stash_Conflicts speaks of creating one (E2E WP-06)
         : null;
 }

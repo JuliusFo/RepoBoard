@@ -196,7 +196,7 @@ public sealed class StashTests : IDisposable
         Assert.Single(repo.Details!.Stashes);
         // With the conflict open, applying again keeps out with a reason.
         Assert.False(await _board.ApplyStashAsync(repo, entry, pop: false, Ct));
-        Assert.Contains(SyncText.Stash_Conflicts, repo.Error, StringComparison.Ordinal);
+        Assert.Contains(SyncText.StashApply_Conflicts, repo.Error, StringComparison.Ordinal);
     }
 
     public void Dispose() => _git.Dispose();

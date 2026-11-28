@@ -454,4 +454,7 @@
   <data name="Recycle_Cancelled" xml:space="preserve">
     <value>abgebrochen – nichts wurde endgültig gelöscht</value>
   </data>
+  <data name="StashApply_Conflicts" xml:space="preserve">
+    <value>erst die Konflikte lösen – mit Konfliktdateien wendet git keinen Stash-Eintrag an</value>
+  </data>
 </root>
